@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (sa prikazom slike iz stupca "slika")
+    #  ADMINISTRACIJA → PROIZVODI (sa prikazom slike iz stupcu "slika")
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
