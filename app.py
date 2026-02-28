@@ -7,6 +7,7 @@ import time
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
+# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -490,7 +491,20 @@ else:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
-        # Checkbox "Označi sve za brisanje" – ispod upload sekcije
+        # ────────────────────────────────────────────────
+        #  CHECKBOX "OZNAČI SVE ZA BRISANJE" – ISPOD UPLOAD-A
+        # ────────────────────────────────────────────────
+
         if not df_proizvodi.empty:
             označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
-            # Nema automatskog označavanja – korisnik mora ručno označiti retke u tablici
+
+            # Ako je checkbox promijenjen, označi/poništi sve retke u tablici
+            if označi_sve:
+                for i in range(len(edited_df)):
+                    edited_df.at[i, "Odaberi za brisanje"] = True
+            else:
+                for i in range(len(edited_df)):
+                    edited_df.at[i, "Odaberi za brisanje"] = False
+
+            # Osvježi tablicu nakon promjene
+            st.rerun()
