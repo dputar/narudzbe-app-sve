@@ -13,19 +13,11 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 TZ = ZoneInfo("Europe/Zagreb")
 
-# ────────────────────────────────────────────────
-#  SESSION STATE
-# ────────────────────────────────────────────────
-
 if "narudzbe_proizvodi" not in st.session_state:
     st.session_state.narudzbe_proizvodi = []
 
 if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
-
-# ────────────────────────────────────────────────
-#  LOGIN – samo prijava
-# ────────────────────────────────────────────────
 
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
@@ -47,10 +39,6 @@ if st.session_state.stranica == "login":
             st.error(f"Greška pri prijavi: {str(e)}")
 
 else:
-    # ────────────────────────────────────────────────
-    #  SIDEBAR
-    # ────────────────────────────────────────────────
-
     with st.sidebar:
         st.title("Sustav narudžbi")
 
@@ -95,10 +83,6 @@ else:
             st.session_state.user = None
             st.session_state.stranica = "login"
             st.rerun()
-
-    # ────────────────────────────────────────────────
-    #  GLAVNI SADRŽAJ
-    # ────────────────────────────────────────────────
 
     if st.session_state.stranica == "početna":
         st.title("Početna")
@@ -349,7 +333,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (editabilna tablica + klikabilni linkovi za slike)
+    #  ADMINISTRACIJA → PROIZVODI (editabilna tablica + klikabilni link za sliku)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
