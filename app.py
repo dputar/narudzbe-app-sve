@@ -8,17 +8,13 @@ import io
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
-# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 TZ = ZoneInfo("Europe/Zagreb")
 
-# ────────────────────────────────────────────────
-#  SESSION STATE – čuva vrijednost pretrage
-# ────────────────────────────────────────────────
-
+# SESSION STATE
 if "narudzbe_proizvodi" not in st.session_state:
     st.session_state.narudzbe_proizvodi = []
 
@@ -28,10 +24,11 @@ if "stranica" not in st.session_state:
 if "proizvodi_search" not in st.session_state:
     st.session_state.proizvodi_search = ""
 
-# ────────────────────────────────────────────────
-#  LOGIN
-# ────────────────────────────────────────────────
+# CALLBACK ZA TRAŽILICU – ažurira search i odmah rerun
+def on_search_change():
+    st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
 
+# LOGIN
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
 
@@ -52,10 +49,7 @@ if st.session_state.stranica == "login":
             st.error(f"Greška pri prijavi: {str(e)}")
 
 else:
-    # ────────────────────────────────────────────────
-    #  SIDEBAR
-    # ────────────────────────────────────────────────
-
+    # SIDEBAR
     with st.sidebar:
         st.title("Sustav narudžbi")
 
@@ -101,10 +95,7 @@ else:
             st.session_state.stranica = "login"
             st.rerun()
 
-    # ────────────────────────────────────────────────
-    #  GLAVNI SADRŽAJ
-    # ────────────────────────────────────────────────
-
+    # POČETNA
     if st.session_state.stranica == "početna":
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
@@ -350,10 +341,7 @@ else:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
-    # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (tražilica radi dok tipkaš)
-    # ────────────────────────────────────────────────
-
+    # PROIZVODI – tražilica radi dok tipkaš
     elif st.session_state.stranica == "admin_proizvodi":
         st.title("Administracija - Proizvodi")
 
@@ -366,16 +354,15 @@ else:
         with col1:
             st.subheader("Postojeći proizvodi")
         with col2:
-            # Tražilica s callback-om koji ažurira session_state
             st.text_input(
                 "Pretraži po svim stupcima",
                 value=st.session_state.proizvodi_search,
                 key="proizvodi_search_input",
                 placeholder="upiši naziv, šifru, dobavljača...",
-                on_change=lambda: st.session_state.update({"proizvodi_search": st.session_state.proizvodi_search_input})
+                on_change=on_search_change
             )
 
-        # Filtriranje (odmah nakon promjene)
+        # Filtriranje
         df_display = df_full.copy()
         if st.session_state.proizvodi_search:
             search_term = str(st.session_state.proizvodi_search).strip().lower()
