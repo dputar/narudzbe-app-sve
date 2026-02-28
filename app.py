@@ -349,7 +349,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI
+    #  ADMINISTRACIJA → PROIZVODI (najnoviji na vrhu)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -462,32 +462,47 @@ else:
                     batch_size = 500
                     broj_dodanih = 0
                     broj_preskocenih = 0
+                    broj_već_postojecih = 0
 
-                    # Normalizacija imena stupaca (case-insensitive + strip razmaka)
-                    columns_lower = {col.lower().strip(): col for col in df_upload.columns}
+                    # Normalizacija imena stupaca (ignorira velika/mala slova i razmake)
+                    columns_lower = {col.strip().lower(): col for col in df_upload.columns}
 
-                    naziv_col = next((col for col in columns_lower if "naziv" in col), None)
-                    sifra_col = next((col for col in columns_lower if "šifra" in col or "sifra" in col), None)
-                    dobavljac_col = next((col for col in columns_lower if "dobavljač" in col or "dobavljac" in col), None)
-                    cijena_col = next((col for col in columns_lower if "cijena" in col or "cijena" in col), None)
-                    pakiranje_col = next((col for col in columns_lower if "pakiranje" in col), None)
-                    napomena_col = next((col for col in columns_lower if "napomena" in col), None)
-                    link_col = next((col for col in columns_lower if "link" in col), None)
-                    slika_col = next((col for col in columns_lower if "slika" in col), None)
+                    naziv_col = next((col for col in columns_lower if "naziv" in col.lower()), None)
+                    sifra_col = next((col for col in columns_lower if "šifr" in col.lower() or "sifr" in col.lower()), None)
+                    dobavljac_col = next((col for col in columns_lower if "dobavlja" in col.lower()), None)
+                    cijena_col = next((col for col in columns_lower if "cijena" in col.lower() or "cena" in col.lower()), None)
+                    pakiranje_col = next((col for col in columns_lower if "pakiranje" in col.lower()), None)
+                    napomena_col = next((col for col in columns_lower if "napomena" in col.lower()), None)
+                    link_col = next((col for col in columns_lower if "link" in col.lower()), None)
+                    slika_col = next((col for col in columns_lower if "slika" in col.lower()), None)
+
+                    st.write("Pronađeni stupci:")
+                    st.write(f"Naziv: {naziv_col}")
+                    st.write(f"Šifra: {sifra_col}")
+                    st.write(f"Dobavljač: {dobavljac_col}")
+                    st.write(f"Cijena: {cijena_col}")
+                    st.write(f"Pakiranje: {pakiranje_col}")
+                    st.write(f"Napomena: {napomena_col}")
+                    st.write(f"Link: {link_col}")
+                    st.write(f"Slika: {slika_col}")
+
+                    if not sifra_col:
+                        st.error("Nije pronađen stupac sa 'Šifra' ili 'Sifra' – provjeri Excel!")
+                        st.stop()
 
                     for i in range(0, len(df_upload), batch_size):
                         batch = df_upload.iloc[i:i + batch_size]
                         st.write(f"Učitavam batch {i//batch_size + 1} / {(len(df_upload) + batch_size - 1) // batch_size}...")
 
                         for _, row in batch.iterrows():
-                            sifra = str(row.get(sifra_col, "")).strip() if sifra_col else ""
+                            sifra = str(row.get(sifra_col, "")).strip()
                             if not sifra:
                                 broj_preskocenih += 1
                                 continue
 
                             postoji = supabase.table("proizvodi").select("id").eq("sifra", sifra).execute()
                             if postoji.data:
-                                broj_preskocenih += 1
+                                broj_već_postojecih += 1
                                 continue
 
                             cijena_raw = str(row.get(cijena_col, "0")).strip() if cijena_col else "0"
@@ -516,7 +531,7 @@ else:
 
                         st.rerun()  # osvježi nakon batcha
 
-                    st.success(f"Učitano {broj_dodanih} novih proizvoda. Preskočeno {broj_preskocenih} duplikata ili praznih šifara.")
+                    st.success(f"Učitano **{broj_dodanih}** novih proizvoda. Preskočeno **{broj_preskocenih}** praznih šifara + **{broj_već_postojecih}** duplikata šifre.")
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
