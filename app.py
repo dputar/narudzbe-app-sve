@@ -7,7 +7,6 @@ import time
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
-# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -382,8 +381,8 @@ else:
                     "napomena": st.column_config.TextColumn("Napomena"),
                     "link": st.column_config.TextColumn("Link"),
                     "slika": st.column_config.TextColumn("Slika"),
-                    "created_at": st.column_config.TextColumn("Kreirano", format="DD.MM.YYYY HH:mm:ss", timezone=TZ),
-                    "updated_at": st.column_config.TextColumn("Ažurirano", format="DD.MM.YYYY HH:mm:ss", timezone=TZ),
+                    "created_at": st.column_config.TextColumn("Kreirano"),
+                    "updated_at": st.column_config.TextColumn("Ažurirano"),
                     "Odaberi za brisanje": st.column_config.CheckboxColumn("Odaberi za brisanje"),
                 }
             )
