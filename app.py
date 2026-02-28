@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI
+    #  ADMINISTRACIJA → PROIZVODI (najnoviji na vrhu, upload bez ikakve provjere duplikata)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -418,7 +418,7 @@ else:
         st.subheader("Dodaj novi proizvod")
         with st.form("dodaj_proizvod"):
             naziv = st.text_input("Naziv proizvoda *", key="dodaj_naziv_proizvoda")
-            sifra = st.text_input("Šifra *", key="dodaj_sifra_proizvoda")
+            sifra = st.text_input("Šifra", key="dodaj_sifra_proizvoda")
             dobavljac = st.text_input("Dobavljač", key="dodaj_dobavljac_proizvoda")
             cijena = st.number_input("Cijena", min_value=0.0, step=0.01, format="%.2f", key="dodaj_cijena_proizvoda")
             pakiranje = st.text_input("Pakiranje", key="dodaj_pakiranje_proizvoda")
@@ -450,7 +450,7 @@ else:
                 else:
                     st.error("Naziv i šifra su obavezni!")
 
-        # Upload iz Excela – batch po 500, uvijek dodaje (bez provjere duplikata šifre)
+        # Upload iz Excela – batch po 500, uvijek dodaje sve što nije potpuno prazan red
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
@@ -495,7 +495,17 @@ else:
                         st.write(f"Učitavam batch {i//batch_size + 1} / {(len(df_upload) + batch_size - 1) // batch_size}...")
 
                         for _, row in batch.iterrows():
-                            sifra = str(row.get(sifra_col, "")).strip()
+                            # Provjera ima li barem jedan ne-prazan podatak u retku
+                            ima_podataka = False
+                            for col in [naziv_col, sifra_col, dobavljac_col, cijena_col, pakiranje_col, napomena_col, link_col, slika_col]:
+                                if col and pd.notna(row.get(col, pd.NA)) and str(row.get(col, "")).strip():
+                                    ima_podataka = True
+                                    break
+
+                            if not ima_podataka:
+                                broj_preskocenih += 1
+                                continue
+
                             cijena_raw = str(row.get(cijena_col, "0")).strip() if cijena_col else "0"
                             cijena_raw = cijena_raw.replace(',', '.')
                             try:
@@ -503,18 +513,9 @@ else:
                             except ValueError:
                                 cijena = 0
 
-                            # Provjera ima li barem jedan podatak u retku (osim praznih stupaca)
-                            ima_podataka = any(
-                                str(row.get(col, "")).strip() for col in [naziv_col, sifra_col, dobavljac_col, cijena_col, pakiranje_col, napomena_col, link_col, slika_col] if col
-                            )
-
-                            if not ima_podataka:
-                                broj_preskocenih += 1
-                                continue
-
                             novi = {
                                 "naziv": str(row.get(naziv_col, "")).strip() or "",
-                                "sifra": sifra,
+                                "sifra": str(row.get(sifra_col, "")).strip() or "",
                                 "dobavljac": str(row.get(dobavljac_col, "")) or "",
                                 "cijena": cijena,
                                 "pakiranje": str(row.get(pakiranje_col, "")) or "",
@@ -529,9 +530,9 @@ else:
                             supabase.table("proizvodi").insert(novi).execute()
                             broj_dodanih += 1
 
-                        time.sleep(0.5)  # mali delay da izbjegneš rate-limit
+                        time.sleep(0.3)  # mali delay da ne udari rate-limit
 
-                    st.success(f"Učitano **{broj_dodanih}** novih proizvoda. Preskočeno **{broj_preskocenih}** praznih ili besmislenih redaka.")
+                    st.success(f"Učitano **{broj_dodanih}** proizvoda. Preskočeno **{broj_preskocenih}** potpuno praznih redaka.")
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
