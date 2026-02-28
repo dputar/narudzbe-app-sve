@@ -7,6 +7,7 @@ import time
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
+# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -25,6 +26,10 @@ if "stranica" not in st.session_state:
 
 if "oznaci_sve_proizvodi" not in st.session_state:
     st.session_state.oznaci_sve_proizvodi = False
+
+# Callback funkcija za "Označi sve" checkbox
+def toggle_oznaci_sve():
+    st.session_state.oznaci_sve_proizvodi = not st.session_state.oznaci_sve_proizvodi
 
 # ────────────────────────────────────────────────
 #  LOGIN – samo prijava
@@ -367,6 +372,17 @@ else:
             # Dodaj checkbox stupac unutar tablice za brisanje pojedinačnih redaka
             df_proizvodi["Odaberi za brisanje"] = False
 
+            # Checkbox "Označi sve za brisanje" – ispod upload sekcije
+            označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
+
+            # Sinkronizacija označavanja (automatski označi/poništi sve retke)
+            if označi_sve:
+                for i in range(len(df_proizvodi)):
+                    df_proizvodi.at[i, "Odaberi za brisanje"] = True
+            else:
+                for i in range(len(df_proizvodi)):
+                    df_proizvodi.at[i, "Odaberi za brisanje"] = False
+
             edited_df = st.data_editor(
                 df_proizvodi,
                 num_rows="dynamic",
@@ -493,10 +509,7 @@ else:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
-        # ────────────────────────────────────────────────
-        #  CHECKBOX "OZNAČI SVE ZA BRISANJE" – ISPOD UPLOAD-A
-        # ────────────────────────────────────────────────
-
+        # Checkbox "Označi sve za brisanje" – ispod upload sekcije
         if not df_proizvodi.empty:
             označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
 
