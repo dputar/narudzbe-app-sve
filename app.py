@@ -73,7 +73,7 @@ with st.sidebar:
         st.rerun()
 
 # ────────────────────────────────────────────────
-#  GLAVNI SADRŽAJ – ovisno o stranici
+#  GLAVNI SADRŽAJ
 # ────────────────────────────────────────────────
 
 if st.session_state.stranica == "login":
@@ -103,18 +103,10 @@ if st.session_state.stranica == "login":
                 st.error(f"Greška: {e}")
 
 else:
-    # ────────────────────────────────────────────────
-    #  POČETNA
-    # ────────────────────────────────────────────────
-
     if st.session_state.stranica == "početna":
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
-
-    # ────────────────────────────────────────────────
-    #  PREGLED NARUDŽBI
-    # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
@@ -149,10 +141,6 @@ else:
             )
         else:
             st.info("Još nema narudžbi.")
-
-    # ────────────────────────────────────────────────
-    #  NOVA NARUDŽBA
-    # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "nova":
         col_naslov, col_natrag = st.columns([5, 1])
@@ -277,7 +265,8 @@ else:
                     "napomena": st.column_config.TextColumn("Napomena"),
                     "neuneseno1": st.column_config.TextColumn("Neuneseno 1"),
                     "neuneseno2": st.column_config.TextColumn("Neuneseno 2"),
-                    "created_at": st.column_config.DateTimeColumn("Kreirano", disabled=True),
+                    "created_at": st.column_config.DateTimeColumn("Kreirano"),
+                    "updated_at": st.column_config.DateTimeColumn("Ažurirano"),
                 }
             )
 
