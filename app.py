@@ -343,40 +343,60 @@ else:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
-    # PROIZVODI – tražilica radi dok tipkaš (bez izlaska iz polja)
+        # PROIZVODI – SERVER SIDE LIVE SEARCH (OPTIMIZIRANO)
     elif st.session_state.stranica == "admin_proizvodi":
         st.title("Administracija - Proizvodi")
 
-        # Uvijek dohvaćamo puni set iz baze
-        full_response = supabase.table("proizvodi").select("*").order("created_at", desc=True).execute()
-        df_full = pd.DataFrame(full_response.data or [])
-
-        # Naslov + tražilica
         col1, col2 = st.columns([6, 4])
         with col1:
             st.subheader("Postojeći proizvodi")
+
         with col2:
-            st.text_input(
-                "Pretraži po svim stupcima",
-                value=st.session_state.proizvodi_search,
-                key="proizvodi_search_input",
-                placeholder="upiši naziv, šifru, dobavljača...",
-                on_change=on_search_change
+            search_value = st.text_input(
+                "Pretraži (naziv, šifra, dobavljač)",
+                placeholder="upiši naziv, šifru ili dobavljača..."
             )
 
-        # Filtriranje
-        df_display = df_full.copy()
-        if st.session_state.proizvodi_search:
-            search_term = str(st.session_state.proizvodi_search).strip().lower()
-            mask = df_display.astype(str).apply(lambda x: x.str.lower().str.contains(search_term), axis=1).any(axis=1)
-            df_display = df_display[mask]
+        # -------------------------
+        # SERVER SIDE PRETRAGA
+        # -------------------------
+        try:
+            if search_value:
+                search_term = f"%{search_value.strip()}%"
+                response = (
+                    supabase.table("proizvodi")
+                    .select("*")
+                    .or_(
+                        f"naziv.ilike.{search_term},"
+                        f"sifra.ilike.{search_term},"
+                        f"dobavljac.ilike.{search_term}"
+                    )
+                    .order("created_at", desc=True)
+                    .limit(500)
+                    .execute()
+                )
+            else:
+                response = (
+                    supabase.table("proizvodi")
+                    .select("*")
+                    .order("created_at", desc=True)
+                    .limit(500)
+                    .execute()
+                )
 
-        if df_display.empty and st.session_state.proizvodi_search:
+            df_display = pd.DataFrame(response.data or [])
+
+        except Exception as e:
+            st.error(f"Greška pri dohvaćanju podataka: {str(e)}")
+            df_display = pd.DataFrame()
+
+        if df_display.empty and search_value:
             st.info("Ništa nije pronađeno po traženom pojmu.")
+            return
         elif df_display.empty:
             st.info("Još nema proizvoda u bazi.")
+            return
 
-        # Dodaj checkbox za brisanje pojedinačnih
         df_display["Odaberi za brisanje"] = False
 
         edited_df = st.data_editor(
@@ -400,139 +420,90 @@ else:
         )
 
         col1, col2 = st.columns(2)
+
+        # SPREMANJE / BRISANJE
         with col1:
             if st.button("💾 Spremi promjene", type="primary"):
-                for row in edited_df.to_dict("records"):
-                    row_id = row["id"]
-                    if row["Odaberi za brisanje"]:
-                        supabase.table("proizvodi").delete().eq("id", row_id).execute()
-                    else:
-                        update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje"]}
-                        supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
-                st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
-                st.rerun()
+                try:
+                    for row in edited_df.to_dict("records"):
+                        row_id = row["id"]
 
+                        if row["Odaberi za brisanje"]:
+                            supabase.table("proizvodi").delete().eq("id", row_id).execute()
+                        else:
+                            update_data = {
+                                k: v for k, v in row.items()
+                                if k != "Odaberi za brisanje"
+                            }
+                            supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
+
+                    st.success("Promjene spremljene!")
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"Greška pri spremanju: {str(e)}")
+
+        # EXPORT PRIKAZANIH PODATAKA
         with col2:
-            if st.button("Izvezi SVE podatke u Excel"):
-                if not df_full.empty:
-                    output = io.BytesIO()
-                    df_full.to_excel(output, index=False, sheet_name="Svi proizvodi")
-                    output.seek(0)
-                    st.download_button(
-                        label="Preuzmi cijelu bazu (.xlsx)",
-                        data=output,
-                        file_name=f"svi_proizvodi_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-                else:
-                    st.warning("Nema podataka za export.")
+            if st.button("Izvezi prikazane podatke u Excel"):
+                output = io.BytesIO()
+                df_display.to_excel(output, index=False)
+                output.seek(0)
 
+                st.download_button(
+                    label="Preuzmi (.xlsx)",
+                    data=output,
+                    file_name=f"proizvodi_export_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+
+        # -------------------------
+        # DODAJ NOVI PROIZVOD
+        # -------------------------
         st.subheader("Dodaj novi proizvod")
+
         with st.form("dodaj_proizvod"):
-            naziv = st.text_input("Naziv proizvoda *", key="dodaj_naziv_proizvoda")
-            sifra = st.text_input("Šifra *", key="dodaj_sifra_proizvoda")
-            dobavljac = st.text_input("Dobavljač", key="dodaj_dobavljac_proizvoda")
-            cijena = st.number_input("Cijena", min_value=0.0, step=0.01, format="%.2f", key="dodaj_cijena_proizvoda")
-            pakiranje = st.text_input("Pakiranje", key="dodaj_pakiranje_proizvoda")
-            napomena = st.text_area("Napomena", key="dodaj_napomena_proizvoda")
-            link = st.text_input("Link (URL slike)", key="dodaj_link_proizvoda")
-            slika = st.text_input("Slika (URL slike)", key="dodaj_slika_proizvoda")
+            naziv = st.text_input("Naziv proizvoda *")
+            sifra = st.text_input("Šifra *")
+            dobavljac = st.text_input("Dobavljač")
+            cijena = st.number_input("Cijena", min_value=0.0, step=0.01, format="%.2f")
+            pakiranje = st.text_input("Pakiranje")
+            napomena = st.text_area("Napomena")
+            link = st.text_input("Link (URL)")
+            slika = st.text_input("Slika (URL)")
 
             submitted = st.form_submit_button("Dodaj proizvod")
+
             if submitted:
-                novi = {
-                    "naziv": naziv or "",
-                    "sifra": sifra or "",
-                    "dobavljac": dobavljac or "",
-                    "cijena": cijena,
-                    "pakiranje": pakiranje or "",
-                    "napomena": napomena or "",
-                    "link": link or "",
-                    "slika": slika or ""
-                }
                 try:
+                    novi = {
+                        "naziv": naziv or "",
+                        "sifra": sifra or "",
+                        "dobavljac": dobavljac or "",
+                        "cijena": cijena,
+                        "pakiranje": pakiranje or "",
+                        "napomena": napomena or "",
+                        "link": link or "",
+                        "slika": slika or ""
+                    }
+
                     supabase.table("proizvodi").insert(novi).execute()
                     st.success("Proizvod dodan!")
                     st.rerun()
+
                 except Exception as e:
                     st.error(f"Greška pri dodavanju: {str(e)}")
-                    if "unique constraint" in str(e):
-                        st.error("Šifra već postoji u bazi – ali novi red je ipak dodan!")
-            if st.form_submit_button("Odustani", key="dodaj_odustani"):
-                st.rerun()
 
-        # UPLOAD IZ EXCELA
-        st.subheader("Upload proizvoda iz Excela")
-        uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
-        if uploaded_file:
-            try:
-                df_upload = pd.read_excel(uploaded_file)
-                st.write("Pregled podataka iz datoteke:")
-                st.dataframe(df_upload.head(10))
-
-                if st.button("Učitaj sve u bazu (batch po 500)", type="primary"):
-                    batch_size = 500
-                    broj_dodanih = 0
-                    broj_preskocenih = 0
-                    broj_duplikata = 0
-
-                    response = supabase.table("proizvodi").select("naziv").execute()
-                    postojeći_nazivi = {r["naziv"].strip().lower() for r in response.data if r["naziv"]}
-
-                    for i in range(0, len(df_upload), batch_size):
-                        batch = df_upload.iloc[i:i + batch_size]
-                        st.write(f"Učitavam batch {i//batch_size + 1} / {(len(df_upload) + batch_size - 1) // batch_size}...")
-
-                        for _, row in batch.iterrows():
-                            naziv = str(row.get("NAZIV", "")).strip()
-                            if not naziv:
-                                continue
-
-                            if naziv.lower() in postojeći_nazivi:
-                                broj_duplikata += 1
-                                continue
-
-                            cijena_raw = str(row.get("CIJENA", "0")).strip()
-                            cijena_raw = cijena_raw.replace(',', '.').replace(' ', '').replace('kn', '').replace('€', '').replace('HRK', '').strip()
-                            try:
-                                cijena = float(cijena_raw) if cijena_raw else 0
-                            except ValueError:
-                                cijena = 0
-
-                            novi = {
-                                "naziv": naziv,
-                                "sifra": str(row.get("ŠIFRA", "")).strip() or "",
-                                "dobavljac": str(row.get("DOBAVLJAČ", "")).strip() or "",
-                                "cijena": cijena,
-                                "pakiranje": str(row.get("PAKIRANJE", "")).strip() or "",
-                                "napomena": str(row.get("NAPOMENA", "")).strip() or "",
-                                "link": str(row.get("Link", "")).strip() or "",
-                                "slika": str(row.get("slika", "")).strip() or ""
-                            }
-
-                            for k in novi:
-                                if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
-                                    novi[k] = None
-
-                            supabase.table("proizvodi").insert(novi).execute()
-                            broj_dodanih += 1
-                            postojeći_nazivi.add(naziv.lower())
-
-                        time.sleep(0.3)
-
-                    st.success(f"Učitano **{broj_dodanih}** novih proizvoda. Preskočeno **{broj_duplikata}** duplikata po nazivu.")
-                    st.rerun()
-            except Exception as e:
-                st.error(f"Greška pri čitanju Excela: {e}")
-                st.error("Provjeri format datoteke.")
-
-        # GUMB ZA OBRIŠI SVE – DOLJE + POTVRDA
+        # -------------------------
+        # OBRIŠI SVE
+        # -------------------------
         st.markdown("---")
 
-        potvrdi_brisanje_svih = st.checkbox("Potvrdi brisanje svih proizvoda (nepovratno!)", key="potvrdi_obrisi_sve")
+        potvrdi = st.checkbox("Potvrdi brisanje svih proizvoda (nepovratno!)")
 
-        if potvrdi_brisanje_svih:
-            st.warning("Ovo će **obrisati SVE proizvode** iz baze. Nastavak je nepovratan.")
+        if potvrdi:
+            st.warning("Ovo će obrisati SVE proizvode iz baze.")
+
             if st.button("DA – Obriši sve proizvode", type="primary"):
                 try:
                     supabase.table("proizvodi").delete().gt("id", 0).execute()
@@ -540,5 +511,3 @@ else:
                     st.rerun()
                 except Exception as e:
                     st.error(f"Greška pri brisanju: {str(e)}")
-                    st.error("Ako ima RLS, privremeno ga isključi u Supabaseu.")
-            st.info("Ako se predomisliš, poništi checkbox iznad.")
