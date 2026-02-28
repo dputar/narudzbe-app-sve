@@ -24,6 +24,9 @@ if "narudzbe_proizvodi" not in st.session_state:
 if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
 
+if "oznaci_sve_proizvodi" not in st.session_state:
+    st.session_state.oznaci_sve_proizvodi = False
+
 # ────────────────────────────────────────────────
 #  LOGIN – samo prijava
 # ────────────────────────────────────────────────
@@ -391,13 +394,12 @@ else:
 
             označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
 
-            # Ako je checkbox označen, označi sve retke u tablici
-            if označi_sve:
+            # Ako je checkbox promijenjen, ažuriraj stanje retaka u tablici
+            if označi_sve != st.session_state.oznaci_sve_proizvodi:
+                st.session_state.oznaci_sve_proizvodi = označi_sve
                 for i in range(len(edited_df)):
-                    edited_df.at[i, "Odaberi za brisanje"] = True
-            else:
-                for i in range(len(edited_df)):
-                    edited_df.at[i, "Odaberi za brisanje"] = False
+                    edited_df.at[i, "Odaberi za brisanje"] = označi_sve
+                st.rerun()
 
             if st.button("💾 Spremi promjene", type="primary"):
                 for row in edited_df.to_dict("records"):
