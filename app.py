@@ -7,6 +7,7 @@ import time
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
+# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -362,10 +363,8 @@ else:
         if not df_proizvodi.empty:
             st.subheader("Postojeći proizvodi")
 
-            # Dodaj checkbox stupac za brisanje
             df_proizvodi["Odaberi za brisanje"] = False
 
-            # Dodaj "Označi sve" checkbox
             označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
             if označi_sve:
                 df_proizvodi["Odaberi za brisanje"] = True
@@ -446,12 +445,12 @@ else:
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
 
-        # Upload iz Excela – dodaje BAŠ SVE (bez provjere duplikata ili praznih šifara)
+        # Upload iz Excela – dodaje BAŠ SVE (bez ikakve provjere duplikata ili praznih šifara)
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
             try:
-                df_upload = pd.read_excel(uploaded_file)
+                df_upload = pd.read_excel(uploaded_file, dtype=str)  # čita sve kao string
                 st.write("Pregled podataka iz datoteke:")
                 st.dataframe(df_upload.head(10))
 
@@ -488,7 +487,7 @@ else:
 
                         for _, row in batch.iterrows():
                             cijena_raw = str(row.get(cijena_col, "0")).strip() if cijena_col else "0"
-                            cijena_raw = cijena_raw.replace(',', '.')
+                            cijena_raw = cijena_raw.replace(',', '.').replace(' ', '').replace('kn', '').replace('€', '').strip()
                             try:
                                 cijena = float(cijena_raw) if cijena_raw else 0
                             except ValueError:
