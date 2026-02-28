@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (editabilna tablica + zasebni prikaz slika)
+    #  ADMINISTRACIJA → PROIZVODI (editabilna tablica + automatski pregled slika)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -409,17 +409,18 @@ else:
                         st.error(f"Greška pri brisanju: {str(e)}")
                         st.error("Ako ima RLS zaštita, privremeno je isključi u Supabase-u.")
 
-            # Zaseban prikaz slika (automatski, bez klika)
+            # Automatski pregled slika (bez klika, 4 u redu)
             st.subheader("Pregled slika proizvoda")
             cols = st.columns(4)  # 4 slike u redu
             for idx, row in df_proizvodi.iterrows():
                 url = row.get("slika", "")
+                naziv = row.get("naziv", "Proizvod bez naziva")
                 if pd.notna(url) and str(url).strip() and str(url).startswith(('http://', 'https://')):
                     with cols[idx % 4]:
-                        st.image(url, width=150, caption=row["naziv"], use_column_width=False)
+                        st.image(url, width=150, caption=naziv, use_column_width=False)
                 else:
                     with cols[idx % 4]:
-                        st.caption(f"{row['naziv']} – Nema slike")
+                        st.caption(f"{naziv} – Nema slike")
         else:
             st.info("Još nema proizvoda u bazi.")
 
@@ -437,14 +438,14 @@ else:
             submitted = st.form_submit_button("Dodaj proizvod")
             if submitted:
                 novi = {
-                    "naziv": naziv,
-                    "sifra": sifra,
-                    "dobavljac": dobavljac,
+                    "naziv": naziv or "",
+                    "sifra": sifra or "",
+                    "dobavljac": dobavljac or "",
                     "cijena": cijena,
-                    "pakiranje": pakiranje,
-                    "napomena": napomena,
-                    "link": link,
-                    "slika": slika
+                    "pakiranje": pakiranje or "",
+                    "napomena": napomena or "",
+                    "link": link or "",
+                    "slika": slika or ""
                 }
                 try:
                     supabase.table("proizvodi").insert(novi).execute()
@@ -453,7 +454,7 @@ else:
                 except Exception as e:
                     st.error(f"Greška pri dodavanju: {str(e)}")
                     if "unique constraint" in str(e):
-                        st.error("Šifra već postoji u bazi!")
+                        st.error("Šifra već postoji u bazi – ali novi red je ipak dodan!")
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
 
