@@ -368,7 +368,7 @@ else:
             if označi_sve:
                 df_proizvodi["Odaberi za brisanje"] = True
 
-            # Virtualni stupac za prikaz slike
+            # Virtualni stupac za prikaz slike (Streamlit ImageColumn)
             def prikazi_sliku(url):
                 if pd.isna(url) or not str(url).strip() or not str(url).startswith(('http://', 'https://')):
                     return None
@@ -402,12 +402,13 @@ else:
 
             if st.button("💾 Spremi promjene", type="primary"):
                 for row in edited_df.to_dict("records"):
-                    row_id = int(row["id"]) if row["id"] else None
-                    if row["Odaberi za brisanje"] and row_id:
+                    row_id = row["id"]
+                    if row["Odaberi za brisanje"]:
                         supabase.table("proizvodi").delete().eq("id", row_id).execute()
-                    elif row_id:
-                        # Ažuriraj samo ako ima id (izbjegni insert praznih)
-                        supabase.table("proizvodi").update(row).eq("id", row_id).execute()
+                    else:
+                        # Ažuriraj samo promijenjene podatke
+                        update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje", "Slika prikaz"]}
+                        supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
                 st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
                 st.rerun()
 
