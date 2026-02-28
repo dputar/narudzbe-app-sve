@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (učitava BAŠ SVE iz Excela)
+    #  ADMINISTRACIJA → PROIZVODI
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -445,12 +445,13 @@ else:
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
 
-        # Upload iz Excela – dodaje BAŠ SVE (bez ikakve provjere duplikata ili praznih šifara)
+        # Upload iz Excela – dodaje BAŠ SVE, ispravno parsira cijene
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
             try:
-                df_upload = pd.read_excel(uploaded_file, dtype=str)  # čita sve kao string
+                # Čita sve kao string da izbjegne Excel formatiranje
+                df_upload = pd.read_excel(uploaded_file, dtype=str)
                 st.write("Pregled podataka iz datoteke:")
                 st.dataframe(df_upload.head(10))
 
@@ -487,7 +488,7 @@ else:
 
                         for _, row in batch.iterrows():
                             cijena_raw = str(row.get(cijena_col, "0")).strip() if cijena_col else "0"
-                            cijena_raw = cijena_raw.replace(',', '.').replace(' ', '').replace('kn', '').replace('€', '').strip()
+                            cijena_raw = cijena_raw.replace(',', '.').replace(' ', '').replace('kn', '').replace('€', '').replace('HRK', '').strip()
                             try:
                                 cijena = float(cijena_raw) if cijena_raw else 0
                             except ValueError:
@@ -510,9 +511,10 @@ else:
                             supabase.table("proizvodi").insert(novi).execute()
                             broj_dodanih += 1
 
-                        time.sleep(0.3)  # mali delay
+                        time.sleep(0.3)  # mali delay da izbjegneš rate-limit
 
                     st.success(f"Učitano **{broj_dodanih}** proizvoda. Preskočeno **{broj_preskocenih}** potpuno praznih redaka.")
+                    st.rerun()  # OSVJEŽI TABLICU ODMAH nakon upload-a
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
