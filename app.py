@@ -383,8 +383,8 @@ else:
                     "napomena": st.column_config.TextColumn("Napomena"),
                     "link": st.column_config.TextColumn("Link"),
                     "slika": st.column_config.TextColumn("Slika"),
-                    "created_at": st.column_config.TextColumn("Kreirano"),
-                    "updated_at": st.column_config.TextColumn("Ažurirano"),
+                    "created_at": st.column_config.TextColumn("Kreirano", format="DD.MM.YYYY HH:mm:ss", timezone=TZ),
+                    "updated_at": st.column_config.TextColumn("Ažurirano", format="DD.MM.YYYY HH:mm:ss", timezone=TZ),
                     "Odaberi za brisanje": st.column_config.CheckboxColumn("Odaberi za brisanje"),
                 }
             )
@@ -511,7 +511,7 @@ else:
                             supabase.table("proizvodi").insert(novi).execute()
                             broj_dodanih += 1
 
-                        time.sleep(0.3)  # mali delay da izbjegneš rate-limit
+                        time.sleep(0.3)  # mali delay
 
                     st.success(f"Učitano **{broj_dodanih}** proizvoda. Preskočeno **{broj_preskocenih}** potpuno praznih redaka.")
                     st.rerun()  # OSVJEŽI TABLICU ODMAH nakon upload-a
