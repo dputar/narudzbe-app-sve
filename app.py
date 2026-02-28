@@ -24,10 +24,6 @@ if "narudzbe_proizvodi" not in st.session_state:
 if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
 
-# Inicijalizacija stanja za "Označi sve"
-if "oznaci_sve_proizvodi" not in st.session_state:
-    st.session_state.oznaci_sve_proizvodi = False
-
 # ────────────────────────────────────────────────
 #  LOGIN – samo prijava
 # ────────────────────────────────────────────────
