@@ -8,7 +8,6 @@ import io
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
-# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -28,8 +27,12 @@ if "stranica" not in st.session_state:
 if "proizvodi_search" not in st.session_state:
     st.session_state.proizvodi_search = ""
 
-if "proizvodi_search_timestamp" not in st.session_state:
-    st.session_state.proizvodi_search_timestamp = 0
+# ────────────────────────────────────────────────
+#  CALLBACK ZA TRAŽILICU (da se rerun dogodi na promjenu)
+# ────────────────────────────────────────────────
+
+def update_proizvodi_search():
+    st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
 
 # ────────────────────────────────────────────────
 #  LOGIN
@@ -354,7 +357,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (s automatskom tražilicom bez Entera)
+    #  ADMINISTRACIJA → PROIZVODI (tražilica radi bez Entera)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -364,85 +367,81 @@ else:
         full_response = supabase.table("proizvodi").select("*").order("created_at", desc=True).execute()
         df_full = pd.DataFrame(full_response.data or [])
 
-        # Naslov + tražilica pored
+        # Naslov + tražilica
         col1, col2 = st.columns([6, 4])
         with col1:
             st.subheader("Postojeći proizvodi")
         with col2:
-            # Koristimo callback da se rerun dogodi na promjenu
-            def update_search():
-                st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
-                st.session_state.proizvodi_last_search_time = time.time()
-
-            search_input = st.text_input("Pretraži po svim stupcima", value=st.session_state.proizvodi_search, key="proizvodi_search_input", placeholder="upiši naziv, šifru, dobavljača...", on_change=update_search)
-
-        # Debounce logika – osvježavamo samo nakon 0.5 s pauze
-        current_time = time.time()
-        if current_time - st.session_state.proizvodi_last_search_time >= 0.5:
-            df_display = df_full.copy()
-            if st.session_state.proizvodi_search:
-                search_term = str(st.session_state.proizvodi_search).strip().lower()
-                mask = df_display.astype(str).apply(lambda x: x.str.lower().str.contains(search_term), axis=1).any(axis=1)
-                df_display = df_display[mask]
-
-            if df_display.empty and st.session_state.proizvodi_search:
-                st.info("Ništa nije pronađeno po traženom pojmu.")
-            elif df_display.empty:
-                st.info("Još nema proizvoda u bazi.")
-
-            # Dodaj checkbox za brisanje pojedinačnih
-            df_display["Odaberi za brisanje"] = False
-
-            edited_df = st.data_editor(
-                df_display,
-                num_rows="dynamic",
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "naziv": st.column_config.TextColumn("Naziv proizvoda", required=True),
-                    "sifra": st.column_config.TextColumn("Šifra", required=True),
-                    "dobavljac": st.column_config.TextColumn("Dobavljač"),
-                    "cijena": st.column_config.NumberColumn("Cijena", min_value=0, format="%.2f"),
-                    "pakiranje": st.column_config.TextColumn("Pakiranje"),
-                    "napomena": st.column_config.TextColumn("Napomena"),
-                    "link": st.column_config.TextColumn("Link"),
-                    "slika": st.column_config.TextColumn("Slika (URL)"),
-                    "created_at": st.column_config.TextColumn("Kreirano"),
-                    "updated_at": st.column_config.TextColumn("Ažurirano"),
-                    "Odaberi za brisanje": st.column_config.CheckboxColumn("Obriši"),
-                }
+            search_input = st.text_input(
+                "Pretraži po svim stupcima",
+                value=st.session_state.proizvodi_search,
+                key="proizvodi_search_input",
+                placeholder="upiši naziv, šifru, dobavljača...",
+                on_change=lambda: st.session_state.update({"proizvodi_search": st.session_state.proizvodi_search_input})
             )
 
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("💾 Spremi promjene", type="primary"):
-                    for row in edited_df.to_dict("records"):
-                        row_id = row["id"]
-                        if row["Odaberi za brisanje"]:
-                            supabase.table("proizvodi").delete().eq("id", row_id).execute()
-                        else:
-                            update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje"]}
-                            supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
-                    st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
-                    st.rerun()
+        # Filtriranje
+        df_display = df_full.copy()
+        if st.session_state.proizvodi_search:
+            search_term = str(st.session_state.proizvodi_search).strip().lower()
+            mask = df_display.astype(str).apply(lambda x: x.str.lower().str.contains(search_term), axis=1).any(axis=1)
+            df_display = df_display[mask]
 
-            with col2:
-                if st.button("Izvezi SVE podatke u Excel"):
-                    if not df_full.empty:
-                        output = io.BytesIO()
-                        df_full.to_excel(output, index=False, sheet_name="Svi proizvodi")
-                        output.seek(0)
-                        st.download_button(
-                            label="Preuzmi cijelu bazu (.xlsx)",
-                            data=output,
-                            file_name=f"svi_proizvodi_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        )
+        if df_display.empty and st.session_state.proizvodi_search:
+            st.info("Ništa nije pronađeno po traženom pojmu.")
+        elif df_display.empty:
+            st.info("Još nema proizvoda u bazi.")
+
+        # Dodaj checkbox za brisanje pojedinačnih
+        df_display["Odaberi za brisanje"] = False
+
+        edited_df = st.data_editor(
+            df_display,
+            num_rows="dynamic",
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "naziv": st.column_config.TextColumn("Naziv proizvoda", required=True),
+                "sifra": st.column_config.TextColumn("Šifra", required=True),
+                "dobavljac": st.column_config.TextColumn("Dobavljač"),
+                "cijena": st.column_config.NumberColumn("Cijena", min_value=0, format="%.2f"),
+                "pakiranje": st.column_config.TextColumn("Pakiranje"),
+                "napomena": st.column_config.TextColumn("Napomena"),
+                "link": st.column_config.TextColumn("Link"),
+                "slika": st.column_config.TextColumn("Slika (URL)"),
+                "created_at": st.column_config.TextColumn("Kreirano"),
+                "updated_at": st.column_config.TextColumn("Ažurirano"),
+                "Odaberi za brisanje": st.column_config.CheckboxColumn("Obriši"),
+            }
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💾 Spremi promjene", type="primary"):
+                for row in edited_df.to_dict("records"):
+                    row_id = row["id"]
+                    if row["Odaberi za brisanje"]:
+                        supabase.table("proizvodi").delete().eq("id", row_id).execute()
                     else:
-                        st.warning("Nema podataka za export.")
+                        update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje"]}
+                        supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
+                st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
+                st.rerun()
 
-        else:
-            st.info("Tražilica u tijeku... (čekam 0.5 sekunde nakon tipkanja)")
+        with col2:
+            if st.button("Izvezi SVE podatke u Excel"):
+                if not df_full.empty:
+                    output = io.BytesIO()
+                    df_full.to_excel(output, index=False, sheet_name="Svi proizvodi")
+                    output.seek(0)
+                    st.download_button(
+                        label="Preuzmi cijelu bazu (.xlsx)",
+                        data=output,
+                        file_name=f"svi_proizvodi_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                else:
+                    st.warning("Nema podataka za export.")
 
         st.subheader("Dodaj novi proizvod")
         with st.form("dodaj_proizvod"):
