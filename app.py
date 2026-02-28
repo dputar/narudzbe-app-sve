@@ -33,7 +33,7 @@ if "proizvodi_search" not in st.session_state:
 
 def on_search_change():
     st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
-    st.rerun()
+    st.rerun()  # Ovo triggera osvježavanje na svaku promjenu
 
 # ────────────────────────────────────────────────
 #  LOGIN
