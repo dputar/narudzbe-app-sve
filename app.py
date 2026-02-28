@@ -333,7 +333,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (editabilna tablica + automatski pregled slika)
+    #  ADMINISTRACIJA → PROIZVODI (editabilna tablica + klikabilni linkovi za slike)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -351,6 +351,15 @@ else:
             if označi_sve:
                 df_proizvodi["Odaberi za brisanje"] = True
 
+            # Klikabilni link za sliku
+            def prikazi_link_za_sliku(url):
+                if pd.isna(url) or not str(url).strip() or not str(url).startswith(('http://', 'https://')):
+                    return "Nema slike"
+                url = str(url).strip()
+                return f'[Pogledaj sliku]({url})'
+
+            df_proizvodi["Slika link"] = df_proizvodi["slika"].apply(prikazi_link_za_sliku)
+
             edited_df = st.data_editor(
                 df_proizvodi,
                 num_rows="dynamic",
@@ -364,7 +373,7 @@ else:
                     "pakiranje": st.column_config.TextColumn("Pakiranje"),
                     "napomena": st.column_config.TextColumn("Napomena"),
                     "link": st.column_config.TextColumn("Link"),
-                    "slika": st.column_config.TextColumn("Slika (URL)"),
+                    "Slika link": st.column_config.LinkColumn("Slika", display_text="Pogledaj sliku", help="Klikni za prikaz slike u novom tabu"),
                     "created_at": st.column_config.TextColumn("Kreirano"),
                     "updated_at": st.column_config.TextColumn("Ažurirano"),
                     "Odaberi za brisanje": st.column_config.CheckboxColumn("Odaberi za brisanje"),
@@ -377,7 +386,7 @@ else:
                     if row["Odaberi za brisanje"]:
                         supabase.table("proizvodi").delete().eq("id", row_id).execute()
                     else:
-                        update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje"]}
+                        update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje", "Slika link"]}
                         supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
                 st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
                 st.rerun()
@@ -391,19 +400,6 @@ else:
                     except Exception as e:
                         st.error(f"Greška pri brisanju: {str(e)}")
                         st.error("Ako ima RLS zaštita, privremeno je isključi u Supabase-u.")
-
-            # Automatski pregled slika (bez klika, 4 u redu)
-            st.subheader("Pregled slika proizvoda")
-            cols = st.columns(4)  # 4 slike u redu
-            for idx, row in df_proizvodi.iterrows():
-                url = row.get("slika", "")
-                naziv = row.get("naziv", "Proizvod bez naziva")
-                if pd.notna(url) and str(url).strip() and str(url).startswith(('http://', 'https://')):
-                    with cols[idx % 4]:
-                        st.image(url, width=150, caption=naziv, use_column_width=False)
-                else:
-                    with cols[idx % 4]:
-                        st.caption(f"{naziv} – Nema slike")
         else:
             st.info("Još nema proizvoda u bazi.")
 
