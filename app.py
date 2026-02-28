@@ -8,6 +8,7 @@ import io
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
+# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -28,11 +29,12 @@ if "proizvodi_search" not in st.session_state:
     st.session_state.proizvodi_search = ""
 
 # ────────────────────────────────────────────────
-#  CALLBACK ZA TRAŽILICU (da se rerun dogodi na promjenu)
+#  CALLBACK ZA TRAŽILICU – ažurira search i odmah rerun
 # ────────────────────────────────────────────────
 
-def update_proizvodi_search():
+def on_search_change():
     st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
+    st.rerun()  # Ovo triggera osvježavanje na svaku promjenu
 
 # ────────────────────────────────────────────────
 #  LOGIN
@@ -357,7 +359,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (tražilica radi bez Entera)
+    #  ADMINISTRACIJA → PROIZVODI (tražilica radi dok tipkaš)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -377,10 +379,10 @@ else:
                 value=st.session_state.proizvodi_search,
                 key="proizvodi_search_input",
                 placeholder="upiši naziv, šifru, dobavljača...",
-                on_change=lambda: st.session_state.update({"proizvodi_search": st.session_state.proizvodi_search_input})
+                on_change=on_search_change  # OVO JE KLJUČNO – rerun na svaku promjenu!
             )
 
-        # Filtriranje
+        # Filtriranje (odmah nakon promjene)
         df_display = df_full.copy()
         if st.session_state.proizvodi_search:
             search_term = str(st.session_state.proizvodi_search).strip().lower()
