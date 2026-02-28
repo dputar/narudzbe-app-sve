@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (sa prikazom slike)
+    #  ADMINISTRACIJA → PROIZVODI (sa prikazom slike iz stupca "slika")
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -398,7 +398,7 @@ else:
                     if row["Odaberi za brisanje"]:
                         supabase.table("proizvodi").delete().eq("id", row_id).execute()
                     else:
-                        # Ažuriraj samo promijenjene podatke
+                        # Ažuriraj samo promijenjene podatke (bez virtualnog stupca)
                         update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje"]}
                         supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
                 st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
