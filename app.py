@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (najnoviji na vrhu, upload bez ikakve provjere duplikata)
+    #  ADMINISTRACIJA → PROIZVODI (učitava baš sve iz Excela, bez ikakve provjere duplikata)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -450,7 +450,7 @@ else:
                 else:
                     st.error("Naziv i šifra su obavezni!")
 
-        # Upload iz Excela – batch po 500, uvijek dodaje sve što nije potpuno prazan red
+        # Upload iz Excela – batch po 500, dodaje BAŠ SVE (bez ikakve provjere duplikata ili praznih šifara)
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
@@ -486,23 +486,14 @@ else:
                     st.write(f"Link: {link_col}")
                     st.write(f"Slika: {slika_col}")
 
-                    if not sifra_col:
-                        st.error("Nije pronađen stupac sa 'Šifra' ili 'Sifra' – provjeri Excel!")
-                        st.stop()
-
                     for i in range(0, len(df_upload), batch_size):
                         batch = df_upload.iloc[i:i + batch_size]
                         st.write(f"Učitavam batch {i//batch_size + 1} / {(len(df_upload) + batch_size - 1) // batch_size}...")
 
                         for _, row in batch.iterrows():
-                            # Provjera ima li barem jedan ne-prazan podatak u retku
-                            ima_podataka = False
-                            for col in [naziv_col, sifra_col, dobavljac_col, cijena_col, pakiranje_col, napomena_col, link_col, slika_col]:
-                                if col and pd.notna(row.get(col, pd.NA)) and str(row.get(col, "")).strip():
-                                    ima_podataka = True
-                                    break
-
-                            if not ima_podataka:
+                            # Provjera je li red potpuno prazan (svi stupci nan ili prazan string)
+                            row_values = [str(row.get(col, "")).strip() for col in df_upload.columns if pd.notna(row.get(col, pd.NA))]
+                            if not any(row_values):
                                 broj_preskocenih += 1
                                 continue
 
@@ -530,7 +521,7 @@ else:
                             supabase.table("proizvodi").insert(novi).execute()
                             broj_dodanih += 1
 
-                        time.sleep(0.3)  # mali delay da ne udari rate-limit
+                        time.sleep(0.3)  # mali delay da izbjegneš rate-limit
 
                     st.success(f"Učitano **{broj_dodanih}** proizvoda. Preskočeno **{broj_preskocenih}** potpuno praznih redaka.")
             except Exception as e:
