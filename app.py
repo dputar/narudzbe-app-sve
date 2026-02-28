@@ -8,16 +8,14 @@ import io
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
+# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 TZ = ZoneInfo("Europe/Zagreb")
 
-# ────────────────────────────────────────────────
-#  SESSION STATE
-# ────────────────────────────────────────────────
-
+# SESSION STATE
 if "narudzbe_proizvodi" not in st.session_state:
     st.session_state.narudzbe_proizvodi = []
 
@@ -30,10 +28,7 @@ if "proizvodi_search" not in st.session_state:
 if "proizvodi_last_search_time" not in st.session_state:
     st.session_state.proizvodi_last_search_time = 0
 
-# ────────────────────────────────────────────────
-#  LOGIN
-# ────────────────────────────────────────────────
-
+# LOGIN
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
 
@@ -54,10 +49,7 @@ if st.session_state.stranica == "login":
             st.error(f"Greška pri prijavi: {str(e)}")
 
 else:
-    # ────────────────────────────────────────────────
-    #  SIDEBAR
-    # ────────────────────────────────────────────────
-
+    # SIDEBAR
     with st.sidebar:
         st.title("Sustav narudžbi")
 
@@ -103,15 +95,13 @@ else:
             st.session_state.stranica = "login"
             st.rerun()
 
-    # ────────────────────────────────────────────────
-    #  GLAVNI SADRŽAJ
-    # ────────────────────────────────────────────────
-
+    # POČETNA
     if st.session_state.stranica == "početna":
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
 
+    # NARUDŽBE
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
 
@@ -150,6 +140,7 @@ else:
         else:
             st.info("Još nema narudžbi.")
 
+    # NOVA NARUDŽBA
     elif st.session_state.stranica == "nova":
         col_naslov, col_natrag = st.columns([5, 1])
         with col_naslov:
@@ -247,10 +238,112 @@ else:
                         st.session_state.show_dodaj_proizvod = False
                         st.rerun()
 
-    # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (s debounce tražilicom i exportom svih)
-    # ────────────────────────────────────────────────
+    # DOBAVLJAČI
+    elif st.session_state.stranica == "admin_dobavljaci":
+        st.title("Administracija - Dobavljači")
 
+        response = supabase.table("dobavljaci").select("*").execute()
+        df_dobavljaci = pd.DataFrame(response.data or [])
+
+        if not df_dobavljaci.empty:
+            df_dobavljaci = df_dobavljaci.sort_values(
+                by="naziv_dobavljaca",
+                key=lambda x: x.str.lower() if x.dtype == "object" else x,
+                ascending=True,
+                na_position="last"
+            ).reset_index(drop=True)
+
+            st.subheader("Postojeći dobavljači")
+            edited_df = st.data_editor(
+                df_dobavljaci,
+                num_rows="dynamic",
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "naziv_dobavljaca": st.column_config.TextColumn("Naziv dobavljača", required=True),
+                    "email": st.column_config.TextColumn("Email"),
+                    "rok_isporuke": st.column_config.TextColumn("Rok isporuke"),
+                    "telefonski_broj": st.column_config.TextColumn("Telefonski broj"),
+                    "napomena": st.column_config.TextColumn("Napomena"),
+                    "neuneseno1": st.column_config.TextColumn("Neuneseno 1"),
+                    "neuneseno2": st.column_config.TextColumn("Neuneseno 2"),
+                    "created_at": st.column_config.TextColumn("Kreirano"),
+                    "updated_at": st.column_config.TextColumn("Ažurirano"),
+                }
+            )
+
+            if st.button("💾 Spremi promjene", type="primary"):
+                for row in edited_df.to_dict("records"):
+                    supabase.table("dobavljaci").upsert(row, on_conflict="id").execute()
+                st.success("Promjene spremljene!")
+                st.rerun()
+        else:
+            st.info("Još nema dobavljača u bazi.")
+
+        st.subheader("Dodaj novog dobavljača")
+        with st.form("dodaj_dobavljaca"):
+            naziv = st.text_input("Naziv dobavljača *", key="dodaj_naziv_dobavljaca")
+            email = st.text_input("Email", key="dodaj_email_dobavljaca")
+            rok = st.text_input("Rok isporuke", key="dodaj_rok_dobavljaca")
+            telefon = st.text_input("Telefonski broj", key="dodaj_telefon_dobavljaca")
+            napomena = st.text_area("Napomena", key="dodaj_napomena_dobavljaca")
+            neuneseno1 = st.text_input("Neuneseno 1", key="dodaj_neuneseno1")
+            neuneseno2 = st.text_input("Neuneseno 2", key="dodaj_neuneseno2")
+
+            submitted = st.form_submit_button("Dodaj dobavljača")
+            if submitted:
+                if naziv:
+                    novi = {
+                        "naziv_dobavljaca": naziv,
+                        "email": email,
+                        "rok_isporuke": rok,
+                        "telefonski_broj": telefon,
+                        "napomena": napomena,
+                        "neuneseno1": neuneseno1,
+                        "neuneseno2": neuneseno2
+                    }
+                    supabase.table("dobavljaci").insert(novi).execute()
+                    st.success("Dobavljač dodan!")
+                    st.rerun()
+                else:
+                    st.error("Naziv dobavljača je obavezan!")
+
+        st.subheader("Upload dobavljača iz Excela")
+        uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_dobavljaci")
+        if uploaded_file:
+            try:
+                df_upload = pd.read_excel(uploaded_file)
+                st.write("Pregled podataka iz datoteke:")
+                st.dataframe(df_upload.head(10))
+
+                if st.button("Učitaj sve u bazu", type="primary"):
+                    broj_dodanih = 0
+                    broj_preskocenih = 0
+
+                    for _, row in df_upload.iterrows():
+                        novi = {
+                            "naziv_dobavljaca": str(row.get("Naziv dobavljača", "")) or "",
+                            "email": str(row.get("Email", "")) or "",
+                            "rok_isporuke": str(row.get("Rok isporuke", "")) or "",
+                            "telefonski_broj": str(row.get("Telefonski broj", "")) or "",
+                            "napomena": str(row.get("Napomena", "")) or "",
+                            "neuneseno1": "",
+                            "neuneseno2": ""
+                        }
+                        for k in novi:
+                            if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
+                                novi[k] = None
+
+                        supabase.table("dobavljaci").insert(novi).execute()
+                        broj_dodanih += 1
+
+                    st.success(f"Učitano {broj_dodanih} novih dobavljača.")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Greška pri čitanju Excela: {e}")
+                st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
+
+    # PROIZVODI – s debounce tražilicom i exportom svih
     elif st.session_state.stranica == "admin_proizvodi":
         st.title("Administracija - Proizvodi")
 
@@ -372,10 +465,7 @@ else:
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
 
-        # ────────────────────────────────────────────────
-        #  UPLOAD IZ EXCELA
-        # ────────────────────────────────────────────────
-
+        # UPLOAD IZ EXCELA
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
@@ -440,10 +530,7 @@ else:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri format datoteke.")
 
-        # ────────────────────────────────────────────────
-        #  GUMB ZA OBRIŠI SVE – DOLJE + POTVRDA
-        # ────────────────────────────────────────────────
-
+        # GUMB ZA OBRIŠI SVE – DOLJE + POTVRDA
         st.markdown("---")
 
         potvrdi_brisanje_svih = st.checkbox("Potvrdi brisanje svih proizvoda (nepovratno!)", key="potvrdi_obrisi_sve")
