@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
+# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -239,7 +240,7 @@ else:
                         st.rerun()
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → DOBAVLJAČI – popravljeno
+    #  ADMINISTRACIJA → DOBAVLJAČI
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_dobavljaci":
@@ -250,6 +251,14 @@ else:
         df_dobavljaci = pd.DataFrame(response.data or [])
 
         if not df_dobavljaci.empty:
+            # Sortiraj po nazivu dobavljača (A-Z), neosjetljivo na velika/mala slova
+            df_dobavljaci = df_dobavljaci.sort_values(
+                by="naziv_dobavljaca",
+                key=lambda x: x.str.lower() if x.dtype == "object" else x,
+                ascending=True,
+                na_position="last"
+            ).reset_index(drop=True)
+
             st.subheader("Postojeći dobavljači")
             edited_df = st.data_editor(
                 df_dobavljaci,
@@ -337,3 +346,38 @@ else:
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
+
+    # ────────────────────────────────────────────────
+    #  SPREMI NARUDŽBU (iz prethodnog dijela)
+    # ────────────────────────────────────────────────
+
+    if st.session_state.stranica == "nova" and st.session_state.narudzbe_proizvodi:
+        col1, col2 = st.columns(2)
+        if col1.button("Odustani", type="secondary"):
+            st.session_state.narudzbe_proizvodi = []
+            st.session_state.stranica = "narudžbe"
+            st.rerun()
+
+        if col2.button("Spremi narudžbu", type="primary"):
+            for proizvod in st.session_state.narudzbe_proizvodi:
+                red = {
+                    "datum": str(datum),
+                    "korisnik": klijent or korisnik,
+                    "Skladište": skladiste,
+                    "tip_klijenta": tip_klijenta,
+                    "odgovorna_osoba": odgovorna,
+                    "sifra_proizvoda": proizvod["Šifra"],
+                    "naziv_proizvoda": proizvod["Naziv"],
+                    "kolicina": proizvod["Kol."],
+                    "dobavljac": proizvod["Dobavljač"],
+                    "cijena": proizvod["Ukupno"],
+                    "napomena_za_nas": napomena,
+                    "unio_korisnik": st.session_state.user.email,
+                    "datum_vrijeme_narudzbe": datetime.now(TZ).isoformat(),
+                }
+                supabase.table("main_orders").insert(red).execute()
+
+            st.success("Narudžba spremljena! Svi proizvodi su zasebni redovi.")
+            st.session_state.narudzbe_proizvodi = []
+            st.session_state.stranica = "narudžbe"
+            st.rerun()
