@@ -3,7 +3,7 @@ import pandas as pd
 from supabase import create_client, Client
 from datetime import datetime
 from zoneinfo import ZoneInfo
-import time  # za mali delay između batcha
+import time
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (najnoviji na vrhu)
+    #  ADMINISTRACIJA → PROIZVODI
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
