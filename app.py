@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (bez "Obriši sve", checkbox ispod upload-a)
+    #  ADMINISTRACIJA → PROIZVODI
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -361,6 +361,9 @@ else:
 
         if not df_proizvodi.empty:
             st.subheader("Postojeći proizvodi")
+
+            # Dodajemo checkbox stupac unutar tablice za brisanje pojedinačnih redaka
+            df_proizvodi["Odaberi za brisanje"] = False
 
             edited_df = st.data_editor(
                 df_proizvodi,
@@ -378,15 +381,19 @@ else:
                     "slika": st.column_config.TextColumn("Slika (URL)"),
                     "created_at": st.column_config.TextColumn("Kreirano"),
                     "updated_at": st.column_config.TextColumn("Ažurirano"),
+                    "Odaberi za brisanje": st.column_config.CheckboxColumn("Odaberi za brisanje"),
                 }
             )
 
             if st.button("💾 Spremi promjene", type="primary"):
                 for row in edited_df.to_dict("records"):
                     row_id = row["id"]
-                    update_data = {k: v for k, v in row.items() if k != "id"}
-                    supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
-                st.success("Promjene spremljene!")
+                    if row["Odaberi za brisanje"]:
+                        supabase.table("proizvodi").delete().eq("id", row_id).execute()
+                    else:
+                        update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje"]}
+                        supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
+                st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
                 st.rerun()
 
         else:
@@ -484,14 +491,8 @@ else:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
-        # Checkbox za označavanje svih za brisanje – ispod upload sekcije
+        # Checkbox "Označi sve za brisanje" – ispod upload sekcije
         if not df_proizvodi.empty:
             označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
             if označi_sve:
                 st.info("Označi retke u tablici iznad i stisni 'Spremi promjene' za brisanje.")
-
-    # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → OSTALE STRANICE (ako ih ima)
-    # ────────────────────────────────────────────────
-
-    # Dodaj ovdje ostale stranice ako ih imaš (npr. Korisnici, Šifarnici, Dokumenti itd.)
