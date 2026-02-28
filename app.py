@@ -20,10 +20,59 @@ if "narudzbe_proizvodi" not in st.session_state:
     st.session_state.narudzbe_proizvodi = []
 
 if "stranica" not in st.session_state:
-    st.session_state.stranica = "login"
+    st.session_state.stranica = "početna"
 
 # ────────────────────────────────────────────────
-#  LOGIN – samo prijava
+#  SIDEBAR
+# ────────────────────────────────────────────────
+
+with st.sidebar:
+    st.title("Sustav narudžbi")
+
+    if st.button("🏠 Početna", key="menu_pocetna"):
+        st.session_state.stranica = "početna"
+        st.rerun()
+
+    if st.button("🛒 Narudžbe", key="menu_narudzbe"):
+        st.session_state.stranica = "narudžbe"
+        st.rerun()
+
+    if st.button("🔍 Pretraga narudžbi", key="menu_pretraga"):
+        st.session_state.stranica = "pretraga"
+        st.rerun()
+
+    with st.expander("📊 Izvještaji", expanded=False):
+        st.info("Izvještaji dolaze kasnije...")
+
+    with st.expander("⚙️ Administracija", expanded=False):
+        if st.button("📦 Proizvodi", key="admin_proizvodi"):
+            st.session_state.stranica = "admin_proizvodi"
+            st.rerun()
+
+        if st.button("🚚 Dobavljači", key="admin_dobavljaci"):
+            st.session_state.stranica = "admin_dobavljaci"
+            st.rerun()
+
+        if st.button("👥 Korisnici", key="admin_korisnici"):
+            st.session_state.stranica = "admin_korisnici"
+            st.rerun()
+
+        if st.button("📋 Šifarnici", key="admin_sifarnici"):
+            st.session_state.stranica = "admin_sifarnici"
+            st.rerun()
+
+    if st.button("📁 Dokumenti", key="menu_dokumenti"):
+        st.session_state.stranica = "dokumenti"
+        st.rerun()
+
+    if st.button("➡️ Odjava", key="menu_odjava"):
+        supabase.auth.sign_out()
+        st.session_state.user = None
+        st.session_state.stranica = "login"
+        st.rerun()
+
+# ────────────────────────────────────────────────
+#  GLAVNI SADRŽAJ
 # ────────────────────────────────────────────────
 
 if st.session_state.stranica == "login":
@@ -46,59 +95,6 @@ if st.session_state.stranica == "login":
             st.error(f"Greška pri prijavi: {str(e)}")
 
 else:
-    # ────────────────────────────────────────────────
-    #  SIDEBAR – prikazuje se samo nakon prijave
-    # ────────────────────────────────────────────────
-
-    with st.sidebar:
-        st.title("Sustav narudžbi")
-
-        if st.button("🏠 Početna", key="menu_pocetna"):
-            st.session_state.stranica = "početna"
-            st.rerun()
-
-        if st.button("🛒 Narudžbe", key="menu_narudzbe"):
-            st.session_state.stranica = "narudžbe"
-            st.rerun()
-
-        if st.button("🔍 Pretraga narudžbi", key="menu_pretraga"):
-            st.session_state.stranica = "pretraga"
-            st.rerun()
-
-        with st.expander("📊 Izvještaji", expanded=False):
-            st.info("Izvještaji dolaze kasnije...")
-
-        with st.expander("⚙️ Administracija", expanded=False):
-            if st.button("📦 Proizvodi", key="admin_proizvodi"):
-                st.session_state.stranica = "admin_proizvodi"
-                st.rerun()
-
-            if st.button("🚚 Dobavljači", key="admin_dobavljaci"):
-                st.session_state.stranica = "admin_dobavljaci"
-                st.rerun()
-
-            if st.button("👥 Korisnici", key="admin_korisnici"):
-                st.session_state.stranica = "admin_korisnici"
-                st.rerun()
-
-            if st.button("📋 Šifarnici", key="admin_sifarnici"):
-                st.session_state.stranica = "admin_sifarnici"
-                st.rerun()
-
-        if st.button("📁 Dokumenti", key="menu_dokumenti"):
-            st.session_state.stranica = "dokumenti"
-            st.rerun()
-
-        if st.button("➡️ Odjava", key="menu_odjava"):
-            supabase.auth.sign_out()
-            st.session_state.user = None
-            st.session_state.stranica = "login"
-            st.rerun()
-
-    # ────────────────────────────────────────────────
-    #  GLAVNI SADRŽAJ
-    # ────────────────────────────────────────────────
-
     if st.session_state.stranica == "početna":
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
@@ -107,7 +103,6 @@ else:
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
 
-        # Gumb za novu narudžbu – vidljiv na vrhu stranice
         if st.button("➕ Nova narudžba", type="primary", key="nova_narudzba_gumb"):
             st.session_state.stranica = "nova"
             st.rerun()
@@ -180,7 +175,7 @@ else:
                 st.error("× Klijent")
 
             st.markdown("**Odgovorna osoba**")
-            odgovorna_lista = ["Nema", "Daniel Putar", "Druga osoba"]
+            odgovorna_lista = ["Nema", "Danijel Putar", "Druga osoba"]
             odgovorna = st.selectbox("", odgovorna_lista, key="nova_odgovorna_select", label_visibility="collapsed")
             if odgovorna == "Nema":
                 odgovorna = st.text_input("Slobodan unos odgovorne osobe", key="nova_odgovorna_slobodno")
@@ -349,36 +344,129 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  SPREMI NARUDŽBU
+    #  ADMINISTRACIJA → PROIZVODI (sortirano po nazivu, brisanje, upload)
     # ────────────────────────────────────────────────
 
-    if st.session_state.stranica == "nova" and st.session_state.narudzbe_proizvodi:
-        col1, col2 = st.columns(2)
-        if col1.button("Odustani", type="secondary"):
-            st.session_state.narudzbe_proizvodi = []
-            st.session_state.stranica = "narudžbe"
-            st.rerun()
+    elif st.session_state.stranica == "admin_proizvodi":
+        st.title("Administracija - Proizvodi")
 
-        if col2.button("Spremi narudžbu", type="primary"):
-            for proizvod in st.session_state.narudzbe_proizvodi:
-                red = {
-                    "datum": str(datum),
-                    "korisnik": klijent or korisnik,
-                    "Skladište": skladiste,
-                    "tip_klijenta": tip_klijenta,
-                    "odgovorna_osoba": odgovorna,
-                    "sifra_proizvoda": proizvod["Šifra"],
-                    "naziv_proizvoda": proizvod["Naziv"],
-                    "kolicina": proizvod["Kol."],
-                    "dobavljac": proizvod["Dobavljač"],
-                    "cijena": proizvod["Ukupno"],
-                    "napomena_za_nas": napomena,
-                    "unio_korisnik": st.session_state.user.email,
-                    "datum_vrijeme_narudzbe": datetime.now(TZ).isoformat(),
+        # Dohvati sve proizvode
+        response = supabase.table("proizvodi").select("*").execute()
+        df_proizvodi = pd.DataFrame(response.data or [])
+
+        if not df_proizvodi.empty:
+            # Sortiraj po nazivu proizvoda (A-Z), case-insensitive
+            df_proizvodi = df_proizvodi.sort_values(
+                by="naziv",
+                key=lambda x: x.str.lower() if x.dtype == "object" else x,
+                ascending=True,
+                na_position="last"
+            ).reset_index(drop=True)
+
+            st.subheader("Postojeći proizvodi")
+
+            # Dodaj checkbox stupac za brisanje
+            df_proizvodi["Odaberi za brisanje"] = False
+
+            edited_df = st.data_editor(
+                df_proizvodi,
+                num_rows="dynamic",
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "naziv": st.column_config.TextColumn("Naziv proizvoda", required=True),
+                    "sifra": st.column_config.TextColumn("Šifra", required=True),
+                    "dobavljac": st.column_config.TextColumn("Dobavljač"),
+                    "cijena": st.column_config.NumberColumn("Cijena", min_value=0, format="%.2f"),
+                    "pakiranje": st.column_config.TextColumn("Pakiranje"),
+                    "napomena": st.column_config.TextColumn("Napomena"),
+                    "neuneseno1": st.column_config.TextColumn("Neuneseno 1"),
+                    "neuneseno2": st.column_config.TextColumn("Neuneseno 2"),
+                    "created_at": st.column_config.TextColumn("Kreirano"),
+                    "updated_at": st.column_config.TextColumn("Ažurirano"),
+                    "Odaberi za brisanje": st.column_config.CheckboxColumn("Odaberi za brisanje"),
                 }
-                supabase.table("main_orders").insert(red).execute()
+            )
 
-            st.success("Narudžba spremljena! Svi proizvodi su zasebni redovi.")
-            st.session_state.narudzbe_proizvodi = []
-            st.session_state.stranica = "narudžbe"
-            st.rerun()
+            # Gumb za spremanje promjena
+            if st.button("💾 Spremi promjene", type="primary"):
+                for row in edited_df.to_dict("records"):
+                    if row["Odaberi za brisanje"]:
+                        supabase.table("proizvodi").delete().eq("id", row["id"]).execute()
+                    else:
+                        supabase.table("proizvodi").upsert(row, on_conflict="id").execute()
+                st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
+                st.rerun()
+
+            # Gumb za brisanje svih proizvoda
+            if st.button("🗑️ Obriši sve proizvode", type="secondary"):
+                if st.checkbox("Potvrdi brisanje svih proizvoda (ne može se poništiti)"):
+                    supabase.table("proizvodi").delete().neq("id", 0).execute()  # briše sve
+                    st.success("Svi proizvodi su obrisani!")
+                    st.rerun()
+        else:
+            st.info("Još nema proizvoda u bazi.")
+
+        # Dodaj novi proizvod
+        st.subheader("Dodaj novi proizvod")
+        with st.form("dodaj_proizvod"):
+            naziv = st.text_input("Naziv proizvoda *", key="dodaj_naziv_proizvoda")
+            sifra = st.text_input("Šifra *", key="dodaj_sifra_proizvoda")
+            dobavljac = st.text_input("Dobavljač", key="dodaj_dobavljac_proizvoda")
+            cijena = st.number_input("Cijena", min_value=0.0, step=0.01, format="%.2f", key="dodaj_cijena_proizvoda")
+            pakiranje = st.text_input("Pakiranje", key="dodaj_pakiranje_proizvoda")
+            napomena = st.text_area("Napomena", key="dodaj_napomena_proizvoda")
+            neuneseno1 = st.text_input("Neuneseno 1", key="dodaj_neuneseno1_proizvoda")
+            neuneseno2 = st.text_input("Neuneseno 2", key="dodaj_neuneseno2_proizvoda")
+
+            submitted = st.form_submit_button("Dodaj proizvod")
+            if submitted:
+                if naziv and sifra:
+                    novi = {
+                        "naziv": naziv,
+                        "sifra": sifra,
+                        "dobavljac": dobavljac,
+                        "cijena": cijena,
+                        "pakiranje": pakiranje,
+                        "napomena": napomena,
+                        "neuneseno1": neuneseno1,
+                        "neuneseno2": neuneseno2
+                    }
+                    supabase.table("proizvodi").insert(novi).execute()
+                    st.success("Proizvod dodan!")
+                    st.rerun()
+                else:
+                    st.error("Naziv i šifra su obavezni!")
+
+        # Upload iz Excela – s čišćenjem nan/inf
+        st.subheader("Upload proizvoda iz Excela")
+        uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
+        if uploaded_file:
+            try:
+                df_upload = pd.read_excel(uploaded_file)
+                st.write("Pregled podataka iz datoteke:")
+                st.dataframe(df_upload.head(10))
+
+                if st.button("Učitaj sve u bazu", type="primary"):
+                    for _, row in df_upload.iterrows():
+                        novi = {
+                            "naziv": str(row.get("NAZIV", "")) or "",
+                            "sifra": str(row.get("ŠIFRA", "")) or "",
+                            "dobavljac": str(row.get("DOBAVLJAČ", "")) or "",
+                            "cijena": float(row.get("CIJENA", 0)) or 0,
+                            "pakiranje": str(row.get("PAKIRANJE", "")) or "",
+                            "napomena": str(row.get("NAPOMENA", "")) or "",
+                            "neuneseno1": "",
+                            "neuneseno2": ""
+                        }
+                        # Čišćenje nan/inf
+                        for k in novi:
+                            if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
+                                novi[k] = None
+
+                        supabase.table("proizvodi").insert(novi).execute()
+                    st.success("Proizvodi učitani iz Excela!")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Greška pri čitanju Excela: {e}")
+                st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
