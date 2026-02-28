@@ -356,22 +356,20 @@ else:
         with col1:
             st.subheader("Postojeći proizvodi")
         with col2:
-    search_value = st.text_input(
-        "Pretraži po svim stupcima",
-        key="proizvodi_search_input",
-        placeholder="upiši naziv, šifru, dobavljača..."
-    )
+            st.text_input(
+                "Pretraži po svim stupcima",
+                value=st.session_state.proizvodi_search,
+                key="proizvodi_search_input",
+                placeholder="upiši naziv, šifru, dobavljača...",
+                on_change=on_search_change
+            )
 
-# Filtriranje (radi automatski na svaki rerun – tj. svako tipkanje)
-df_display = df_full.copy()
-
-if search_value:
-    search_term = search_value.strip().lower()
-    mask = df_display.astype(str).apply(
-        lambda x: x.str.lower().str.contains(search_term, na=False),
-        axis=1
-    ).any(axis=1)
-    df_display = df_display[mask]
+        # Filtriranje
+        df_display = df_full.copy()
+        if st.session_state.proizvodi_search:
+            search_term = str(st.session_state.proizvodi_search).strip().lower()
+            mask = df_display.astype(str).apply(lambda x: x.str.lower().str.contains(search_term), axis=1).any(axis=1)
+            df_display = df_display[mask]
 
         if df_display.empty and st.session_state.proizvodi_search:
             st.info("Ništa nije pronađeno po traženom pojmu.")
