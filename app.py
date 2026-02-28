@@ -24,6 +24,9 @@ if "narudzbe_proizvodi" not in st.session_state:
 if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
 
+if "oznaci_sve_proizvodi" not in st.session_state:
+    st.session_state.oznaci_sve_proizvodi = False
+
 # ────────────────────────────────────────────────
 #  LOGIN – samo prijava
 # ────────────────────────────────────────────────
@@ -359,11 +362,18 @@ else:
         response = supabase.table("proizvodi").select("*").order("created_at", desc=True).execute()
         df_proizvodi = pd.DataFrame(response.data or [])
 
+        # ────────────────────────────────────────────────
+        #  AUTOMATSKO OZNAČAVANJE SVIH REDAKA
+        # ────────────────────────────────────────────────
+        if označi_sve != st.session_state.oznaci_sve_proizvodi:
+            st.session_state.oznaci_sve_proizvodi = označi_sve
+            st.rerun()
+
         if not df_proizvodi.empty:
             st.subheader("Postojeći proizvodi")
 
-            # Checkbox stupac unutar tablice za brisanje pojedinačnih redaka
-            df_proizvodi["Odaberi za brisanje"] = False
+            # Dodaj checkbox stupac unutar tablice za brisanje pojedinačnih redaka
+            df_proizvodi["Odaberi za brisanje"] = st.session_state.oznaci_sve_proizvodi
 
             edited_df = st.data_editor(
                 df_proizvodi,
@@ -493,6 +503,7 @@ else:
 
         # Checkbox "Označi sve za brisanje" – ispod upload sekcije
         if not df_proizvodi.empty:
-            označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
-            if označi_sve:
-                st.info("Označi retke u tablici iznad i stisni 'Spremi promjene' za brisanje.")
+            označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi", value=st.session_state.oznaci_sve_proizvodi)
+            if označi_sve != st.session_state.oznaci_sve_proizvodi:
+                st.session_state.oznaci_sve_proizvodi = označi_sve
+                st.rerun()
