@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
+# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -23,7 +24,7 @@ if "stranica" not in st.session_state:
     st.session_state.stranica = "početna"
 
 # ────────────────────────────────────────────────
-#  SIDEBAR – tvoj izgled
+#  SIDEBAR – tvoj izgled po slici
 # ────────────────────────────────────────────────
 
 with st.sidebar:
@@ -72,7 +73,7 @@ with st.sidebar:
         st.rerun()
 
 # ────────────────────────────────────────────────
-#  GLAVNI SADRŽAJ
+#  GLAVNI SADRŽAJ – ovisno o stranici
 # ────────────────────────────────────────────────
 
 if st.session_state.stranica == "login":
@@ -102,10 +103,18 @@ if st.session_state.stranica == "login":
                 st.error(f"Greška: {e}")
 
 else:
+    # ────────────────────────────────────────────────
+    #  POČETNA
+    # ────────────────────────────────────────────────
+
     if st.session_state.stranica == "početna":
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
+
+    # ────────────────────────────────────────────────
+    #  PREGLED NARUDŽBI
+    # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
@@ -140,6 +149,10 @@ else:
             )
         else:
             st.info("Još nema narudžbi.")
+
+    # ────────────────────────────────────────────────
+    #  NOVA NARUDŽBA
+    # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "nova":
         col_naslov, col_natrag = st.columns([5, 1])
@@ -305,7 +318,7 @@ else:
                 else:
                     st.error("Naziv dobavljača je obavezan!")
 
-        # Upload iz Excela
+        # Upload iz Excela – s čišćenjem nan/inf
         st.subheader("Upload dobavljača iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_dobavljaci")
         if uploaded_file:
@@ -317,14 +330,19 @@ else:
                 if st.button("Učitaj sve u bazu", type="primary"):
                     for _, row in df_upload.iterrows():
                         novi = {
-                            "naziv_dobavljaca": row.get("Naziv dobavljača", ""),
-                            "email": row.get("Email", ""),
-                            "rok_isporuke": row.get("Rok isporuke", ""),
-                            "telefonski_broj": row.get("Telefonski broj", ""),
-                            "napomena": row.get("Napomena", ""),
+                            "naziv_dobavljaca": str(row.get("Naziv dobavljača", "")) or "",
+                            "email": str(row.get("Email", "")) or "",
+                            "rok_isporuke": str(row.get("Rok isporuke", "")) or "",
+                            "telefonski_broj": str(row.get("Telefonski broj", "")) or "",
+                            "napomena": str(row.get("Napomena", "")) or "",
                             "neuneseno1": "",
                             "neuneseno2": ""
                         }
+                        # Čišćenje nan/inf vrijednosti
+                        for k in novi:
+                            if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
+                                novi[k] = None
+
                         supabase.table("dobavljaci").insert(novi).execute()
                     st.success("Dobavljači učitani iz Excela!")
                     st.rerun()
