@@ -327,7 +327,7 @@ else:
 
                     for _, row in df_upload.iterrows():
                         novi = {
-                            "naziv_dobavljaca": str(row.get("Naziv dobavljača", "") or ""),
+                            "naziv_dobavljaca": str(row.get("Naziv dobavljača", "")) or "",
                             "email": str(row.get("Email", "")) or "",
                             "rok_isporuke": str(row.get("Rok isporuke", "")) or "",
                             "telefonski_broj": str(row.get("Telefonski broj", "")) or "",
@@ -443,13 +443,12 @@ else:
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
 
-        # Upload iz Excela – dodaje BAŠ SVE, ispravno parsira cijene
+        # Upload iz Excela – jednostavan i robustan (kao kad je radilo 3000+ redaka)
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
             try:
-                # Čita sve kao string da izbjegne Excel formatiranje
-                df_upload = pd.read_excel(uploaded_file, dtype=str)
+                df_upload = pd.read_excel(uploaded_file)
                 st.write("Pregled podataka iz datoteke:")
                 st.dataframe(df_upload.head(10))
 
@@ -458,34 +457,12 @@ else:
                     broj_dodanih = 0
                     broj_preskocenih = 0
 
-                    # Normalizacija imena stupaca
-                    columns_lower = {col.strip().lower(): col for col in df_upload.columns}
-
-                    naziv_col = next((col for col in columns_lower if "naziv" in col.lower()), None)
-                    sifra_col = next((col for col in columns_lower if "šifr" in col.lower() or "sifr" in col.lower()), None)
-                    dobavljac_col = next((col for col in columns_lower if "dobavlja" in col.lower()), None)
-                    cijena_col = next((col for col in columns_lower if "cijena" in col.lower() or "cena" in col.lower()), None)
-                    pakiranje_col = next((col for col in columns_lower if "pakiranje" in col.lower()), None)
-                    napomena_col = next((col for col in columns_lower if "napomena" in col.lower()), None)
-                    link_col = next((col for col in columns_lower if "link" in col.lower()), None)
-                    slika_col = next((col for col in columns_lower if "slika" in col.lower()), None)
-
-                    st.write("Pronađeni stupci:")
-                    st.write(f"Naziv: {naziv_col}")
-                    st.write(f"Šifra: {sifra_col}")
-                    st.write(f"Dobavljač: {dobavljac_col}")
-                    st.write(f"Cijena: {cijena_col}")
-                    st.write(f"Pakiranje: {pakiranje_col}")
-                    st.write(f"Napomena: {napomena_col}")
-                    st.write(f"Link: {link_col}")
-                    st.write(f"Slika: {slika_col}")
-
                     for i in range(0, len(df_upload), batch_size):
                         batch = df_upload.iloc[i:i + batch_size]
                         st.write(f"Učitavam batch {i//batch_size + 1} / {(len(df_upload) + batch_size - 1) // batch_size}...")
 
                         for _, row in batch.iterrows():
-                            cijena_raw = str(row.get(cijena_col, "0")).strip() if cijena_col else "0"
+                            cijena_raw = str(row.get("CIJENA", "0")).strip()
                             cijena_raw = cijena_raw.replace(',', '.').replace(' ', '').replace('kn', '').replace('€', '').replace('HRK', '').strip()
                             try:
                                 cijena = float(cijena_raw) if cijena_raw else 0
@@ -493,14 +470,14 @@ else:
                                 cijena = 0
 
                             novi = {
-                                "naziv": str(row.get(naziv_col, "")).strip() or "",
-                                "sifra": str(row.get(sifra_col, "")).strip() or "",
-                                "dobavljac": str(row.get(dobavljac_col, "")) or "",
+                                "naziv": str(row.get("NAZIV", "")).strip() or "",
+                                "sifra": str(row.get("ŠIFRA", "")).strip() or "",
+                                "dobavljac": str(row.get("DOBAVLJAČ", "")).strip() or "",
                                 "cijena": cijena,
-                                "pakiranje": str(row.get(pakiranje_col, "")) or "",
-                                "napomena": str(row.get(napomena_col, "")) or "",
-                                "link": str(row.get(link_col, "")) or "",
-                                "slika": str(row.get(slika_col, "")) or ""
+                                "pakiranje": str(row.get("PAKIRANJE", "")).strip() or "",
+                                "napomena": str(row.get("NAPOMENA", "")).strip() or "",
+                                "link": str(row.get("Link", "")).strip() or "",
+                                "slika": str(row.get("Slika", "")).strip() or ""
                             }
                             for k in novi:
                                 if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
@@ -511,8 +488,8 @@ else:
 
                         time.sleep(0.3)  # mali delay
 
-                    st.success(f"Učitano **{broj_dodanih}** proizvoda. Preskočeno **{broj_preskocenih}** potpuno praznih redaka.")
-                    st.rerun()  # OSVJEŽI TABLICU ODMAH nakon upload-a
+                    st.success(f"Učitano **{broj_dodanih}** proizvoda. Preskočeno **{broj_preskocenih}** redaka.")
+                    st.rerun()  # osvježava tablicu ODMAH nakon upload-a
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
