@@ -408,6 +408,7 @@ else:
         else:
             st.info("Još nema proizvoda u bazi.")
 
+        # Dodaj novi proizvod
         st.subheader("Dodaj novi proizvod")
         with st.form("dodaj_proizvod"):
             naziv = st.text_input("Naziv proizvoda *", key="dodaj_naziv_proizvoda")
