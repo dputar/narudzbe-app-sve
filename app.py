@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
+# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -448,7 +449,7 @@ else:
                 else:
                     st.error("Naziv i šifra su obavezni!")
 
-        # Upload iz Excela – batch po 500, preskakanje duplikata šifre
+        # Upload iz Excela – batch po 500, preskakanje duplikata šifre, hrvatski format cijene
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
@@ -477,15 +478,23 @@ else:
                                 broj_preskocenih += 1
                                 continue
 
+                            cijena_raw = row.get("CIJENA", "0")
+                            if isinstance(cijena_raw, str):
+                                cijena_raw = cijena_raw.replace(',', '.').strip()
+                            try:
+                                cijena = float(cijena_raw) if cijena_raw else 0
+                            except ValueError:
+                                cijena = 0
+
                             novi = {
                                 "naziv": str(row.get("NAZIV", "")).strip() or "",
                                 "sifra": sifra,
                                 "dobavljac": str(row.get("DOBAVLJAČ", "")) or "",
-                                "cijena": float(row.get("CIJENA", 0)) or 0,
+                                "cijena": cijena,
                                 "pakiranje": str(row.get("PAKIRANJE", "")) or "",
                                 "napomena": str(row.get("NAPOMENA", "")) or "",
-                                "link": "",
-                                "slika": ""
+                                "link": str(row.get("Link", "")) or "",
+                                "slika": str(row.get("Slika", "")) or ""
                             }
                             for k in novi:
                                 if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
