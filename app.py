@@ -450,7 +450,7 @@ else:
                 else:
                     st.error("Naziv i šifra su obavezni!")
 
-        # Upload iz Excela – batch po 500, preskakanje duplikata šifre, hrvatski format cijene
+        # Upload iz Excela – batch po 500, ažuriranje postojećih (upsert po šifri)
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
@@ -459,13 +459,13 @@ else:
                 st.write("Pregled podataka iz datoteke:")
                 st.dataframe(df_upload.head(10))
 
-                if st.button("Učitaj sve u bazu (batch po 500)", type="primary"):
+                if st.button("Učitaj sve u bazu (ažuriraj postojeće)", type="primary"):
                     batch_size = 500
                     broj_dodanih = 0
+                    broj_ažuriranih = 0
                     broj_preskocenih = 0
-                    broj_već_postojecih = 0
 
-                    # Normalizacija imena stupaca (ignorira velika/mala slova i razmake)
+                    # Normalizacija imena stupaca
                     columns_lower = {col.strip().lower(): col for col in df_upload.columns}
 
                     naziv_col = next((col for col in columns_lower if "naziv" in col.lower()), None)
@@ -501,11 +501,6 @@ else:
                                 broj_preskocenih += 1
                                 continue
 
-                            postoji = supabase.table("proizvodi").select("id").eq("sifra", sifra).execute()
-                            if postoji.data:
-                                broj_već_postojecih += 1
-                                continue
-
                             cijena_raw = str(row.get(cijena_col, "0")).strip() if cijena_col else "0"
                             cijena_raw = cijena_raw.replace(',', '.')
                             try:
@@ -527,12 +522,19 @@ else:
                                 if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
                                     novi[k] = None
 
-                            supabase.table("proizvodi").insert(novi).execute()
-                            broj_dodanih += 1
+                            # UPSERT – ako šifra postoji → ažurira, ako ne → dodaje
+                            supabase.table("proizvodi").upsert(novi, on_conflict="sifra").execute()
 
-                        time.sleep(0.5)  # mali delay između batcha da izbjegneš rate-limit
+                            # Provjeri da li je bio insert ili update
+                            check = supabase.table("proizvodi").select("id").eq("sifra", sifra).execute()
+                            if check.data:
+                                broj_ažuriranih += 1 if check.data[0]["id"] else 0
+                            else:
+                                broj_dodanih += 1
 
-                    st.success(f"Učitano **{broj_dodanih}** novih proizvoda. Preskočeno **{broj_preskocenih}** praznih šifara + **{broj_već_postojecih}** duplikata šifre.")
+                        time.sleep(0.5)  # mali delay između batcha
+
+                    st.success(f"Dodano **{broj_dodanih}** novih proizvoda. Ažurirano **{broj_ažuriranih}** postojećih. Preskočeno **{broj_preskocenih}** praznih šifara.")
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
