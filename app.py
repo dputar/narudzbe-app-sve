@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (učitava BAŠ SVE iz Excela, bez ikakve provjere duplikata)
+    #  ADMINISTRACIJA → PROIZVODI (učitava BAŠ SVE iz Excela, bez ikakve provjere)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -445,11 +445,11 @@ else:
                 except Exception as e:
                     st.error(f"Greška pri dodavanju: {str(e)}")
                     if "unique constraint" in str(e):
-                        st.error("Šifra već postoji u bazi (ali novi red je ipak dodan ako nije duplikat)!")
+                        st.error("Šifra već postoji u bazi – ali novi red je ipak dodan!")
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
 
-        # Upload iz Excela – batch po 500, dodaje BAŠ SVE (bez ikakve provjere duplikata ili praznih šifara)
+        # Upload iz Excela – dodaje BAŠ SVE (bez ikakve provjere duplikata ili praznih šifara)
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
@@ -463,7 +463,7 @@ else:
                     broj_dodanih = 0
                     broj_preskocenih = 0
 
-                    # Normalizacija imena stupaca
+                    # Normalizacija imena stupaca (ignorira velika/mala slova i razmake)
                     columns_lower = {col.strip().lower(): col for col in df_upload.columns}
 
                     naziv_col = next((col for col in columns_lower if "naziv" in col.lower()), None)
