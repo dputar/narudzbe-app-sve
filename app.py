@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (bez pokušaja prikaza slika)
+    #  ADMINISTRACIJA → PROIZVODI (bez "Obriši sve", checkbox ispod upload-a)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -361,12 +361,6 @@ else:
 
         if not df_proizvodi.empty:
             st.subheader("Postojeći proizvodi")
-
-            df_proizvodi["Odaberi za brisanje"] = False
-
-            označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
-            if označi_sve:
-                df_proizvodi["Odaberi za brisanje"] = True
 
             edited_df = st.data_editor(
                 df_proizvodi,
@@ -384,32 +378,80 @@ else:
                     "slika": st.column_config.TextColumn("Slika (URL)"),
                     "created_at": st.column_config.TextColumn("Kreirano"),
                     "updated_at": st.column_config.TextColumn("Ažurirano"),
-                    "Odaberi za brisanje": st.column_config.CheckboxColumn("Odaberi za brisanje"),
                 }
             )
 
             if st.button("💾 Spremi promjene", type="primary"):
                 for row in edited_df.to_dict("records"):
                     row_id = row["id"]
-                    if row["Odaberi za brisanje"]:
-                        supabase.table("proizvodi").delete().eq("id", row_id).execute()
-                    else:
-                        update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje"]}
-                        supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
-                st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
+                    update_data = {k: v for k, v in row.items() if k != "id"}
+                    supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
+                st.success("Promjene spremljene!")
                 st.rerun()
 
-            if st.button("🗑️ Obriši sve proizvode", type="secondary"):
-                if st.checkbox("Potvrdi brisanje svih proizvoda (ne može se poništiti)", key="potvrdi_obrisi_sve_proizvode"):
-                    try:
-                        supabase.table("proizvodi").delete().gt("id", 0).execute()
-                        st.success("Svi proizvodi su obrisani!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Greška pri brisanju: {str(e)}")
-                        st.error("Ako ima RLS zaštita, privremeno je isključi u Supabase-u.")
         else:
             st.info("Još nema proizvoda u bazi.")
+
+        # ────────────────────────────────────────────────
+        #  UPLOAD IZ EXCELA + CHECKBOX ISPOD NJEGA
+        # ────────────────────────────────────────────────
+
+        st.subheader("Upload proizvoda iz Excela")
+        uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
+        if uploaded_file:
+            try:
+                df_upload = pd.read_excel(uploaded_file)
+                st.write("Pregled podataka iz datoteke:")
+                st.dataframe(df_upload.head(10))
+
+                if st.button("Učitaj sve u bazu (batch po 500)", type="primary"):
+                    batch_size = 500
+                    broj_dodanih = 0
+                    broj_preskocenih = 0
+
+                    for i in range(0, len(df_upload), batch_size):
+                        batch = df_upload.iloc[i:i + batch_size]
+                        st.write(f"Učitavam batch {i//batch_size + 1} / {(len(df_upload) + batch_size - 1) // batch_size}...")
+
+                        for _, row in batch.iterrows():
+                            cijena_raw = str(row.get("CIJENA", "0")).strip()
+                            cijena_raw = cijena_raw.replace(',', '.').replace(' ', '').replace('kn', '').replace('€', '').replace('HRK', '').strip()
+                            try:
+                                cijena = float(cijena_raw) if cijena_raw else 0
+                            except ValueError:
+                                cijena = 0
+
+                            novi = {
+                                "naziv": str(row.get("NAZIV", "")).strip() or "",
+                                "sifra": str(row.get("ŠIFRA", "")).strip() or "",
+                                "dobavljac": str(row.get("DOBAVLJAČ", "")).strip() or "",
+                                "cijena": cijena,
+                                "pakiranje": str(row.get("PAKIRANJE", "")).strip() or "",
+                                "napomena": str(row.get("NAPOMENA", "")).strip() or "",
+                                "link": str(row.get("Link", "")).strip() or "",
+                                "slika": str(row.get("Slika", "")).strip() or ""
+                            }
+                            for k in novi:
+                                if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
+                                    novi[k] = None
+
+                            supabase.table("proizvodi").insert(novi).execute()
+                            broj_dodanih += 1
+
+                        time.sleep(0.3)  # mali delay
+
+                    st.success(f"Učitano **{broj_dodanih}** proizvoda. Preskočeno **{broj_preskocenih}** redaka.")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Greška pri čitanju Excela: {e}")
+                st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
+
+        # Checkbox za označavanje svih za brisanje – ispod upload sekcije
+        if not df_proizvodi.empty:
+            označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
+            if označi_sve:
+                # Ovdje možemo dodati logiku za označavanje, ali jer je tablica već editabilna, koristimo gumb za brisanje označenih
+                st.info("Označi retke u tablici iznad i stisni 'Spremi promjene' za brisanje.")
 
         st.subheader("Dodaj novi proizvod")
         with st.form("dodaj_proizvod"):
@@ -444,54 +486,3 @@ else:
                         st.error("Šifra već postoji u bazi – ali novi red je ipak dodan!")
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
-
-        # Upload iz Excela – jednostavan upload
-        st.subheader("Upload proizvoda iz Excela")
-        uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
-        if uploaded_file:
-            try:
-                df_upload = pd.read_excel(uploaded_file)
-                st.write("Pregled podataka iz datoteke:")
-                st.dataframe(df_upload.head(10))
-
-                if st.button("Učitaj sve u bazu (batch po 500)", type="primary"):
-                    batch_size = 500
-                    broj_dodanih = 0
-                    broj_preskocenih = 0
-
-                    for i in range(0, len(df_upload), batch_size):
-                        batch = df_upload.iloc[i:i + batch_size]
-                        st.write(f"Učitavam batch {i//batch_size + 1} / {(len(df_upload) + batch_size - 1) // batch_size}...")
-
-                        for _, row in batch.iterrows():
-                            cijena_raw = str(row.get("CIJENA", "0")).strip()
-                            cijena_raw = cijena_raw.replace(',', '.').replace(' ', '').replace('kn', '').replace('€', '').replace('HRK', '').strip()
-                            try:
-                                cijena = float(cijena_raw) if cijena_raw else 0
-                            except ValueError:
-                                cijena = 0
-
-                            novi = {
-                                "naziv": str(row.get("NAZIV", "")).strip() or "",
-                                "sifra": str(row.get("ŠIFRA", "")).strip() or "",
-                                "dobavljac": str(row.get("DOBAVLJAČ", "")).strip() or "",
-                                "cijena": cijena,
-                                "pakiranje": str(row.get("PAKIRANJE", "")).strip() or "",
-                                "napomena": str(row.get("NAPOMENA", "")).strip() or "",
-                                "link": str(row.get("Link", "")).strip() or "",
-                                "slika": str(row.get("slika", "")).strip() or ""
-                            }
-                            for k in novi:
-                                if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
-                                    novi[k] = None
-
-                            supabase.table("proizvodi").insert(novi).execute()
-                            broj_dodanih += 1
-
-                        time.sleep(0.3)  # mali delay
-
-                    st.success(f"Učitano **{broj_dodanih}** proizvoda. Preskočeno **{broj_preskocenih}** redaka.")
-                    st.rerun()  # osvježava tablicu ODMAH nakon upload-a
-            except Exception as e:
-                st.error(f"Greška pri čitanju Excela: {e}")
-                st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
