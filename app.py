@@ -7,27 +7,20 @@ import time
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
-# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 TZ = ZoneInfo("Europe/Zagreb")
 
-# ────────────────────────────────────────────────
-#  SESSION STATE
-# ────────────────────────────────────────────────
-
+# SESSION STATE
 if "narudzbe_proizvodi" not in st.session_state:
     st.session_state.narudzbe_proizvodi = []
 
 if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
 
-# ────────────────────────────────────────────────
-#  LOGIN – samo prijava
-# ────────────────────────────────────────────────
-
+# LOGIN
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
 
@@ -48,10 +41,7 @@ if st.session_state.stranica == "login":
             st.error(f"Greška pri prijavi: {str(e)}")
 
 else:
-    # ────────────────────────────────────────────────
-    #  SIDEBAR
-    # ────────────────────────────────────────────────
-
+    # SIDEBAR
     with st.sidebar:
         st.title("Sustav narudžbi")
 
@@ -97,15 +87,13 @@ else:
             st.session_state.stranica = "login"
             st.rerun()
 
-    # ────────────────────────────────────────────────
-    #  GLAVNI SADRŽAJ
-    # ────────────────────────────────────────────────
-
+    # POČETNA
     if st.session_state.stranica == "početna":
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
 
+    # PREGLED NARUDŽBI
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
 
@@ -144,6 +132,7 @@ else:
         else:
             st.info("Još nema narudžbi.")
 
+    # NOVA NARUDŽBA
     elif st.session_state.stranica == "nova":
         col_naslov, col_natrag = st.columns([5, 1])
         with col_naslov:
@@ -241,10 +230,7 @@ else:
                         st.session_state.show_dodaj_proizvod = False
                         st.rerun()
 
-    # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → DOBAVLJAČI
-    # ────────────────────────────────────────────────
-
+    # ADMINISTRACIJA → DOBAVLJAČI
     elif st.session_state.stranica == "admin_dobavljaci":
         st.title("Administracija - Dobavljači")
 
@@ -399,10 +385,7 @@ else:
         else:
             st.info("Još nema proizvoda u bazi.")
 
-        # ────────────────────────────────────────────────
-        #  DODAJ NOVI PROIZVOD
-        # ────────────────────────────────────────────────
-
+        # DODAJ NOVI PROIZVOD
         st.subheader("Dodaj novi proizvod")
         with st.form("dodaj_proizvod"):
             naziv = st.text_input("Naziv proizvoda *", key="dodaj_naziv_proizvoda")
@@ -437,10 +420,7 @@ else:
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
 
-        # ────────────────────────────────────────────────
-        #  UPLOAD IZ EXCELA
-        # ────────────────────────────────────────────────
-
+        # UPLOAD IZ EXCELA
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
@@ -453,12 +433,26 @@ else:
                     batch_size = 500
                     broj_dodanih = 0
                     broj_preskocenih = 0
+                    broj_duplikata = 0
+
+                    # Dohvati postojeće nazive iz baze
+                    response = supabase.table("proizvodi").select("naziv").execute()
+                    postojeći_nazivi = {r["naziv"].strip().lower() for r in response.data if r["naziv"]}
 
                     for i in range(0, len(df_upload), batch_size):
                         batch = df_upload.iloc[i:i + batch_size]
                         st.write(f"Učitavam batch {i//batch_size + 1} / {(len(df_upload) + batch_size - 1) // batch_size}...")
 
                         for _, row in batch.iterrows():
+                            naziv = str(row.get("NAZIV", "")).strip()
+                            if not naziv:
+                                continue
+
+                            # Provjeri duplikat po nazivu (case-insensitive)
+                            if naziv.lower() in postojeći_nazivi:
+                                broj_duplikata += 1
+                                continue  # preskoči duplikat
+
                             cijena_raw = str(row.get("CIJENA", "0")).strip()
                             cijena_raw = cijena_raw.replace(',', '.').replace(' ', '').replace('kn', '').replace('€', '').replace('HRK', '').strip()
                             try:
@@ -467,7 +461,7 @@ else:
                                 cijena = 0
 
                             novi = {
-                                "naziv": str(row.get("NAZIV", "")).strip() or "",
+                                "naziv": naziv,
                                 "sifra": str(row.get("ŠIFRA", "")).strip() or "",
                                 "dobavljac": str(row.get("DOBAVLJAČ", "")).strip() or "",
                                 "cijena": cijena,
@@ -476,37 +470,37 @@ else:
                                 "link": str(row.get("Link", "")).strip() or "",
                                 "slika": str(row.get("slika", "")).strip() or ""
                             }
+
                             for k in novi:
                                 if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
                                     novi[k] = None
 
                             supabase.table("proizvodi").insert(novi).execute()
                             broj_dodanih += 1
+                            # Dodaj novi naziv u lokalnu listu da izbjegnemo duplikate u istom batchu
+                            postojeći_nazivi.add(naziv.lower())
 
-                        time.sleep(0.3)  # mali delay
+                        time.sleep(0.3)  # mali delay između batch-eva
 
-                    st.success(f"Učitano **{broj_dodanih}** proizvoda. Preskočeno **{broj_preskocenih}** redaka.")
+                    st.success(f"Učitano **{broj_dodanih}** novih proizvoda. Preskočeno **{broj_duplikata}** duplikata po nazivu.")
                     st.rerun()
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
-        # ────────────────────────────────────────────────
-        #  GUMB ZA OBRIŠI SVE – SASVIM DOLJE + POTVRDA
-        # ────────────────────────────────────────────────
+        # GUMB ZA OBRIŠI SVE – SASVIM DOLJE + POTVRDA
+        st.markdown("---")  # vizualno odvajanje
 
-        st.markdown("---")  # odvajanje linijom za bolji izgled
-
-        potvrdi_brisanje_svih = st.checkbox("Potvrdi brisanje svih proizvoda (ne može se poništiti)", key="potvrdi_obrisi_sve")
+        potvrdi_brisanje_svih = st.checkbox("Potvrdi brisanje svih proizvoda (nepovratno!)", key="potvrdi_obrisi_sve")
 
         if potvrdi_brisanje_svih:
-            st.warning("Ovo će obrisati SVE proizvode iz baze! Nastavak je nepovratan.")
+            st.warning("Ovo će **obrisati SVE proizvode** iz baze. Nastavak je nepovratan.")
             if st.button("DA – Obriši sve proizvode", type="primary"):
                 try:
                     supabase.table("proizvodi").delete().gt("id", 0).execute()
-                    st.success("Svi proizvodi su uspješno obrisani!")
+                    st.success("Svi proizvodi su obrisani!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Greška pri brisanju: {str(e)}")
-                    st.error("Ako ima RLS zaštita u Supabaseu, privremeno je isključi.")
+                    st.error("Ako ima RLS zaštita, privremeno je isključi u Supabaseu.")
             st.info("Ako se predomisliš, poništi checkbox iznad.")
