@@ -6,7 +6,6 @@ from zoneinfo import ZoneInfo
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
-# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -24,7 +23,7 @@ if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
 
 # ────────────────────────────────────────────────
-#  LOGIN – samo prijava, bez registracije
+#  LOGIN – samo prijava
 # ────────────────────────────────────────────────
 
 if st.session_state.stranica == "login":
@@ -97,7 +96,7 @@ else:
             st.rerun()
 
     # ────────────────────────────────────────────────
-    #  GLAVNI SADRŽAJ – samo ako je prijavljen
+    #  GLAVNI SADRŽAJ
     # ────────────────────────────────────────────────
 
     if st.session_state.stranica == "početna":
@@ -107,6 +106,11 @@ else:
 
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
+
+        # Gumb za novu narudžbu – vidljiv na vrhu stranice
+        if st.button("➕ Nova narudžba", type="primary", key="nova_narudzba_gumb"):
+            st.session_state.stranica = "nova"
+            st.rerun()
 
         if st.button("🔄 Osvježi", key="pregled_osvjezi"):
             st.rerun()
@@ -248,7 +252,7 @@ else:
         df_dobavljaci = pd.DataFrame(response.data or [])
 
         if not df_dobavljaci.empty:
-            # Sortiraj po nazivu dobavljača (A-Z), neosjetljivo na velika/mala slova
+            # Sortiraj po nazivu dobavljača (A-Z), case-insensitive
             df_dobavljaci = df_dobavljaci.sort_values(
                 by="naziv_dobavljaca",
                 key=lambda x: x.str.lower() if x.dtype == "object" else x,
