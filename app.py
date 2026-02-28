@@ -349,7 +349,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (najnoviji na vrhu)
+    #  ADMINISTRACIJA → PROIZVODI
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -463,12 +463,24 @@ else:
                     broj_dodanih = 0
                     broj_preskocenih = 0
 
+                    # Normalizacija imena stupaca (case-insensitive + strip razmaka)
+                    columns_lower = {col.lower().strip(): col for col in df_upload.columns}
+
+                    naziv_col = next((col for col in columns_lower if "naziv" in col), None)
+                    sifra_col = next((col for col in columns_lower if "šifra" in col or "sifra" in col), None)
+                    dobavljac_col = next((col for col in columns_lower if "dobavljač" in col or "dobavljac" in col), None)
+                    cijena_col = next((col for col in columns_lower if "cijena" in col or "cijena" in col), None)
+                    pakiranje_col = next((col for col in columns_lower if "pakiranje" in col), None)
+                    napomena_col = next((col for col in columns_lower if "napomena" in col), None)
+                    link_col = next((col for col in columns_lower if "link" in col), None)
+                    slika_col = next((col for col in columns_lower if "slika" in col), None)
+
                     for i in range(0, len(df_upload), batch_size):
                         batch = df_upload.iloc[i:i + batch_size]
                         st.write(f"Učitavam batch {i//batch_size + 1} / {(len(df_upload) + batch_size - 1) // batch_size}...")
 
                         for _, row in batch.iterrows():
-                            sifra = str(row.get("ŠIFRA", "")).strip()
+                            sifra = str(row.get(sifra_col, "")).strip() if sifra_col else ""
                             if not sifra:
                                 broj_preskocenih += 1
                                 continue
@@ -478,7 +490,7 @@ else:
                                 broj_preskocenih += 1
                                 continue
 
-                            cijena_raw = str(row.get("CIJENA", "0")).strip()
+                            cijena_raw = str(row.get(cijena_col, "0")).strip() if cijena_col else "0"
                             cijena_raw = cijena_raw.replace(',', '.')
                             try:
                                 cijena = float(cijena_raw) if cijena_raw else 0
@@ -486,14 +498,14 @@ else:
                                 cijena = 0
 
                             novi = {
-                                "naziv": str(row.get("NAZIV", "")).strip() or "",
+                                "naziv": str(row.get(naziv_col, "")).strip() or "",
                                 "sifra": sifra,
-                                "dobavljac": str(row.get("DOBAVLJAČ", "")) or "",
+                                "dobavljac": str(row.get(dobavljac_col, "")) or "",
                                 "cijena": cijena,
-                                "pakiranje": str(row.get("PAKIRANJE", "")) or "",
-                                "napomena": str(row.get("NAPOMENA", "")) or "",
-                                "link": str(row.get("Link", "")) or "",
-                                "slika": str(row.get("Slika", "")) or ""
+                                "pakiranje": str(row.get(pakiranje_col, "")) or "",
+                                "napomena": str(row.get(napomena_col, "")) or "",
+                                "link": str(row.get(link_col, "")) or "",
+                                "slika": str(row.get(slika_col, "")) or ""
                             }
                             for k in novi:
                                 if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
