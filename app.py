@@ -393,6 +393,44 @@ else:
             st.info("Još nema proizvoda u bazi.")
 
         # ────────────────────────────────────────────────
+        #  DODAJ NOVI PROIZVOD
+        # ────────────────────────────────────────────────
+
+        st.subheader("Dodaj novi proizvod")
+        with st.form("dodaj_proizvod"):
+            naziv = st.text_input("Naziv proizvoda *", key="dodaj_naziv_proizvoda")
+            sifra = st.text_input("Šifra *", key="dodaj_sifra_proizvoda")
+            dobavljac = st.text_input("Dobavljač", key="dodaj_dobavljac_proizvoda")
+            cijena = st.number_input("Cijena", min_value=0.0, step=0.01, format="%.2f", key="dodaj_cijena_proizvoda")
+            pakiranje = st.text_input("Pakiranje", key="dodaj_pakiranje_proizvoda")
+            napomena = st.text_area("Napomena", key="dodaj_napomena_proizvoda")
+            link = st.text_input("Link (URL slike)", key="dodaj_link_proizvoda")
+            slika = st.text_input("Slika (URL slike)", key="dodaj_slika_proizvoda")
+
+            submitted = st.form_submit_button("Dodaj proizvod")
+            if submitted:
+                novi = {
+                    "naziv": naziv or "",
+                    "sifra": sifra or "",
+                    "dobavljac": dobavljac or "",
+                    "cijena": cijena,
+                    "pakiranje": pakiranje or "",
+                    "napomena": napomena or "",
+                    "link": link or "",
+                    "slika": slika or ""
+                }
+                try:
+                    supabase.table("proizvodi").insert(novi).execute()
+                    st.success("Proizvod dodan!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Greška pri dodavanju: {str(e)}")
+                    if "unique constraint" in str(e):
+                        st.error("Šifra već postoji u bazi – ali novi red je ipak dodan!")
+            if st.form_submit_button("Odustani", key="dodaj_odustani"):
+                st.rerun()
+
+        # ────────────────────────────────────────────────
         #  UPLOAD IZ EXCELA + CHECKBOX ISPOD NJEGA
         # ────────────────────────────────────────────────
 
@@ -429,7 +467,7 @@ else:
                                 "pakiranje": str(row.get("PAKIRANJE", "")).strip() or "",
                                 "napomena": str(row.get("NAPOMENA", "")).strip() or "",
                                 "link": str(row.get("Link", "")).strip() or "",
-                                "slika": str(row.get("Slika", "")).strip() or ""
+                                "slika": str(row.get("slika", "")).strip() or ""
                             }
                             for k in novi:
                                 if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
@@ -450,39 +488,10 @@ else:
         if not df_proizvodi.empty:
             označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
             if označi_sve:
-                # Ovdje možemo dodati logiku za označavanje, ali jer je tablica već editabilna, koristimo gumb za brisanje označenih
                 st.info("Označi retke u tablici iznad i stisni 'Spremi promjene' za brisanje.")
 
-        st.subheader("Dodaj novi proizvod")
-        with st.form("dodaj_proizvod"):
-            naziv = st.text_input("Naziv proizvoda *", key="dodaj_naziv_proizvoda")
-            sifra = st.text_input("Šifra *", key="dodaj_sifra_proizvoda")
-            dobavljac = st.text_input("Dobavljač", key="dodaj_dobavljac_proizvoda")
-            cijena = st.number_input("Cijena", min_value=0.0, step=0.01, format="%.2f", key="dodaj_cijena_proizvoda")
-            pakiranje = st.text_input("Pakiranje", key="dodaj_pakiranje_proizvoda")
-            napomena = st.text_area("Napomena", key="dodaj_napomena_proizvoda")
-            link = st.text_input("Link (URL slike)", key="dodaj_link_proizvoda")
-            slika = st.text_input("Slika (URL slike)", key="dodaj_slika_proizvoda")
+    # ────────────────────────────────────────────────
+    #  ADMINISTRACIJA → OSTALE STRANICE (ako ih ima)
+    # ────────────────────────────────────────────────
 
-            submitted = st.form_submit_button("Dodaj proizvod")
-            if submitted:
-                novi = {
-                    "naziv": naziv or "",
-                    "sifra": sifra or "",
-                    "dobavljac": dobavljac or "",
-                    "cijena": cijena,
-                    "pakiranje": pakiranje or "",
-                    "napomena": napomena or "",
-                    "link": link or "",
-                    "slika": slika or ""
-                }
-                try:
-                    supabase.table("proizvodi").insert(novi).execute()
-                    st.success("Proizvod dodan!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Greška pri dodavanju: {str(e)}")
-                    if "unique constraint" in str(e):
-                        st.error("Šifra već postoji u bazi – ali novi red je ipak dodan!")
-            if st.form_submit_button("Odustani", key="dodaj_odustani"):
-                st.rerun()
+    # Dodaj ovdje ostale stranice ako ih imaš (npr. Korisnici, Šifarnici, Dokumenti itd.)
