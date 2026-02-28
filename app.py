@@ -353,7 +353,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI
+    #  ADMINISTRACIJA → PROIZVODI (sortirano, brisanje pojedinačno/sve, upload s preskakanjem duplikata)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -376,6 +376,11 @@ else:
 
             # Dodaj checkbox stupac za brisanje
             df_proizvodi["Odaberi za brisanje"] = False
+
+            # Dodaj "Označi sve" checkbox iznad tablice
+            označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
+            if označi_sve:
+                df_proizvodi["Odaberi za brisanje"] = True
 
             edited_df = st.data_editor(
                 df_proizvodi,
@@ -409,7 +414,7 @@ else:
 
             # Gumb za brisanje svih proizvoda – popravljeno
             if st.button("🗑️ Obriši sve proizvode", type="secondary"):
-                if st.checkbox("Potvrdi brisanje svih proizvoda (ne može se poništiti)"):
+                if st.checkbox("Potvrdi brisanje svih proizvoda (ne može se poništiti)", key="potvrdi_obrisi_sve_proizvode"):
                     try:
                         supabase.table("proizvodi").delete().gt("id", 0).execute()  # briše sve gdje id > 0
                         st.success("Svi proizvodi su obrisani!")
@@ -508,3 +513,38 @@ else:
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
+
+    # ────────────────────────────────────────────────
+    #  SPREMI NARUDŽBU
+    # ────────────────────────────────────────────────
+
+    if st.session_state.stranica == "nova" and st.session_state.narudzbe_proizvodi:
+        col1, col2 = st.columns(2)
+        if col1.button("Odustani", type="secondary"):
+            st.session_state.narudzbe_proizvodi = []
+            st.session_state.stranica = "narudžbe"
+            st.rerun()
+
+        if col2.button("Spremi narudžbu", type="primary"):
+            for proizvod in st.session_state.narudzbe_proizvodi:
+                red = {
+                    "datum": str(datum),
+                    "korisnik": klijent or korisnik,
+                    "Skladište": skladiste,
+                    "tip_klijenta": tip_klijenta,
+                    "odgovorna_osoba": odgovorna,
+                    "sifra_proizvoda": proizvod["Šifra"],
+                    "naziv_proizvoda": proizvod["Naziv"],
+                    "kolicina": proizvod["Kol."],
+                    "dobavljac": proizvod["Dobavljač"],
+                    "cijena": proizvod["Ukupno"],
+                    "napomena_za_nas": napomena,
+                    "unio_korisnik": st.session_state.user.email,
+                    "datum_vrijeme_narudzbe": datetime.now(TZ).isoformat(),
+                }
+                supabase.table("main_orders").insert(red).execute()
+
+            st.success("Narudžba spremljena! Svi proizvodi su zasebni redovi.")
+            st.session_state.narudzbe_proizvodi = []
+            st.session_state.stranica = "narudžbe"
+            st.rerun()
