@@ -368,6 +368,15 @@ else:
             if označi_sve:
                 df_proizvodi["Odaberi za brisanje"] = True
 
+            # Prikaz slike pomoću HTML-a (radi i sa thumbnail URL-ovima)
+            def prikazi_sliku(url):
+                if pd.isna(url) or not str(url).strip() or not str(url).startswith(('http://', 'https://')):
+                    return '<div style="text-align:center;color:#888;">Nema slike</div>'
+                url = str(url).strip()
+                return f'<img src="{url}" width="80" style="display:block;margin-left:auto;margin-right:auto;" loading="lazy" alt="Slika proizvoda">'
+
+            df_proizvodi["Slika prikaz"] = df_proizvodi["slika"].apply(prikazi_sliku)
+
             edited_df = st.data_editor(
                 df_proizvodi,
                 num_rows="dynamic",
@@ -381,7 +390,7 @@ else:
                     "pakiranje": st.column_config.TextColumn("Pakiranje"),
                     "napomena": st.column_config.TextColumn("Napomena"),
                     "link": st.column_config.TextColumn("Link"),
-                    "slika": st.column_config.ImageColumn(
+                    "Slika prikaz": st.column_config.HTMLColumn(
                         "Slika",
                         width="small",
                         help="Mala sličica proizvoda (klikni za punu veličinu)"
@@ -398,8 +407,8 @@ else:
                     if row["Odaberi za brisanje"]:
                         supabase.table("proizvodi").delete().eq("id", row_id).execute()
                     else:
-                        # Ažuriraj samo promijenjene podatke (bez virtualnog stupca)
-                        update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje"]}
+                        # Ažuriraj samo promijenjene podatke
+                        update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje", "Slika prikaz"]}
                         supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
                 st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
                 st.rerun()
