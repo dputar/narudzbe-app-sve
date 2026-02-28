@@ -7,6 +7,7 @@ import time
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
+# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -367,6 +368,14 @@ else:
             if označi_sve:
                 df_proizvodi["Odaberi za brisanje"] = True
 
+            # Dodaj virtualni stupac za prikaz slike
+            def prikazi_sliku(url):
+                if pd.isna(url) or not str(url).strip() or not str(url).startswith(('http://', 'https://')):
+                    return None
+                return str(url).strip()
+
+            df_proizvodi["Slika prikaz"] = df_proizvodi["slika"].apply(prikazi_sliku)
+
             edited_df = st.data_editor(
                 df_proizvodi,
                 num_rows="dynamic",
@@ -380,7 +389,11 @@ else:
                     "pakiranje": st.column_config.TextColumn("Pakiranje"),
                     "napomena": st.column_config.TextColumn("Napomena"),
                     "link": st.column_config.TextColumn("Link"),
-                    "slika": st.column_config.TextColumn("Slika"),
+                    "Slika prikaz": st.column_config.ImageColumn(
+                        "Slika",
+                        width="small",
+                        help="Pregled slike proizvoda"
+                    ),
                     "created_at": st.column_config.TextColumn("Kreirano"),
                     "updated_at": st.column_config.TextColumn("Ažurirano"),
                     "Odaberi za brisanje": st.column_config.CheckboxColumn("Odaberi za brisanje"),
@@ -408,7 +421,6 @@ else:
         else:
             st.info("Još nema proizvoda u bazi.")
 
-        # Dodaj novi proizvod
         st.subheader("Dodaj novi proizvod")
         with st.form("dodaj_proizvod"):
             naziv = st.text_input("Naziv proizvoda *", key="dodaj_naziv_proizvoda")
@@ -443,7 +455,7 @@ else:
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
 
-        # Upload iz Excela – najjednostavniji upload (kao kad je radilo 3000+ redaka)
+        # Upload iz Excela – jednostavan upload koji je radio za velike tablice
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
