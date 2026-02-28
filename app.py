@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (sa prikazom slike i osvježavanjem)
+    #  ADMINISTRACIJA → PROIZVODI (sa prikazom slike i ispravljenim brisanjem)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -402,10 +402,12 @@ else:
 
             if st.button("💾 Spremi promjene", type="primary"):
                 for row in edited_df.to_dict("records"):
-                    if row["Odaberi za brisanje"]:
-                        supabase.table("proizvodi").delete().eq("id", row["id"]).execute()
-                    else:
-                        supabase.table("proizvodi").upsert(row, on_conflict="id").execute()
+                    row_id = int(row["id"]) if row["id"] else None
+                    if row["Odaberi za brisanje"] and row_id:
+                        supabase.table("proizvodi").delete().eq("id", row_id).execute()
+                    elif row_id:
+                        # Ažuriraj samo ako ima id (izbjegni insert praznih)
+                        supabase.table("proizvodi").update(row).eq("id", row_id).execute()
                 st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
                 st.rerun()
 
