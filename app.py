@@ -385,17 +385,6 @@ else:
                 }
             )
 
-            # ────────────────────────────────────────────────
-            #  GUMB ZA OZNAČI I OBRIŠI SVE – ISPOD TABLICE
-            # ────────────────────────────────────────────────
-
-            if st.button("Označi i obriši sve proizvode", type="primary"):
-                for row in df_proizvodi.to_dict("records"):
-                    row_id = row["id"]
-                    supabase.table("proizvodi").delete().eq("id", row_id).execute()
-                st.success("Svi proizvodi su obrisani!")
-                st.rerun()
-
             if st.button("💾 Spremi promjene", type="primary"):
                 for row in edited_df.to_dict("records"):
                     row_id = row["id"]
@@ -501,3 +490,23 @@ else:
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
+
+        # ────────────────────────────────────────────────
+        #  GUMB ZA OBRIŠI SVE – SASVIM DOLJE + POTVRDA
+        # ────────────────────────────────────────────────
+
+        st.markdown("---")  # odvajanje linijom za bolji izgled
+
+        potvrdi_brisanje_svih = st.checkbox("Potvrdi brisanje svih proizvoda (ne može se poništiti)", key="potvrdi_obrisi_sve")
+
+        if potvrdi_brisanje_svih:
+            st.warning("Ovo će obrisati SVE proizvode iz baze! Nastavak je nepovratan.")
+            if st.button("DA – Obriši sve proizvode", type="primary"):
+                try:
+                    supabase.table("proizvodi").delete().gt("id", 0).execute()
+                    st.success("Svi proizvodi su uspješno obrisani!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Greška pri brisanju: {str(e)}")
+                    st.error("Ako ima RLS zaštita u Supabaseu, privremeno je isključi.")
+            st.info("Ako se predomisliš, poništi checkbox iznad.")
