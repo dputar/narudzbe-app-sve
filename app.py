@@ -7,7 +7,6 @@ import time
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
-# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -23,9 +22,6 @@ if "narudzbe_proizvodi" not in st.session_state:
 
 if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
-
-if "oznaci_sve_proizvodi" not in st.session_state:
-    st.session_state.oznaci_sve_proizvodi = False
 
 # ────────────────────────────────────────────────
 #  LOGIN – samo prijava
@@ -368,16 +364,6 @@ else:
             # Dodaj checkbox stupac unutar tablice za brisanje pojedinačnih redaka
             df_proizvodi["Odaberi za brisanje"] = False
 
-            # Checkbox "Označi sve za brisanje" – ispod upload sekcije
-            označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi", value=st.session_state.oznaci_sve_proizvodi)
-
-            # Sinkronizacija označavanja
-            if označi_sve != st.session_state.oznaci_sve_proizvodi:
-                st.session_state.oznaci_sve_proizvodi = označi_sve
-                # Označi/poništi sve retke u tablici
-                df_proizvodi["Odaberi za brisanje"] = označi_sve
-                st.rerun()
-
             edited_df = st.data_editor(
                 df_proizvodi,
                 num_rows="dynamic",
@@ -506,7 +492,5 @@ else:
 
         # Checkbox "Označi sve za brisanje" – ispod upload sekcije
         if not df_proizvodi.empty:
-            označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi", value=st.session_state.oznaci_sve_proizvodi)
-            if označi_sve != st.session_state.oznaci_sve_proizvodi:
-                st.session_state.oznaci_sve_proizvodi = označi_sve
-                st.rerun()
+            označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
+            # Nema automatskog označavanja – korisnik mora ručno označiti retke u tablici
