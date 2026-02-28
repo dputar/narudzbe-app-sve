@@ -7,7 +7,6 @@ import time
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
-# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -350,7 +349,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI
+    #  ADMINISTRACIJA → PROIZVODI (učitava BAŠ SVE iz Excela)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -391,7 +390,6 @@ else:
                 }
             )
 
-            # Gumb za spremanje promjena (edit + brisanje označenih)
             if st.button("💾 Spremi promjene", type="primary"):
                 for row in edited_df.to_dict("records"):
                     if row["Odaberi za brisanje"]:
@@ -401,7 +399,6 @@ else:
                 st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
                 st.rerun()
 
-            # Gumb za brisanje svih proizvoda – popravljeno
             if st.button("🗑️ Obriši sve proizvode", type="secondary"):
                 if st.checkbox("Potvrdi brisanje svih proizvoda (ne može se poništiti)", key="potvrdi_obrisi_sve_proizvode"):
                     try:
@@ -449,7 +446,7 @@ else:
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
 
-        # Upload iz Excela – dodaje BAŠ SVE (bez ikakve provjere duplikata ili praznih šifara)
+        # Upload iz Excela – dodaje BAŠ SVE (bez provjere duplikata ili praznih šifara)
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
@@ -463,7 +460,7 @@ else:
                     broj_dodanih = 0
                     broj_preskocenih = 0
 
-                    # Normalizacija imena stupaca (ignorira velika/mala slova i razmake)
+                    # Normalizacija imena stupaca
                     columns_lower = {col.strip().lower(): col for col in df_upload.columns}
 
                     naziv_col = next((col for col in columns_lower if "naziv" in col.lower()), None)
@@ -472,8 +469,8 @@ else:
                     cijena_col = next((col for col in columns_lower if "cijena" in col.lower() or "cena" in col.lower()), None)
                     pakiranje_col = next((col for col in columns_lower if "pakiranje" in col.lower()), None)
                     napomena_col = next((col for col in columns_lower if "napomena" in col.lower()), None)
-                    link_col = next((col for col in columns_lower if "link" in col.lower() or "link" in col.lower()), None)
-                    slika_col = next((col for col in columns_lower if "slika" in col.lower() or "slika" in col.lower()), None)
+                    link_col = next((col for col in columns_lower if "link" in col.lower()), None)
+                    slika_col = next((col for col in columns_lower if "slika" in col.lower()), None)
 
                     st.write("Pronađeni stupci:")
                     st.write(f"Naziv: {naziv_col}")
@@ -490,12 +487,6 @@ else:
                         st.write(f"Učitavam batch {i//batch_size + 1} / {(len(df_upload) + batch_size - 1) // batch_size}...")
 
                         for _, row in batch.iterrows():
-                            # Provjera je li red potpuno prazan
-                            row_values = [str(row.get(col, "")).strip() for col in df_upload.columns if pd.notna(row.get(col, pd.NA))]
-                            if not any(row_values):
-                                broj_preskocenih += 1
-                                continue
-
                             cijena_raw = str(row.get(cijena_col, "0")).strip() if cijena_col else "0"
                             cijena_raw = cijena_raw.replace(',', '.')
                             try:
@@ -520,7 +511,7 @@ else:
                             supabase.table("proizvodi").insert(novi).execute()
                             broj_dodanih += 1
 
-                        time.sleep(0.3)  # mali delay da izbjegneš rate-limit
+                        time.sleep(0.3)  # mali delay
 
                     st.success(f"Učitano **{broj_dodanih}** proizvoda. Preskočeno **{broj_preskocenih}** potpuno praznih redaka.")
             except Exception as e:
