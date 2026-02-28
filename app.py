@@ -13,19 +13,11 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 TZ = ZoneInfo("Europe/Zagreb")
 
-# ────────────────────────────────────────────────
-#  SESSION STATE
-# ────────────────────────────────────────────────
-
 if "narudzbe_proizvodi" not in st.session_state:
     st.session_state.narudzbe_proizvodi = []
 
 if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
-
-# ────────────────────────────────────────────────
-#  LOGIN – samo prijava
-# ────────────────────────────────────────────────
 
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
@@ -47,10 +39,6 @@ if st.session_state.stranica == "login":
             st.error(f"Greška pri prijavi: {str(e)}")
 
 else:
-    # ────────────────────────────────────────────────
-    #  SIDEBAR
-    # ────────────────────────────────────────────────
-
     with st.sidebar:
         st.title("Sustav narudžbi")
 
@@ -95,10 +83,6 @@ else:
             st.session_state.user = None
             st.session_state.stranica = "login"
             st.rerun()
-
-    # ────────────────────────────────────────────────
-    #  GLAVNI SADRŽAJ
-    # ────────────────────────────────────────────────
 
     if st.session_state.stranica == "početna":
         st.title("Početna")
@@ -408,7 +392,6 @@ else:
         else:
             st.info("Još nema proizvoda u bazi.")
 
-        # Dodaj novi proizvod
         st.subheader("Dodaj novi proizvod")
         with st.form("dodaj_proizvod"):
             naziv = st.text_input("Naziv proizvoda *", key="dodaj_naziv_proizvoda")
@@ -443,7 +426,7 @@ else:
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
 
-        # Upload iz Excela – jednostavan i robustan (kao kad je radilo 3000+ redaka)
+        # Upload iz Excela – jednostavan upload kao kad je radilo 3000+ redaka
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
@@ -486,7 +469,7 @@ else:
                             supabase.table("proizvodi").insert(novi).execute()
                             broj_dodanih += 1
 
-                        time.sleep(0.3)  # mali delay
+                        time.sleep(0.3)
 
                     st.success(f"Učitano **{broj_dodanih}** proizvoda. Preskočeno **{broj_preskocenih}** redaka.")
                     st.rerun()  # osvježava tablicu ODMAH nakon upload-a
