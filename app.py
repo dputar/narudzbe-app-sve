@@ -239,7 +239,7 @@ else:
                         st.rerun()
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → DOBAVLJAČI
+    #  ADMINISTRACIJA → DOBAVLJAČI – popravljeno
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_dobavljaci":
@@ -264,8 +264,8 @@ else:
                     "napomena": st.column_config.TextColumn("Napomena"),
                     "neuneseno1": st.column_config.TextColumn("Neuneseno 1"),
                     "neuneseno2": st.column_config.TextColumn("Neuneseno 2"),
-                    "created_at": st.column_config.DateTimeColumn("Kreirano"),
-                    "updated_at": st.column_config.DateTimeColumn("Ažurirano"),
+                    "created_at": st.column_config.TextColumn("Kreirano"),
+                    "updated_at": st.column_config.TextColumn("Ažurirano"),
                 }
             )
 
