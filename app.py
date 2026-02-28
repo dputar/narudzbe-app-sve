@@ -24,8 +24,8 @@ if "stranica" not in st.session_state:
 if "proizvodi_search" not in st.session_state:
     st.session_state.proizvodi_search = ""
 
-if "proizvodi_last_search_time" not in st.session_state:
-    st.session_state.proizvodi_last_search_time = 0
+if "proizvodi_search_timestamp" not in st.session_state:
+    st.session_state.proizvodi_search_timestamp = time.time()
 
 # LOGIN
 if st.session_state.stranica == "login":
@@ -342,7 +342,7 @@ else:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
-    # PROIZVODI – s tražilicom + debounce + export svih
+    # PROIZVODI – s poboljšanom tražilicom
     elif st.session_state.stranica == "admin_proizvodi":
         st.title("Administracija - Proizvodi")
 
@@ -357,14 +357,15 @@ else:
         with col2:
             search_input = st.text_input("Pretraži po svim stupcima", value=st.session_state.proizvodi_search, key="proizvodi_search_input", placeholder="upiši naziv, šifru, dobavljača...")
 
-        # Debounce logika (0.5 sekundi nakon zadnjeg tipkanja)
+        # Debounce logika – osvježavamo samo nakon 0.5 s pauze
         current_time = time.time()
         if search_input != st.session_state.proizvodi_search:
             st.session_state.proizvodi_search = search_input
             st.session_state.proizvodi_last_search_time = current_time
+            st.rerun()  # odmah rerun kad se promijeni tekst
 
-        # Prikaži rezultate samo ako je prošlo 0.5 sekundi
-        if current_time - st.session_state.proizvodi_last_search_time >= 0.5:
+        # Ako je prošlo 0.5 s od zadnjeg tipkanja ili je pretraga prazna, prikaži rezultate
+        if current_time - st.session_state.proizvodi_last_search_time >= 0.5 or not search_input:
             df_display = df_full.copy()
             if st.session_state.proizvodi_search:
                 search_term = str(st.session_state.proizvodi_search).strip().lower()
@@ -428,7 +429,7 @@ else:
                         st.warning("Nema podataka za export.")
 
         else:
-            st.info("Još nema proizvoda u bazi.")
+            st.info("Tražilica u tijeku... (čekam 0.5 sekunde nakon tipkanja)")
 
         st.subheader("Dodaj novi proizvod")
         with st.form("dodaj_proizvod"):
