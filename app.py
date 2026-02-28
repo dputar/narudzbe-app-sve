@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (sa prikazom slike pomoću HTML-a)
+    #  ADMINISTRACIJA → PROIZVODI (editabilna tablica + zasebni prikaz slika)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -360,60 +360,41 @@ else:
         df_proizvodi = pd.DataFrame(response.data or [])
 
         if not df_proizvodi.empty:
-            st.subheader("Postojeći proizvodi")
+            st.subheader("Uređivanje proizvoda")
 
-            # Checkbox za brisanje (dodajemo ga kao stupac)
             df_proizvodi["Odaberi za brisanje"] = False
 
             označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
             if označi_sve:
                 df_proizvodi["Odaberi za brisanje"] = True
 
-            # Prikaz slike pomoću HTML-a (radi sa .webp, thumbnail cache-ovima)
-            def prikazi_sliku(url):
-                if pd.isna(url) or not str(url).strip() or not str(url).startswith(('http://', 'https://')):
-                    return '<div style="text-align:center;color:#888;font-size:12px;">Nema slike</div>'
-                url = str(url).strip()
-                return f'<img src="{url}" width="80" style="display:block;margin:0 auto;" loading="lazy" alt="Slika proizvoda">'
-
-            df_proizvodi["Slika prikaz"] = df_proizvodi["slika"].apply(prikazi_sliku)
-
-            # Prikaz tablice sa HTML slikama (umjesto data_editor za Slika)
-            st.dataframe(
-                df_proizvodi.drop(columns=["slika"]),  # sakrij originalni stupac slika
+            edited_df = st.data_editor(
+                df_proizvodi,
+                num_rows="dynamic",
                 use_container_width=True,
+                hide_index=True,
                 column_config={
-                    "naziv": "Naziv proizvoda",
-                    "sifra": "Šifra",
-                    "dobavljac": "Dobavljač",
-                    "cijena": st.column_config.NumberColumn("Cijena", format="%.2f"),
-                    "pakiranje": "Pakiranje",
-                    "napomena": "Napomena",
-                    "link": "Link",
-                    "Slika prikaz": st.column_config.TextColumn("Slika", width="small"),
-                    "created_at": "Kreirano",
-                    "updated_at": "Ažurirano",
+                    "naziv": st.column_config.TextColumn("Naziv proizvoda", required=True),
+                    "sifra": st.column_config.TextColumn("Šifra", required=True),
+                    "dobavljac": st.column_config.TextColumn("Dobavljač"),
+                    "cijena": st.column_config.NumberColumn("Cijena", min_value=0, format="%.2f"),
+                    "pakiranje": st.column_config.TextColumn("Pakiranje"),
+                    "napomena": st.column_config.TextColumn("Napomena"),
+                    "link": st.column_config.TextColumn("Link"),
+                    "slika": st.column_config.TextColumn("Slika (URL)"),
+                    "created_at": st.column_config.TextColumn("Kreirano"),
+                    "updated_at": st.column_config.TextColumn("Ažurirano"),
                     "Odaberi za brisanje": st.column_config.CheckboxColumn("Odaberi za brisanje"),
-                },
-                hide_index=True
+                }
             )
 
             if st.button("💾 Spremi promjene", type="primary"):
-                for _, row in df_proizvodi.iterrows():
+                for row in edited_df.to_dict("records"):
                     row_id = row["id"]
                     if row["Odaberi za brisanje"]:
                         supabase.table("proizvodi").delete().eq("id", row_id).execute()
                     else:
-                        update_data = {
-                            "naziv": row["naziv"],
-                            "sifra": row["sifra"],
-                            "dobavljac": row["dobavljac"],
-                            "cijena": row["cijena"],
-                            "pakiranje": row["pakiranje"],
-                            "napomena": row["napomena"],
-                            "link": row["link"],
-                            "slika": row["slika"]
-                        }
+                        update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje"]}
                         supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
                 st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
                 st.rerun()
@@ -427,6 +408,18 @@ else:
                     except Exception as e:
                         st.error(f"Greška pri brisanju: {str(e)}")
                         st.error("Ako ima RLS zaštita, privremeno je isključi u Supabase-u.")
+
+            # Zaseban prikaz slika (automatski, bez klika)
+            st.subheader("Pregled slika proizvoda")
+            cols = st.columns(4)  # 4 slike u redu
+            for idx, row in df_proizvodi.iterrows():
+                url = row.get("slika", "")
+                if pd.notna(url) and str(url).strip() and str(url).startswith(('http://', 'https://')):
+                    with cols[idx % 4]:
+                        st.image(url, width=150, caption=row["naziv"], use_column_width=False)
+                else:
+                    with cols[idx % 4]:
+                        st.caption(f"{row['naziv']} – Nema slike")
         else:
             st.info("Još nema proizvoda u bazi.")
 
@@ -444,14 +437,14 @@ else:
             submitted = st.form_submit_button("Dodaj proizvod")
             if submitted:
                 novi = {
-                    "naziv": naziv or "",
-                    "sifra": sifra or "",
-                    "dobavljac": dobavljac or "",
+                    "naziv": naziv,
+                    "sifra": sifra,
+                    "dobavljac": dobavljac,
                     "cijena": cijena,
-                    "pakiranje": pakiranje or "",
-                    "napomena": napomena or "",
-                    "link": link or "",
-                    "slika": slika or ""
+                    "pakiranje": pakiranje,
+                    "napomena": napomena,
+                    "link": link,
+                    "slika": slika
                 }
                 try:
                     supabase.table("proizvodi").insert(novi).execute()
@@ -460,7 +453,7 @@ else:
                 except Exception as e:
                     st.error(f"Greška pri dodavanju: {str(e)}")
                     if "unique constraint" in str(e):
-                        st.error("Šifra već postoji u bazi – ali novi red je ipak dodan!")
+                        st.error("Šifra već postoji u bazi!")
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
 
