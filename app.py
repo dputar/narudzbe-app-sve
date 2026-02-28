@@ -3,6 +3,7 @@ import pandas as pd
 from supabase import create_client, Client
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import time  # za mali delay između batcha
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
@@ -529,7 +530,7 @@ else:
                             supabase.table("proizvodi").insert(novi).execute()
                             broj_dodanih += 1
 
-                        st.rerun()  # osvježi nakon batcha
+                        time.sleep(0.5)  # mali delay između batcha da izbjegneš rate-limit
 
                     st.success(f"Učitano **{broj_dodanih}** novih proizvoda. Preskočeno **{broj_preskocenih}** praznih šifara + **{broj_već_postojecih}** duplikata šifre.")
             except Exception as e:
