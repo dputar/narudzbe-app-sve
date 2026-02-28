@@ -7,7 +7,6 @@ import time
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
-# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -394,12 +393,13 @@ else:
 
             označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
 
-            # Ako je checkbox promijenjen, ažuriraj stanje retaka u tablici
-            if označi_sve != st.session_state.oznaci_sve_proizvodi:
-                st.session_state.oznaci_sve_proizvodi = označi_sve
+            # Ako je checkbox označen, označi sve retke u tablici
+            if označi_sve:
                 for i in range(len(edited_df)):
-                    edited_df.at[i, "Odaberi za brisanje"] = označi_sve
-                st.rerun()
+                    edited_df.at[i, "Odaberi za brisanje"] = True
+            else:
+                for i in range(len(edited_df)):
+                    edited_df.at[i, "Odaberi za brisanje"] = False
 
             if st.button("💾 Spremi promjene", type="primary"):
                 for row in edited_df.to_dict("records"):
