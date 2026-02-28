@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI
+    #  ADMINISTRACIJA → PROIZVODI (sa prikazom slike i osvježavanjem)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -368,7 +368,7 @@ else:
             if označi_sve:
                 df_proizvodi["Odaberi za brisanje"] = True
 
-            # Dodaj virtualni stupac za prikaz slike
+            # Virtualni stupac za prikaz slike
             def prikazi_sliku(url):
                 if pd.isna(url) or not str(url).strip() or not str(url).startswith(('http://', 'https://')):
                     return None
@@ -392,7 +392,7 @@ else:
                     "Slika prikaz": st.column_config.ImageColumn(
                         "Slika",
                         width="small",
-                        help="Pregled slike proizvoda"
+                        help="Mala sličica proizvoda"
                     ),
                     "created_at": st.column_config.TextColumn("Kreirano"),
                     "updated_at": st.column_config.TextColumn("Ažurirano"),
