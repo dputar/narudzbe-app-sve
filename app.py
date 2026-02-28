@@ -21,88 +21,85 @@ if "narudzbe_proizvodi" not in st.session_state:
     st.session_state.narudzbe_proizvodi = []
 
 if "stranica" not in st.session_state:
-    st.session_state.stranica = "početna"
+    st.session_state.stranica = "login"
 
 # ────────────────────────────────────────────────
-#  SIDEBAR – tvoj izgled po slici
-# ────────────────────────────────────────────────
-
-with st.sidebar:
-    st.title("Sustav narudžbi")
-
-    if st.button("🏠 Početna", key="menu_pocetna"):
-        st.session_state.stranica = "početna"
-        st.rerun()
-
-    if st.button("🛒 Narudžbe", key="menu_narudzbe"):
-        st.session_state.stranica = "narudžbe"
-        st.rerun()
-
-    if st.button("🔍 Pretraga narudžbi", key="menu_pretraga"):
-        st.session_state.stranica = "pretraga"
-        st.rerun()
-
-    with st.expander("📊 Izvještaji", expanded=False):
-        st.info("Izvještaji dolaze kasnije...")
-
-    with st.expander("⚙️ Administracija", expanded=False):
-        if st.button("📦 Proizvodi", key="admin_proizvodi"):
-            st.session_state.stranica = "admin_proizvodi"
-            st.rerun()
-
-        if st.button("🚚 Dobavljači", key="admin_dobavljaci"):
-            st.session_state.stranica = "admin_dobavljaci"
-            st.rerun()
-
-        if st.button("👥 Korisnici", key="admin_korisnici"):
-            st.session_state.stranica = "admin_korisnici"
-            st.rerun()
-
-        if st.button("📋 Šifarnici", key="admin_sifarnici"):
-            st.session_state.stranica = "admin_sifarnici"
-            st.rerun()
-
-    if st.button("📁 Dokumenti", key="menu_dokumenti"):
-        st.session_state.stranica = "dokumenti"
-        st.rerun()
-
-    if st.button("➡️ Odjava", key="menu_odjava"):
-        supabase.auth.sign_out()
-        st.session_state.user = None
-        st.session_state.stranica = "login"
-        st.rerun()
-
-# ────────────────────────────────────────────────
-#  GLAVNI SADRŽAJ
+#  LOGIN – samo prijava, bez registracije
 # ────────────────────────────────────────────────
 
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
-    tab1, tab2 = st.tabs(["Prijava", "Registracija"])
 
-    with tab1:
-        email = st.text_input("Email", key="login_email")
-        password = st.text_input("Lozinka", type="password", key="login_password")
-        if st.button("Prijavi se", key="login_prijavi"):
-            try:
-                res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+    email = st.text_input("Email", key="login_email")
+    password = st.text_input("Lozinka", type="password", key="login_password")
+
+    if st.button("Prijavi se", key="login_prijavi"):
+        try:
+            res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+            if res.user:
                 st.session_state.user = res.user
                 st.session_state.stranica = "početna"
+                st.success("Uspješna prijava!")
                 st.rerun()
-            except Exception as e:
-                st.error(f"Greška: {e}")
-
-    with tab2:
-        email = st.text_input("Email", key="reg_email")
-        password = st.text_input("Lozinka", type="password", key="reg_password")
-        if st.button("Registriraj se", key="reg_registriraj"):
-            try:
-                supabase.auth.sign_up({"email": email, "password": password})
-                st.success("Registracija OK – prijavi se")
-            except Exception as e:
-                st.error(f"Greška: {e}")
+            else:
+                st.error("Prijava nije uspjela – provjeri email/lozinku.")
+        except Exception as e:
+            st.error(f"Greška pri prijavi: {str(e)}")
 
 else:
+    # ────────────────────────────────────────────────
+    #  SIDEBAR – prikazuje se samo nakon prijave
+    # ────────────────────────────────────────────────
+
+    with st.sidebar:
+        st.title("Sustav narudžbi")
+
+        if st.button("🏠 Početna", key="menu_pocetna"):
+            st.session_state.stranica = "početna"
+            st.rerun()
+
+        if st.button("🛒 Narudžbe", key="menu_narudzbe"):
+            st.session_state.stranica = "narudžbe"
+            st.rerun()
+
+        if st.button("🔍 Pretraga narudžbi", key="menu_pretraga"):
+            st.session_state.stranica = "pretraga"
+            st.rerun()
+
+        with st.expander("📊 Izvještaji", expanded=False):
+            st.info("Izvještaji dolaze kasnije...")
+
+        with st.expander("⚙️ Administracija", expanded=False):
+            if st.button("📦 Proizvodi", key="admin_proizvodi"):
+                st.session_state.stranica = "admin_proizvodi"
+                st.rerun()
+
+            if st.button("🚚 Dobavljači", key="admin_dobavljaci"):
+                st.session_state.stranica = "admin_dobavljaci"
+                st.rerun()
+
+            if st.button("👥 Korisnici", key="admin_korisnici"):
+                st.session_state.stranica = "admin_korisnici"
+                st.rerun()
+
+            if st.button("📋 Šifarnici", key="admin_sifarnici"):
+                st.session_state.stranica = "admin_sifarnici"
+                st.rerun()
+
+        if st.button("📁 Dokumenti", key="menu_dokumenti"):
+            st.session_state.stranica = "dokumenti"
+            st.rerun()
+
+        if st.button("➡️ Odjava", key="menu_odjava"):
+            supabase.auth.sign_out()
+            st.session_state.user = None
+            st.session_state.stranica = "login"
+            st.rerun()
+
+    # ────────────────────────────────────────────────
+    #  GLAVNI SADRŽAJ – samo ako je prijavljen
+    # ────────────────────────────────────────────────
+
     if st.session_state.stranica == "početna":
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
@@ -240,7 +237,7 @@ else:
                         st.rerun()
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → DOBAVLJAČI
+    #  ADMINISTRACIJA → DOBAVLJAČI (sortirano po nazivu)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_dobavljaci":
@@ -335,7 +332,7 @@ else:
                             "neuneseno1": "",
                             "neuneseno2": ""
                         }
-                        # Čišćenje nan/inf vrijednosti
+                        # Čišćenje nan/inf
                         for k in novi:
                             if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
                                 novi[k] = None
@@ -348,7 +345,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  SPREMI NARUDŽBU (iz prethodnog dijela)
+    #  SPREMI NARUDŽBU
     # ────────────────────────────────────────────────
 
     if st.session_state.stranica == "nova" and st.session_state.narudzbe_proizvodi:
