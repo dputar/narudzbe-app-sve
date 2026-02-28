@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (sa prikazom slike i ispravljenim brisanjem)
+    #  ADMINISTRACIJA → PROIZVODI (sa prikazom slike)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -368,14 +368,6 @@ else:
             if označi_sve:
                 df_proizvodi["Odaberi za brisanje"] = True
 
-            # Virtualni stupac za prikaz slike (Streamlit ImageColumn)
-            def prikazi_sliku(url):
-                if pd.isna(url) or not str(url).strip() or not str(url).startswith(('http://', 'https://')):
-                    return None
-                return str(url).strip()
-
-            df_proizvodi["Slika prikaz"] = df_proizvodi["slika"].apply(prikazi_sliku)
-
             edited_df = st.data_editor(
                 df_proizvodi,
                 num_rows="dynamic",
@@ -389,10 +381,10 @@ else:
                     "pakiranje": st.column_config.TextColumn("Pakiranje"),
                     "napomena": st.column_config.TextColumn("Napomena"),
                     "link": st.column_config.TextColumn("Link"),
-                    "Slika prikaz": st.column_config.ImageColumn(
+                    "slika": st.column_config.ImageColumn(
                         "Slika",
                         width="small",
-                        help="Mala sličica proizvoda"
+                        help="Mala sličica proizvoda (klikni za punu veličinu)"
                     ),
                     "created_at": st.column_config.TextColumn("Kreirano"),
                     "updated_at": st.column_config.TextColumn("Ažurirano"),
@@ -407,7 +399,7 @@ else:
                         supabase.table("proizvodi").delete().eq("id", row_id).execute()
                     else:
                         # Ažuriraj samo promijenjene podatke
-                        update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje", "Slika prikaz"]}
+                        update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje"]}
                         supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
                 st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
                 st.rerun()
@@ -458,7 +450,7 @@ else:
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
 
-        # Upload iz Excela – jednostavan upload koji je radio za velike tablice
+        # Upload iz Excela – jednostavan upload
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
@@ -492,7 +484,7 @@ else:
                                 "pakiranje": str(row.get("PAKIRANJE", "")).strip() or "",
                                 "napomena": str(row.get("NAPOMENA", "")).strip() or "",
                                 "link": str(row.get("Link", "")).strip() or "",
-                                "slika": str(row.get("Slika", "")).strip() or ""
+                                "slika": str(row.get("slika", "")).strip() or ""
                             }
                             for k in novi:
                                 if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
