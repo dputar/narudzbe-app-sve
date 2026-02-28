@@ -16,7 +16,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 TZ = ZoneInfo("Europe/Zagreb")
 
 # ────────────────────────────────────────────────
-#  SESSION STATE
+#  SESSION STATE – čuva vrijednost pretrage
 # ────────────────────────────────────────────────
 
 if "narudzbe_proizvodi" not in st.session_state:
@@ -366,7 +366,7 @@ else:
         with col1:
             st.subheader("Postojeći proizvodi")
         with col2:
-            # Tražilica s on_change callback-om
+            # Tražilica s callback-om koji ažurira session_state
             st.text_input(
                 "Pretraži po svim stupcima",
                 value=st.session_state.proizvodi_search,
