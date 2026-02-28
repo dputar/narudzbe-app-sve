@@ -8,7 +8,6 @@ import io
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
-# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -343,7 +342,7 @@ else:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
-    # PROIZVODI – s debounce tražilicom i exportom svih
+    # PROIZVODI – s tražilicom + debounce + export svih
     elif st.session_state.stranica == "admin_proizvodi":
         st.title("Administracija - Proizvodi")
 
@@ -362,10 +361,10 @@ else:
         current_time = time.time()
         if search_input != st.session_state.proizvodi_search:
             st.session_state.proizvodi_search = search_input
-            st.session_state.proizvodi_search_timestamp = current_time
+            st.session_state.proizvodi_last_search_time = current_time
 
         # Prikaži rezultate samo ako je prošlo 0.5 sekundi
-        if current_time - st.session_state.proizvodi_search_timestamp >= 0.5:
+        if current_time - st.session_state.proizvodi_last_search_time >= 0.5:
             df_display = df_full.copy()
             if st.session_state.proizvodi_search:
                 search_term = str(st.session_state.proizvodi_search).strip().lower()
