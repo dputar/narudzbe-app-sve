@@ -158,7 +158,7 @@ else:
 
         with col_lijevo:
             st.markdown("**Korisnik**")
-            korisnik = st.selectbox("", ["Daniel Putar"], key="nova_korisnik", label_visibility="collapsed")
+            korisnik = st.selectbox("", ["Danijel Putar"], key="nova_korisnik", label_visibility="collapsed")
             st.success(f"✓ {korisnik}")
 
             st.markdown("**Skladište**")
