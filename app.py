@@ -6,7 +6,6 @@ from zoneinfo import ZoneInfo
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
-# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -408,12 +407,16 @@ else:
                 st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
                 st.rerun()
 
-            # Gumb za brisanje svih proizvoda
+            # Gumb za brisanje svih proizvoda – popravljeno
             if st.button("🗑️ Obriši sve proizvode", type="secondary"):
                 if st.checkbox("Potvrdi brisanje svih proizvoda (ne može se poništiti)"):
-                    supabase.table("proizvodi").delete().neq("id", 0).execute()  # briše sve
-                    st.success("Svi proizvodi su obrisani!")
-                    st.rerun()
+                    try:
+                        supabase.table("proizvodi").delete().gt("id", 0).execute()  # briše sve gdje id > 0
+                        st.success("Svi proizvodi su obrisani!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Greška pri brisanju: {str(e)}")
+                        st.error("Ako ima RLS zaštita, privremeno je isključi u Supabase-u.")
         else:
             st.info("Još nema proizvoda u bazi.")
 
@@ -453,7 +456,7 @@ else:
                 else:
                     st.error("Naziv i šifra su obavezni!")
 
-        # Upload iz Excela – s preskakanjem duplikata šifre
+        # Upload iz Excela – batch po 500, preskakanje duplikata šifre
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
@@ -462,42 +465,46 @@ else:
                 st.write("Pregled podataka iz datoteke:")
                 st.dataframe(df_upload.head(10))
 
-                if st.button("Učitaj sve u bazu", type="primary"):
+                if st.button("Učitaj sve u bazu (batch po 500)", type="primary"):
+                    batch_size = 500
                     broj_dodanih = 0
                     broj_preskocenih = 0
 
-                    for _, row in df_upload.iterrows():
-                        sifra = str(row.get("ŠIFRA", "")).strip()
-                        if not sifra:
-                            broj_preskocenih += 1
-                            continue
+                    for i in range(0, len(df_upload), batch_size):
+                        batch = df_upload.iloc[i:i + batch_size]
+                        st.write(f"Učitavam batch {i//batch_size + 1} / {(len(df_upload) + batch_size - 1) // batch_size}...")
 
-                        # Provjeri postoji li već ta šifra
-                        postoji = supabase.table("proizvodi").select("id").eq("sifra", sifra).execute()
-                        if postoji.data:
-                            broj_preskocenih += 1
-                            continue  # preskoči duplikate
+                        for _, row in batch.iterrows():
+                            sifra = str(row.get("ŠIFRA", "")).strip()
+                            if not sifra:
+                                broj_preskocenih += 1
+                                continue
 
-                        novi = {
-                            "naziv": str(row.get("NAZIV", "")).strip() or "",
-                            "sifra": sifra,
-                            "dobavljac": str(row.get("DOBAVLJAČ", "")) or "",
-                            "cijena": float(row.get("CIJENA", 0)) or 0,
-                            "pakiranje": str(row.get("PAKIRANJE", "")) or "",
-                            "napomena": str(row.get("NAPOMENA", "")) or "",
-                            "neuneseno1": "",
-                            "neuneseno2": ""
-                        }
-                        # Čišćenje nan/inf
-                        for k in novi:
-                            if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
-                                novi[k] = None
+                            postoji = supabase.table("proizvodi").select("id").eq("sifra", sifra).execute()
+                            if postoji.data:
+                                broj_preskocenih += 1
+                                continue
 
-                        supabase.table("proizvodi").insert(novi).execute()
-                        broj_dodanih += 1
+                            novi = {
+                                "naziv": str(row.get("NAZIV", "")).strip() or "",
+                                "sifra": sifra,
+                                "dobavljac": str(row.get("DOBAVLJAČ", "")) or "",
+                                "cijena": float(row.get("CIJENA", 0)) or 0,
+                                "pakiranje": str(row.get("PAKIRANJE", "")) or "",
+                                "napomena": str(row.get("NAPOMENA", "")) or "",
+                                "neuneseno1": "",
+                                "neuneseno2": ""
+                            }
+                            for k in novi:
+                                if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
+                                    novi[k] = None
+
+                            supabase.table("proizvodi").insert(novi).execute()
+                            broj_dodanih += 1
+
+                        st.rerun()  # osvježi nakon batcha
 
                     st.success(f"Učitano {broj_dodanih} novih proizvoda. Preskočeno {broj_preskocenih} duplikata ili praznih šifara.")
-                    st.rerun()
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
