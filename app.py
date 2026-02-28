@@ -478,9 +478,8 @@ else:
                                 broj_preskocenih += 1
                                 continue
 
-                            cijena_raw = row.get("CIJENA", "0")
-                            if isinstance(cijena_raw, str):
-                                cijena_raw = cijena_raw.replace(',', '.').strip()
+                            cijena_raw = str(row.get("CIJENA", "0")).strip()
+                            cijena_raw = cijena_raw.replace(',', '.')
                             try:
                                 cijena = float(cijena_raw) if cijena_raw else 0
                             except ValueError:
