@@ -362,18 +362,21 @@ else:
         response = supabase.table("proizvodi").select("*").order("created_at", desc=True).execute()
         df_proizvodi = pd.DataFrame(response.data or [])
 
-        # ────────────────────────────────────────────────
-        #  AUTOMATSKO OZNAČAVANJE SVIH REDAKA
-        # ────────────────────────────────────────────────
-        if označi_sve != st.session_state.oznaci_sve_proizvodi:
-            st.session_state.oznaci_sve_proizvodi = označi_sve
-            st.rerun()
-
         if not df_proizvodi.empty:
             st.subheader("Postojeći proizvodi")
 
             # Dodaj checkbox stupac unutar tablice za brisanje pojedinačnih redaka
-            df_proizvodi["Odaberi za brisanje"] = st.session_state.oznaci_sve_proizvodi
+            df_proizvodi["Odaberi za brisanje"] = False
+
+            # Checkbox "Označi sve za brisanje" – ispod upload sekcije
+            označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi", value=st.session_state.oznaci_sve_proizvodi)
+
+            # Sinkronizacija označavanja
+            if označi_sve != st.session_state.oznaci_sve_proizvodi:
+                st.session_state.oznaci_sve_proizvodi = označi_sve
+                # Označi/poništi sve retke u tablici
+                df_proizvodi["Odaberi za brisanje"] = označi_sve
+                st.rerun()
 
             edited_df = st.data_editor(
                 df_proizvodi,
