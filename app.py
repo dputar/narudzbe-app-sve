@@ -362,7 +362,7 @@ else:
         if not df_proizvodi.empty:
             st.subheader("Postojeći proizvodi")
 
-            # Dodajemo checkbox stupac unutar tablice za brisanje pojedinačnih redaka
+            # Checkbox stupac unutar tablice za brisanje pojedinačnih redaka
             df_proizvodi["Odaberi za brisanje"] = False
 
             edited_df = st.data_editor(
