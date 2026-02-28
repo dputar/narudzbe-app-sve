@@ -8,6 +8,7 @@ import io
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
+# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -26,14 +27,6 @@ if "stranica" not in st.session_state:
 
 if "proizvodi_search" not in st.session_state:
     st.session_state.proizvodi_search = ""
-
-# ────────────────────────────────────────────────
-#  CALLBACK ZA TRAŽILICU – ažurira search i odmah rerun
-# ────────────────────────────────────────────────
-
-def on_search_change():
-    st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
-    st.rerun()  # Ovo triggera osvježavanje na svaku promjenu
 
 # ────────────────────────────────────────────────
 #  LOGIN
@@ -373,12 +366,13 @@ else:
         with col1:
             st.subheader("Postojeći proizvodi")
         with col2:
-            search_input = st.text_input(
+            # Tražilica s on_change callback-om
+            st.text_input(
                 "Pretraži po svim stupcima",
                 value=st.session_state.proizvodi_search,
                 key="proizvodi_search_input",
                 placeholder="upiši naziv, šifru, dobavljača...",
-                on_change=on_search_change  # OVO JE KLJUČNO – rerun na svaku promjenu!
+                on_change=lambda: st.session_state.update({"proizvodi_search": st.session_state.proizvodi_search_input})
             )
 
         # Filtriranje (odmah nakon promjene)
