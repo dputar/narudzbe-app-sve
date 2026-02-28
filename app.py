@@ -23,7 +23,7 @@ if "stranica" not in st.session_state:
     st.session_state.stranica = "početna"
 
 # ────────────────────────────────────────────────
-#  SIDEBAR – tvoj izgled po slici
+#  SIDEBAR – tvoj izgled
 # ────────────────────────────────────────────────
 
 with st.sidebar:
@@ -72,7 +72,7 @@ with st.sidebar:
         st.rerun()
 
 # ────────────────────────────────────────────────
-#  GLAVNI SADRŽAJ – ovisno o stranici
+#  GLAVNI SADRŽAJ
 # ────────────────────────────────────────────────
 
 if st.session_state.stranica == "login":
@@ -102,18 +102,10 @@ if st.session_state.stranica == "login":
                 st.error(f"Greška: {e}")
 
 else:
-    # ────────────────────────────────────────────────
-    #  POČETNA
-    # ────────────────────────────────────────────────
-
     if st.session_state.stranica == "početna":
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
-        st.info("Ovdje će biti dashboard, statistike, brzi pregled...")
-
-    # ────────────────────────────────────────────────
-    #  PREGLED NARUDŽBI
-    # ────────────────────────────────────────────────
+        st.info("Ovdje će biti dashboard, statistike...")
 
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
@@ -149,10 +141,6 @@ else:
         else:
             st.info("Još nema narudžbi.")
 
-    # ────────────────────────────────────────────────
-    #  NOVA NARUDŽBA
-    # ────────────────────────────────────────────────
-
     elif st.session_state.stranica == "nova":
         col_naslov, col_natrag = st.columns([5, 1])
         with col_naslov:
@@ -161,7 +149,7 @@ else:
         with col_natrag:
             if st.button("← Natrag na pregled", key="nova_natrag"):
                 st.session_state.narudzbe_proizvodi = []
-                st.session_state.stranica = "pregled"
+                st.session_state.stranica = "narudžbe"
                 st.rerun()
 
         col_lijevo, col_desno = st.columns([1, 2])
@@ -257,7 +245,7 @@ else:
     elif st.session_state.stranica == "admin_dobavljaci":
         st.title("Administracija - Dobavljači")
 
-        # 1. Dohvati sve dobavljače
+        # Dohvati sve dobavljače
         response = supabase.table("dobavljaci").select("*").execute()
         df_dobavljaci = pd.DataFrame(response.data or [])
 
@@ -281,7 +269,6 @@ else:
             )
 
             if st.button("💾 Spremi promjene", type="primary"):
-                # Spremi editirane podatke
                 for row in edited_df.to_dict("records"):
                     supabase.table("dobavljaci").upsert(row, on_conflict="id").execute()
                 st.success("Promjene spremljene!")
@@ -289,7 +276,7 @@ else:
         else:
             st.info("Još nema dobavljača u bazi.")
 
-        # 2. Dodaj novog dobavljača
+        # Dodaj novog dobavljača
         st.subheader("Dodaj novog dobavljača")
         with st.form("dodaj_dobavljaca"):
             naziv = st.text_input("Naziv dobavljača *", key="dodaj_naziv_dobavljaca")
@@ -318,61 +305,29 @@ else:
                 else:
                     st.error("Naziv dobavljača je obavezan!")
 
-        # 3. Upload iz Excel-a
+        # Upload iz Excela
         st.subheader("Upload dobavljača iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_dobavljaci")
         if uploaded_file:
-            df_upload = pd.read_excel(uploaded_file)
-            st.write("Pregled podataka iz datoteke:")
-            st.dataframe(df_upload.head(10))
+            try:
+                df_upload = pd.read_excel(uploaded_file)
+                st.write("Pregled podataka iz datoteke:")
+                st.dataframe(df_upload.head(10))
 
-            if st.button("Učitaj sve u bazu", type="primary"):
-                # Pretpostavimo da Excel ima kolone: Naziv dobavljača, Email, Rok isporuke, Telefonski broj, Napomena
-                for _, row in df_upload.iterrows():
-                    novi = {
-                        "naziv_dobavljaca": row.get("Naziv dobavljača", ""),
-                        "email": row.get("Email", ""),
-                        "rok_isporuke": row.get("Rok isporuke", ""),
-                        "telefonski_broj": row.get("Telefonski broj", ""),
-                        "napomena": row.get("Napomena", ""),
-                        "neuneseno1": "",
-                        "neuneseno2": ""
-                    }
-                    supabase.table("dobavljaci").insert(novi).execute()
-                st.success("Dobavljači učitani iz Excela!")
-                st.rerun()
-
-    # ────────────────────────────────────────────────
-    #  SPREMI NARUDŽBU (iz prethodnog koda)
-    # ────────────────────────────────────────────────
-
-    if st.session_state.stranica == "nova" and st.session_state.narudzbe_proizvodi:
-        col1, col2 = st.columns(2)
-        if col1.button("Odustani", type="secondary"):
-            st.session_state.narudzbe_proizvodi = []
-            st.session_state.stranica = "pregled"
-            st.rerun()
-
-        if col2.button("Spremi narudžbu", type="primary"):
-            for proizvod in st.session_state.narudzbe_proizvodi:
-                red = {
-                    "datum": str(datum),
-                    "korisnik": klijent or korisnik,
-                    "Skladište": skladiste,
-                    "tip_klijenta": tip_klijenta,
-                    "odgovorna_osoba": odgovorna,
-                    "sifra_proizvoda": proizvod["Šifra"],
-                    "naziv_proizvoda": proizvod["Naziv"],
-                    "kolicina": proizvod["Kol."],
-                    "dobavljac": proizvod["Dobavljač"],
-                    "cijena": proizvod["Ukupno"],
-                    "napomena_za_nas": napomena,
-                    "unio_korisnik": st.session_state.user.email,
-                    "datum_vrijeme_narudzbe": datetime.now(TZ).isoformat(),
-                }
-                supabase.table("main_orders").insert(red).execute()
-
-            st.success("Narudžba spremljena! Svi proizvodi su zasebni redovi.")
-            st.session_state.narudzbe_proizvodi = []
-            st.session_state.stranica = "pregled"
-            st.rerun()
+                if st.button("Učitaj sve u bazu", type="primary"):
+                    for _, row in df_upload.iterrows():
+                        novi = {
+                            "naziv_dobavljaca": row.get("Naziv dobavljača", ""),
+                            "email": row.get("Email", ""),
+                            "rok_isporuke": row.get("Rok isporuke", ""),
+                            "telefonski_broj": row.get("Telefonski broj", ""),
+                            "napomena": row.get("Napomena", ""),
+                            "neuneseno1": "",
+                            "neuneseno2": ""
+                        }
+                        supabase.table("dobavljaci").insert(novi).execute()
+                    st.success("Dobavljači učitani iz Excela!")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Greška pri čitanju Excela: {e}")
+                st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
