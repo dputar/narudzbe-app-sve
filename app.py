@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (učitava baš sve iz Excela, bez ikakve provjere duplikata)
+    #  ADMINISTRACIJA → PROIZVODI (učitava BAŠ SVE iz Excela, bez ikakve provjere duplikata)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -428,27 +428,26 @@ else:
 
             submitted = st.form_submit_button("Dodaj proizvod")
             if submitted:
-                if naziv and sifra:
-                    novi = {
-                        "naziv": naziv,
-                        "sifra": sifra,
-                        "dobavljac": dobavljac,
-                        "cijena": cijena,
-                        "pakiranje": pakiranje,
-                        "napomena": napomena,
-                        "link": link,
-                        "slika": slika
-                    }
-                    try:
-                        supabase.table("proizvodi").insert(novi).execute()
-                        st.success("Proizvod dodan!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Greška pri dodavanju: {str(e)}")
-                        if "unique constraint" in str(e):
-                            st.error("Šifra već postoji u bazi!")
-                else:
-                    st.error("Naziv i šifra su obavezni!")
+                novi = {
+                    "naziv": naziv or "",
+                    "sifra": sifra or "",
+                    "dobavljac": dobavljac or "",
+                    "cijena": cijena,
+                    "pakiranje": pakiranje or "",
+                    "napomena": napomena or "",
+                    "link": link or "",
+                    "slika": slika or ""
+                }
+                try:
+                    supabase.table("proizvodi").insert(novi).execute()
+                    st.success("Proizvod dodan!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Greška pri dodavanju: {str(e)}")
+                    if "unique constraint" in str(e):
+                        st.error("Šifra već postoji u bazi (ali novi red je ipak dodan ako nije duplikat)!")
+            if st.form_submit_button("Odustani", key="dodaj_odustani"):
+                st.rerun()
 
         # Upload iz Excela – batch po 500, dodaje BAŠ SVE (bez ikakve provjere duplikata ili praznih šifara)
         st.subheader("Upload proizvoda iz Excela")
@@ -464,7 +463,7 @@ else:
                     broj_dodanih = 0
                     broj_preskocenih = 0
 
-                    # Normalizacija imena stupaca (ignorira velika/mala slova i razmake)
+                    # Normalizacija imena stupaca
                     columns_lower = {col.strip().lower(): col for col in df_upload.columns}
 
                     naziv_col = next((col for col in columns_lower if "naziv" in col.lower()), None)
@@ -491,7 +490,7 @@ else:
                         st.write(f"Učitavam batch {i//batch_size + 1} / {(len(df_upload) + batch_size - 1) // batch_size}...")
 
                         for _, row in batch.iterrows():
-                            # Provjera je li red potpuno prazan (svi stupci nan ili prazan string)
+                            # Provjera je li red potpuno prazan
                             row_values = [str(row.get(col, "")).strip() for col in df_upload.columns if pd.notna(row.get(col, pd.NA))]
                             if not any(row_values):
                                 broj_preskocenih += 1
