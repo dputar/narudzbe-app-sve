@@ -350,7 +350,7 @@ else:
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (učitava BAŠ SVE iz Excela, bez ikakve provjere)
+    #  ADMINISTRACIJA → PROIZVODI
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -418,7 +418,7 @@ else:
         st.subheader("Dodaj novi proizvod")
         with st.form("dodaj_proizvod"):
             naziv = st.text_input("Naziv proizvoda *", key="dodaj_naziv_proizvoda")
-            sifra = st.text_input("Šifra", key="dodaj_sifra_proizvoda")
+            sifra = st.text_input("Šifra *", key="dodaj_sifra_proizvoda")
             dobavljac = st.text_input("Dobavljač", key="dodaj_dobavljac_proizvoda")
             cijena = st.number_input("Cijena", min_value=0.0, step=0.01, format="%.2f", key="dodaj_cijena_proizvoda")
             pakiranje = st.text_input("Pakiranje", key="dodaj_pakiranje_proizvoda")
@@ -472,8 +472,8 @@ else:
                     cijena_col = next((col for col in columns_lower if "cijena" in col.lower() or "cena" in col.lower()), None)
                     pakiranje_col = next((col for col in columns_lower if "pakiranje" in col.lower()), None)
                     napomena_col = next((col for col in columns_lower if "napomena" in col.lower()), None)
-                    link_col = next((col for col in columns_lower if "link" in col.lower()), None)
-                    slika_col = next((col for col in columns_lower if "slika" in col.lower()), None)
+                    link_col = next((col for col in columns_lower if "link" in col.lower() or "link" in col.lower()), None)
+                    slika_col = next((col for col in columns_lower if "slika" in col.lower() or "slika" in col.lower()), None)
 
                     st.write("Pronađeni stupci:")
                     st.write(f"Naziv: {naziv_col}")
