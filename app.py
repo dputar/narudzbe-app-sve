@@ -8,13 +8,17 @@ import io
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
+# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 TZ = ZoneInfo("Europe/Zagreb")
 
-# SESSION STATE
+# ────────────────────────────────────────────────
+#  SESSION STATE
+# ────────────────────────────────────────────────
+
 if "narudzbe_proizvodi" not in st.session_state:
     st.session_state.narudzbe_proizvodi = []
 
@@ -25,9 +29,12 @@ if "proizvodi_search" not in st.session_state:
     st.session_state.proizvodi_search = ""
 
 if "proizvodi_search_timestamp" not in st.session_state:
-    st.session_state.proizvodi_search_timestamp = time.time()
+    st.session_state.proizvodi_search_timestamp = 0
 
-# LOGIN
+# ────────────────────────────────────────────────
+#  LOGIN
+# ────────────────────────────────────────────────
+
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
 
@@ -48,7 +55,10 @@ if st.session_state.stranica == "login":
             st.error(f"Greška pri prijavi: {str(e)}")
 
 else:
-    # SIDEBAR
+    # ────────────────────────────────────────────────
+    #  SIDEBAR
+    # ────────────────────────────────────────────────
+
     with st.sidebar:
         st.title("Sustav narudžbi")
 
@@ -94,13 +104,15 @@ else:
             st.session_state.stranica = "login"
             st.rerun()
 
-    # POČETNA
+    # ────────────────────────────────────────────────
+    #  GLAVNI SADRŽAJ
+    # ────────────────────────────────────────────────
+
     if st.session_state.stranica == "početna":
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
 
-    # NARUDŽBE
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
 
@@ -139,7 +151,6 @@ else:
         else:
             st.info("Još nema narudžbi.")
 
-    # NOVA NARUDŽBA
     elif st.session_state.stranica == "nova":
         col_naslov, col_natrag = st.columns([5, 1])
         with col_naslov:
@@ -342,7 +353,10 @@ else:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
-    # PROIZVODI – s poboljšanom tražilicom
+    # ────────────────────────────────────────────────
+    #  ADMINISTRACIJA → PROIZVODI (s automatskom tražilicom bez Entera)
+    # ────────────────────────────────────────────────
+
     elif st.session_state.stranica == "admin_proizvodi":
         st.title("Administracija - Proizvodi")
 
@@ -350,22 +364,21 @@ else:
         full_response = supabase.table("proizvodi").select("*").order("created_at", desc=True).execute()
         df_full = pd.DataFrame(full_response.data or [])
 
-        # Naslov + tražilica
+        # Naslov + tražilica pored
         col1, col2 = st.columns([6, 4])
         with col1:
             st.subheader("Postojeći proizvodi")
         with col2:
-            search_input = st.text_input("Pretraži po svim stupcima", value=st.session_state.proizvodi_search, key="proizvodi_search_input", placeholder="upiši naziv, šifru, dobavljača...")
+            # Koristimo callback da se rerun dogodi na promjenu
+            def update_search():
+                st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
+                st.session_state.proizvodi_last_search_time = time.time()
+
+            search_input = st.text_input("Pretraži po svim stupcima", value=st.session_state.proizvodi_search, key="proizvodi_search_input", placeholder="upiši naziv, šifru, dobavljača...", on_change=update_search)
 
         # Debounce logika – osvježavamo samo nakon 0.5 s pauze
         current_time = time.time()
-        if search_input != st.session_state.proizvodi_search:
-            st.session_state.proizvodi_search = search_input
-            st.session_state.proizvodi_last_search_time = current_time
-            st.rerun()  # odmah rerun kad se promijeni tekst
-
-        # Ako je prošlo 0.5 s od zadnjeg tipkanja ili je pretraga prazna, prikaži rezultate
-        if current_time - st.session_state.proizvodi_last_search_time >= 0.5 or not search_input:
+        if current_time - st.session_state.proizvodi_last_search_time >= 0.5:
             df_display = df_full.copy()
             if st.session_state.proizvodi_search:
                 search_term = str(st.session_state.proizvodi_search).strip().lower()
