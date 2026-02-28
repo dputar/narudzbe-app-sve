@@ -7,7 +7,6 @@ import time
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
-# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -23,6 +22,9 @@ if "narudzbe_proizvodi" not in st.session_state:
 
 if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
+
+if "oznaci_sve_proizvodi" not in st.session_state:
+    st.session_state.oznaci_sve_proizvodi = False
 
 # ────────────────────────────────────────────────
 #  LOGIN – samo prijava
@@ -498,7 +500,7 @@ else:
         if not df_proizvodi.empty:
             označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
 
-            # Ako je checkbox promijenjen, označi/poništi sve retke u tablici
+            # Ako je checkbox označen, označi sve retke u tablici
             if označi_sve:
                 for i in range(len(edited_df)):
                     edited_df.at[i, "Odaberi za brisanje"] = True
@@ -506,5 +508,5 @@ else:
                 for i in range(len(edited_df)):
                     edited_df.at[i, "Odaberi za brisanje"] = False
 
-            # Osvježi tablicu nakon promjene
+            # Osvježi tablicu nakon promjene (bez petlje)
             st.rerun()
