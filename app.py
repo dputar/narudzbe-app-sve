@@ -24,7 +24,7 @@ if "stranica" not in st.session_state:
 if "proizvodi_search" not in st.session_state:
     st.session_state.proizvodi_search = ""
 
-# CALLBACK ZA TRAŽILICU – ažurira search i odmah rerun
+# CALLBACK ZA TRAŽILICU – samo ažurira session_state (bez rerun unutar callbacka)
 def on_search_change():
     st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
 
@@ -101,6 +101,7 @@ else:
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
 
+    # NARUDŽBE
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
 
@@ -139,6 +140,7 @@ else:
         else:
             st.info("Još nema narudžbi.")
 
+    # NOVA NARUDŽBA
     elif st.session_state.stranica == "nova":
         col_naslov, col_natrag = st.columns([5, 1])
         with col_naslov:
@@ -341,7 +343,7 @@ else:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
 
-    # PROIZVODI – tražilica radi dok tipkaš
+    # PROIZVODI – tražilica radi dok tipkaš (bez izlaska iz polja)
     elif st.session_state.stranica == "admin_proizvodi":
         st.title("Administracija - Proizvodi")
 
