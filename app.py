@@ -24,12 +24,9 @@ if "narudzbe_proizvodi" not in st.session_state:
 if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
 
+# Inicijalizacija stanja za "Označi sve"
 if "oznaci_sve_proizvodi" not in st.session_state:
     st.session_state.oznaci_sve_proizvodi = False
-
-# Callback funkcija za "Označi sve" checkbox
-def toggle_oznaci_sve():
-    st.session_state.oznaci_sve_proizvodi = not st.session_state.oznaci_sve_proizvodi
 
 # ────────────────────────────────────────────────
 #  LOGIN – samo prijava
@@ -372,17 +369,6 @@ else:
             # Dodaj checkbox stupac unutar tablice za brisanje pojedinačnih redaka
             df_proizvodi["Odaberi za brisanje"] = False
 
-            # Checkbox "Označi sve za brisanje" – ispod upload sekcije
-            označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
-
-            # Sinkronizacija označavanja (automatski označi/poništi sve retke)
-            if označi_sve:
-                for i in range(len(df_proizvodi)):
-                    df_proizvodi.at[i, "Odaberi za brisanje"] = True
-            else:
-                for i in range(len(df_proizvodi)):
-                    df_proizvodi.at[i, "Odaberi za brisanje"] = False
-
             edited_df = st.data_editor(
                 df_proizvodi,
                 num_rows="dynamic",
@@ -402,6 +388,20 @@ else:
                     "Odaberi za brisanje": st.column_config.CheckboxColumn("Odaberi za brisanje"),
                 }
             )
+
+            # ────────────────────────────────────────────────
+            #  CHECKBOX "OZNAČI SVE ZA BRISANJE" – ISPOD UPLOAD-A
+            # ────────────────────────────────────────────────
+
+            označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
+
+            # Ako je checkbox označen, označi sve retke u tablici
+            if označi_sve:
+                for i in range(len(edited_df)):
+                    edited_df.at[i, "Odaberi za brisanje"] = True
+            else:
+                for i in range(len(edited_df)):
+                    edited_df.at[i, "Odaberi za brisanje"] = False
 
             if st.button("💾 Spremi promjene", type="primary"):
                 for row in edited_df.to_dict("records"):
@@ -456,7 +456,7 @@ else:
                 st.rerun()
 
         # ────────────────────────────────────────────────
-        #  UPLOAD IZ EXCELA + CHECKBOX ISPOD NJEGA
+        #  UPLOAD IZ EXCELA
         # ────────────────────────────────────────────────
 
         st.subheader("Upload proizvoda iz Excela")
@@ -508,18 +508,3 @@ else:
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
-
-        # Checkbox "Označi sve za brisanje" – ispod upload sekcije
-        if not df_proizvodi.empty:
-            označi_sve = st.checkbox("Označi sve za brisanje", key="oznaci_sve_proizvodi")
-
-            # Ako je checkbox označen, označi sve retke u tablici
-            if označi_sve:
-                for i in range(len(edited_df)):
-                    edited_df.at[i, "Odaberi za brisanje"] = True
-            else:
-                for i in range(len(edited_df)):
-                    edited_df.at[i, "Odaberi za brisanje"] = False
-
-            # Osvježi tablicu nakon promjene (bez petlje)
-            st.rerun()
