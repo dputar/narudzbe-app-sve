@@ -731,13 +731,28 @@ else:
                     st.error("Ako ima RLS, privremeno ga isključi u Supabaseu.")
             st.info("Ako se predomisliš, poništi checkbox iznad.")
 
-       # ────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
         st.title("Administracija - Korisnici")
 
-        # Stanje za uređivanje
+        # Reset uređivanja pri svakom učitavanju stranice (da se ne "zalijepi")
         if "edit_korisnik_id" not in st.session_state:
             st.session_state.edit_korisnik_id = None
 
@@ -796,8 +811,10 @@ else:
                 }
             )
 
-            # Ako je označen "Uredi" – prikaži gumb za otvaranje forme
+            # Provjeri je li označen barem jedan "Uredi"
             uredi_oznacen = any(row["Uredi"] for row in edited_df.to_dict("records"))
+
+            # Ako je označen "Uredi" – prikaži gumb za otvaranje forme
             if uredi_oznacen:
                 if st.button("✏️ Uredi označenog korisnika", type="primary"):
                     # Pronađi prvi označeni za uređivanje (možeš proširiti za više)
@@ -831,7 +848,7 @@ else:
             # Osvježi
             st.button("🔄 Osvježi", on_click=st.rerun)
 
-            # Forma za uređivanje (otvara se samo kad se stisne gumb "Uredi označenog korisnika")
+            # Forma za uređivanje (otvara se SAMO kad stisneš gumb "Uredi označenog korisnika")
             if st.session_state.edit_korisnik_id:
                 edit_row = df_korisnici[df_korisnici["id"] == st.session_state.edit_korisnik_id].iloc[0]
                 with st.expander(f"Uređivanje korisnika: {edit_row['korisničko_ime']} ({edit_row['ime_prezime']})", expanded=True):
