@@ -99,6 +99,7 @@ else:
             st.session_state.user = None
             st.session_state.stranica = "login"
             st.rerun()
+
     # ────────────────────────────────────────────────
     # POČETNA
     # ────────────────────────────────────────────────
@@ -106,11 +107,13 @@ else:
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
+
     # ────────────────────────────────────────────────
     # NARUDŽBE – pregled (popravljeno: editabilna tablica + upload + sve što si tražio)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
+
         # Naslov + tražilica pored
         col1, col2 = st.columns([6, 4])
         with col1:
@@ -123,15 +126,19 @@ else:
                 placeholder="upiši broj narudžbe, datum, klijenta, proizvod...",
                 on_change=on_narudzbe_search_change
             )
+
         if st.button("🔄 Osvježi", key="pregled_osvjezi"):
             st.rerun()
+
         response = supabase.table("main_orders").select("*").order("datum", desc=True).execute()
         df = pd.DataFrame(response.data or [])
+
         if not df.empty:
             df = df.fillna("")
             df = df.loc[:, ~df.columns.duplicated()]
             if "reprezentacija" in df.columns:
                 df = df.rename(columns={"reprezentacija": "Skladište"})
+
             # Konverzija tipova da editor ne baca grešku
             for col in df.columns:
                 if "datum" in col.lower() or "vrijeme" in col.lower():
@@ -140,18 +147,22 @@ else:
                     df[col] = df[col].astype(str)
                 elif df[col].dtype in ["float64", "int64"]:
                     df[col] = pd.to_numeric(df[col], errors='coerce')
+
             # Filtriranje
             df_display = df.copy()
             if st.session_state.narudzbe_search:
                 search_term = str(st.session_state.narudzbe_search).strip().lower()
                 mask = df_display.astype(str).apply(lambda x: x.str.lower().str.contains(search_term), axis=1).any(axis=1)
                 df_display = df_display[mask]
+
             if df_display.empty and st.session_state.narudzbe_search:
                 st.info("Ništa nije pronađeno po traženom pojmu.")
             elif df_display.empty:
                 st.info("Još nema narudžbi.")
+
             # Dodaj checkbox za brisanje unutar tablice
             df_display["Obriši"] = False
+
             edited_df = st.data_editor(
                 df_display,
                 num_rows="dynamic",
@@ -180,6 +191,7 @@ else:
                     "Obriši": st.column_config.CheckboxColumn("Obriši"),
                 }
             )
+
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 if st.button("💾 Spremi promjene", type="primary"):
@@ -214,6 +226,7 @@ else:
                     else:
                         st.info("Nema označenih za brisanje niti promjena za spremanje.")
                     st.rerun()
+
             with col2:
                 if st.button("Izvezi pregled u Excel"):
                     output = io.BytesIO()
@@ -225,8 +238,10 @@ else:
                         file_name=f"narudzbe_pregled_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
+
             with col3:
                 st.button("➕ Nova narudžba", type="primary", on_click=lambda: st.session_state.update({"stranica": "nova"}))
+
             with col4:
                 st.subheader("Upload narudžbi iz Excela")
                 uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_narudzbe")
@@ -240,19 +255,24 @@ else:
                             broj_dodanih = 0
                             broj_duplikata = 0
                             broj_praznih = 0
+
                             response = supabase.table("main_orders").select("broj_narudzbe").execute()
                             postojeći_brojevi = {r["broj_narudzbe"] for r in response.data if r["broj_narudzbe"]}
+
                             for i in range(0, len(df_upload), batch_size):
                                 batch = df_upload.iloc[i:i + batch_size]
                                 st.write(f"Učitavam batch {i//batch_size + 1}...")
+
                                 for _, row in batch.iterrows():
                                     broj_narudzbe = str(row.get("broj_narudzbe", "")).strip()
                                     if not broj_narudzbe:
                                         broj_praznih += 1
                                         continue
+
                                     if broj_narudzbe in postojeći_brojevi:
                                         broj_duplikata += 1
                                         continue
+
                                     novi = {
                                         "datum": row.get("datum", None),
                                         "korisnik": str(row.get("korisnik", "")).strip() or "",
@@ -273,13 +293,17 @@ else:
                                         "cijena": float(row.get("cijena", 0)) or 0,
                                         "tip_klijenta": str(row.get("tip_klijenta", "")).strip() or ""
                                     }
+
                                     for k in novi:
                                         if pd.isna(novi[k]):
                                             novi[k] = None
+
                                     supabase.table("main_orders").insert(novi).execute()
                                     broj_dodanih += 1
                                     postojeći_brojevi.add(broj_narudzbe)
+
                                 time.sleep(0.3)
+
                             st.write(f"Ukupno redaka u Excelu: {len(df_upload)}")
                             st.write(f"Dodano: {broj_dodanih}")
                             st.write(f"Preskočeno duplikata: {broj_duplikata}")
@@ -291,6 +315,7 @@ else:
                         st.error("Provjeri format datoteke i stupce (npr. datum, broj_narudzbe).")
         else:
             st.info("Još nema narudžbi.")
+
     # ────────────────────────────────────────────────
     # NOVA NARUDŽBA (ostaje identično)
     # ────────────────────────────────────────────────
@@ -637,9 +662,9 @@ else:
                                 continue
 
                             # Zakomentiraj sljedeće 3 linije ako želiš DOPUSTITI duplikate
-                            if naziv.lower() in postojeći_nazivi:
-                                broj_duplikata += 1
-                                continue
+                            # if naziv.lower() in postojeći_nazivi:
+                            #     broj_duplikata += 1
+                            #     continue
 
                             cijena_raw = str(row.get("CIJENA", "0")).strip()
                             cijena_raw = cijena_raw.replace(',', '.').replace(' ', '').replace('kn', '').replace('€', '').replace('HRK', '').strip()
@@ -678,7 +703,6 @@ else:
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri format datoteke.")
-
         # GUMB ZA OBRIŠI SVE PROIZVODA
         st.markdown("---")
         potvrdi_brisanje_svih = st.checkbox("Potvrdi brisanje svih proizvoda (nepovratno!)", key="potvrdi_obrisi_sve")
