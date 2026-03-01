@@ -348,7 +348,17 @@ else:
         else:
             st.info("Još nema narudžbi.")
 
-       # ────────────────────────────────────────────────
+ 
+
+
+
+
+
+
+
+
+
+      # ────────────────────────────────────────────────
     # NOVA NARUDŽBA
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "nova":
@@ -428,7 +438,9 @@ else:
                                 "napomena_za_nas": napomena,
                                 "unio_korisnik": st.session_state.user["korisničko_ime"] if "user" in st.session_state else "admin",
                                 "datum_vrijeme_narudzbe": datetime.now(TZ).isoformat(),
-                                "aktivan": True  # ili po potrebi
+                                # Dodaj ostala polja koja imaš u tablici (npr. oznaci_za_narudzbu, napomena_dobavljac itd.)
+                                # "oznaci_za_narudzbu": False,
+                                # "napomena_dobavljac": "",
                             }
                             try:
                                 supabase.table("main_orders").insert(novi_red).execute()
@@ -475,7 +487,19 @@ else:
                     if st.form_submit_button("Odustani", key="dodaj_odustani"):
                         st.session_state.show_dodaj_proizvod = False
                         st.rerun()
-    # ────────────────────────────────────────────────
+   
+
+
+
+
+
+
+
+
+
+
+
+ # ────────────────────────────────────────────────
     # ADMINISTRACIJA → DOBAVLJAČI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_dobavljaci":
