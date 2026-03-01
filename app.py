@@ -52,22 +52,27 @@ def on_korisnici_search_change():
     st.session_state.korisnici_search = st.session_state.korisnici_search_input
 
 # ────────────────────────────────────────────────
-# LOGIN (korisničko ime + lozinka)
+# LOGIN (korisničko ime + lozinka iz tablice korisnici)
 # ────────────────────────────────────────────────
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
     korisnicko_ime = st.text_input("Korisničko ime", key="login_korisnicko_ime")
     lozinka = st.text_input("Lozinka", type="password", key="login_lozinka")
+
     if st.button("Prijavi se", key="login_prijavi"):
         try:
             # Dohvati korisnika po korisničko_ime
             response = supabase.table("korisnici").select("*").eq("korisničko_ime", korisnicko_ime).execute()
+            
             if response.data and len(response.data) > 0:
                 user = response.data[0]
+                
+                # Provjeri lozinku (plain text za sada – kasnije hashiraj)
                 if user["lozinka"] == lozinka:
+                    # Spremi cijelog korisnika u session_state
                     st.session_state.user = user
                     st.session_state.stranica = "početna"
-                    st.success("Uspješna prijava!")
+                    st.success(f"Dobrodošli, {user['ime_prezime']}!")
                     st.rerun()
                 else:
                     st.error("Neispravna lozinka.")
