@@ -250,38 +250,27 @@ else:
                         df_upload = pd.read_excel(uploaded_file)
                         st.write("Pregled podataka iz datoteke:")
                         st.dataframe(df_upload.head(10))
-
                         if st.button("Učitaj sve u bazu (batch po 500)", type="primary"):
                             batch_size = 500
                             broj_dodanih = 0
                             broj_duplikata = 0
                             broj_praznih = 0
 
-                            # Dohvati postojeće brojeve narudžbi
                             response = supabase.table("main_orders").select("broj_narudzbe").execute()
-                            postojeći_brojevi = {r["broj_narudzbe"] for r in response.data if r["broj_narudzbe"] and str(r["broj_narudzbe"]).strip()}
-
-                            st.write(f"Broj postojećih narudžbi u bazi: {len(postojeći_brojevi)}")
+                            postojeći_brojevi = {r["broj_narudzbe"] for r in response.data if r["broj_narudzbe"]}
 
                             for i in range(0, len(df_upload), batch_size):
                                 batch = df_upload.iloc[i:i + batch_size]
-                                st.write(f"Učitavam batch {i//batch_size + 1} (redovi {i+1} do {min(i+batch_size, len(df_upload))})...")
+                                st.write(f"Učitavam batch {i//batch_size + 1}...")
 
-                                for idx, row in batch.iterrows():
-                                    broj_narudzbe_raw = row.get("broj_narudzbe")
-                                    broj_narudzbe = str(broj_narudzbe_raw).strip() if broj_narudzbe_raw is not None else ""
-
+                                for _, row in batch.iterrows():
+                                    broj_narudzbe = str(row.get("broj_narudzbe", "")).strip()
                                     if not broj_narudzbe:
                                         broj_praznih += 1
-                                        st.write(f"Red {idx+1}: preskočen – broj_narudzbe je prazan ili None")
                                         continue
 
-                                    st.write(f"Red {idx+1}: broj_narudzbe = '{broj_narudzbe}'")
-
-                                    # Provjera duplikata (možeš zakomentirati ako želiš dodati sve)
                                     if broj_narudzbe in postojeći_brojevi:
                                         broj_duplikata += 1
-                                        st.write(f"Red {idx+1}: preskočen duplikat broj_narudzbe '{broj_narudzbe}'")
                                         continue
 
                                     novi = {
@@ -309,27 +298,21 @@ else:
                                         if pd.isna(novi[k]):
                                             novi[k] = None
 
-                                    try:
-                                        supabase.table("main_orders").insert(novi).execute()
-                                        broj_dodanih += 1
-                                        postojeći_brojevi.add(broj_narudzbe)
-                                        st.write(f"Red {idx+1}: USPJEŠNO DODAN → broj_narudzbe '{broj_narudzbe}'")
-                                    except Exception as insert_e:
-                                        st.error(f"Red {idx+1}: GREŠKA pri insertu '{broj_narudzbe}': {insert_e}")
+                                    supabase.table("main_orders").insert(novi).execute()
+                                    broj_dodanih += 1
+                                    postojeći_brojevi.add(broj_narudzbe)
 
                                 time.sleep(0.3)
 
-                            st.markdown("---")
                             st.write(f"Ukupno redaka u Excelu: {len(df_upload)}")
                             st.write(f"Dodano: {broj_dodanih}")
                             st.write(f"Preskočeno duplikata: {broj_duplikata}")
-                            st.write(f"Preskočeno praznih broj_narudzbe: {broj_praznih}")
-                            st.success(f"Učitano **{broj_dodanih}** novih narudžbi.")
-                            st.rerun()
+                            st.write(f"Preskočeno praznih/broj_narudzbe: {broj_praznih}")
+                            st.success(f"Učitano **{broj_dodanih}** novih narudžbi. Preskočeno **{broj_duplikata}** duplikata. Praznih: **{broj_praznih}**.")
+                            # st.rerun()  ← zakomentirano da poruke ostanu vidljive
                     except Exception as e:
-                        st.error(f"Greška pri čitanju Excela: {e}")
-                        st.error("Provjeri format datoteke i stupce (npr. 'broj_narudzbe' mora postojati i biti popunjen).")
-
+                        st.error(f"Greška pri čitanju/učitavanju Excela: {e}")
+                        st.error("Provjeri format datoteke i stupce (npr. datum, broj_narudzbe).")
         else:
             st.info("Još nema narudžbi.")
 
@@ -681,17 +664,16 @@ else:
                             naziv_candidates = ["NAZIV", "naziv", "Naziv", "Name", "Proizvod", "naziv proizvoda"]
                             naziv = None
                             for cand in naziv_candidates:
-                                if cand in row.index:
-                                    naziv_raw = row[cand]
-                                    naziv = str(naziv_raw).strip() if naziv_raw is not None else ""
+                                if cand in row and pd.notna(row[cand]):
+                                    naziv = str(row[cand]).strip()
                                     break
 
                             if not naziv:
                                 broj_praznih += 1
-                                st.write(f"Red {idx+1}: preskočen – naziv je prazan ili stupac 'NAZIV' nije pronađen")
+                                st.write(f"Red {idx+1}: PRESKOČEN – naziv je prazan ili stupac 'NAZIV' nije pronađen")
                                 continue
 
-                            st.write(f"Red {idx+1}: naziv = '{naziv}'")
+                            st.write(f"Red {idx+1}: naziv = '{naziv}' (dodajem...)")
 
                             cijena_raw = str(row.get("CIJENA", "0")).strip()
                             cijena_raw = cijena_raw.replace(',', '.').replace(' ', '').replace('kn', '').replace('€', '').replace('HRK', '').strip()
@@ -732,7 +714,7 @@ else:
                     st.write(f"Preskočeno praznih naziva ili nedostajućih stupaca: {broj_praznih}")
                     st.write(f"Nevaljanih cijena (postavljeno na 0): {broj_nevaljanih}")
                     st.success(f"Učitano **{broj_dodanih}** novih proizvoda.")
-                    st.rerun()
+                    # st.rerun()  ← zakomentirano da poruke ostanu vidljive
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri format datoteke – stupac 'NAZIV' mora postojati i biti popunjen.")
