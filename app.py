@@ -357,7 +357,7 @@ else:
 
 
 
-    # ────────────────────────────────────────────────
+       # ────────────────────────────────────────────────
     # NOVA NARUDŽBA
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "nova":
@@ -410,7 +410,8 @@ else:
         with col_desno:
             st.markdown("**Proizvodi**")
             if st.session_state.narudzbe_proizvodi:
-                df = pd.DataFrame(st.session_state.narudzbe_proizvodi)
+                # Reverse da zadnji dodani budu na vrhu
+                df = pd.DataFrame(reversed(st.session_state.narudzbe_proizvodi))
                 df["Ukupno"] = df["Kol."] * df["Cijena"]
                 st.dataframe(df, use_container_width=True, height=400)
                 ukupno = df["Ukupno"].sum()
@@ -465,8 +466,8 @@ else:
                     sifra = col1.text_input("Šifra", key="dodaj_sifra")
                     naziv = col2.text_input("Naziv proizvoda *", key="dodaj_naziv")
                     col3, col4 = st.columns(2)
-                    kol = col3.number_input("Količina *", min_value=0.01, step=0.01, format="%.2f", key="dodaj_kol")
-                    cijena = col4.number_input("Cijena po komadu", min_value=0.0, step=0.01, format="%.2f", key="dodaj_cijena")
+                    kol = col3.number_input("Količina *", min_value=0, step=0.01, format="%.2f", value=0.0, key="dodaj_kol")
+                    cijena = col4.number_input("Cijena po komadu", min_value=0, step=0.01, format="%.2f", value=0.0, key="dodaj_cijena")
                     dobavljac = st.text_input("Dobavljač", key="dodaj_dobavljac")
                     submitted = st.form_submit_button("Dodaj u narudžbu", key="dodaj_spremi")
                     if submitted:
