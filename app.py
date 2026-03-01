@@ -256,7 +256,7 @@ else:
                             broj_duplikata = 0
                             broj_praznih = 0
 
-                            # Dohvati postojeće brojeve narudžbi
+                            # Dohvati postojeće brojeve narudžbi (samo za info i provjeru)
                             response = supabase.table("main_orders").select("broj_narudzbe").execute()
                             postojeći_brojevi = {str(r["broj_narudzbe"]).strip() for r in response.data if r["broj_narudzbe"] and str(r["broj_narudzbe"]).strip()}
 
@@ -277,16 +277,16 @@ else:
 
                                     if not broj_narudzbe:
                                         broj_praznih += 1
-                                        broj_narudzbe = f"AUTO_{datetime.now().strftime('%Y%m%d%H%M%S')}_{idx+1}"  # ← automatski broj kad je prazan
-                                        st.write(f"Red {idx+1}: broj_narudzbe bio prazan → automatski '{broj_narudzbe}'")
+                                        broj_narudzbe = None  # ← OVDJE: ako je prazan → None (kao što si tražio)
+                                        st.write(f"Red {idx+1}: broj_narudzbe je prazan → postavljen na None")
 
-                                    st.write(f"Red {idx+1}: broj_narudzbe = '{broj_narudzbe}'")
+                                    st.write(f"Red {idx+1}: broj_narudzbe = {broj_narudzbe if broj_narudzbe else 'None'}")
 
-                                    # Provjera duplikata (zakomentirano da doda sve)
-                                    # if broj_narudzbe in postojeći_brojevi:
-                                    #     broj_duplikata += 1
-                                    #     st.write(f"Red {idx+1}: PRESKOČEN DUPLIKAT '{broj_narudzbe}'")
-                                    #     continue
+                                    # Provjera duplikata samo ako broj_narudzbe postoji i nije None
+                                    if broj_narudzbe and broj_narudzbe in postojeći_brojevi:
+                                        broj_duplikata += 1
+                                        st.write(f"Red {idx+1}: PRESKOČEN DUPLIKAT broj_narudzbe '{broj_narudzbe}'")
+                                        continue
 
                                     novi = {
                                         "datum": row.get("datum", None),
@@ -298,7 +298,7 @@ else:
                                         "kolicina": float(row.get("kolicina", 0)) or 0,
                                         "dobavljac": str(row.get("dobavljac", "")).strip() or "",
                                         "oznaci_za_narudzbu": bool(row.get("oznaci_za_narudzbu", False)),
-                                        "broj_narudzbe": broj_narudzbe,
+                                        "broj_narudzbe": broj_narudzbe,  # ← može biti None
                                         "oznaci_zaprimljeno": bool(row.get("oznaci_zaprimljeno", False)),
                                         "napomena_dobavljac": str(row.get("napomena_dobavljac", "")).strip() or "",
                                         "napomena_za_nas": str(row.get("napomena_za_nas", "")).strip() or "",
@@ -316,10 +316,11 @@ else:
                                     try:
                                         supabase.table("main_orders").insert(novi).execute()
                                         broj_dodanih += 1
-                                        postojeći_brojevi.add(broj_narudzbe)
-                                        st.write(f"Red {idx+1}: USPJEŠNO DODAN → '{broj_narudzbe}'")
+                                        if broj_narudzbe:
+                                            postojeći_brojevi.add(broj_narudzbe)
+                                        st.write(f"Red {idx+1}: USPJEŠNO DODAN → broj_narudzbe = {broj_narudzbe if broj_narudzbe else 'None'}")
                                     except Exception as insert_e:
-                                        st.error(f"Red {idx+1}: GREŠKA pri insertu '{broj_narudzbe}': {insert_e}")
+                                        st.error(f"Red {idx+1}: GREŠKA pri insertu: {insert_e}")
 
                                 time.sleep(0.3)
 
@@ -328,11 +329,11 @@ else:
                             st.write(f"Dodano: {broj_dodanih}")
                             st.write(f"Preskočeno duplikata: {broj_duplikata}")
                             st.write(f"Preskočeno praznih broj_narudzbe: {broj_praznih}")
-                            st.success(f"Učitano **{broj_dodanih}** novih narudžbi.")
+                            st.success(f"Učitano **{broj_dodanih}** novih narudžbi. Preskočeno **{broj_duplikata}** duplikata. Praznih broj_narudzbe: **{broj_praznih}**.")
                             # st.rerun()  ← zakomentirano da vidiš poruke
                     except Exception as e:
                         st.error(f"Greška pri čitanju Excela: {e}")
-                        st.error("Provjeri format datoteke – stupac 'broj_narudzbe' mora postojati i biti popunjen (ili će se generirati automatski).")
+                        st.error("Provjeri format datoteke – stupac 'broj_narudzbe' može biti prazan (sada se dodaje kao None).")
 
         else:
             st.info("Još nema narudžbi.")
