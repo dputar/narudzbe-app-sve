@@ -206,20 +206,22 @@ else:
                             for k, v in row.items():
                                 if k in ["Obriši", "id"]:
                                     continue
+                                # Čišćenje NaN / NaT / praznih vrijednosti
                                 if pd.isna(v) or (isinstance(v, float) and np.isnan(v)):
                                     update_data[k] = None
                                 elif isinstance(v, pd.Timestamp):
                                     update_data[k] = v.isoformat()
                                 elif isinstance(v, datetime):
                                     update_data[k] = v.isoformat()
+                                elif isinstance(v, str) and v.strip() == "":
+                                    update_data[k] = None
                                 else:
                                     update_data[k] = v
-                            if update_data:  # samo ako ima promjena
+                            if update_data:  # SAMO AKO IMA PROMJENA – ovo je ključ za rješavanje greške
                                 supabase.table("main_orders").update(update_data).eq("id", row_id).execute()
                                 spremljeno += 1
                     if obrisano > 0 or spremljeno > 0:
-                        msg = f"Obrisano {obrisano} narudžbi. Spremljeno {spremljeno} promjena."
-                        st.success(msg)
+                        st.success(f"Obrisano {obrisano} narudžbi. Spremljeno {spremljeno} promjena.")
                     else:
                         st.info("Nema označenih za brisanje niti promjena za spremanje.")
                     st.rerun()
