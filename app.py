@@ -114,7 +114,7 @@ else:
         st.info("Ovdje će biti dashboard, statistike...")
 
     # ────────────────────────────────────────────────
-    # NARUDŽBE – pregled (ostaje isto)
+    # NARUDŽBE – pregled
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
@@ -328,227 +328,13 @@ else:
                             st.write(f"Preskočeno duplikata: {broj_duplikata}")
                             st.write(f"Preskočeno praznih broj_narudzbe: {broj_praznih}")
                             st.success(f"Učitano **{broj_dodanih}** novih narudžbi.")
-                            # st.rerun()  ← zakomentirano za testiranje
+                            # st.rerun()  ← zakomentirano da vidiš poruke
                     except Exception as e:
                         st.error(f"Greška pri čitanju Excela: {e}")
                         st.error("Provjeri format datoteke – stupac 'broj_narudzbe' može biti prazan (dodaje se kao None).")
 
         else:
             st.info("Još nema narudžbi.")
-
-    # ────────────────────────────────────────────────
-    # NOVA NARUDŽBA (ostaje isto)
-    # ────────────────────────────────────────────────
-    elif st.session_state.stranica == "nova":
-        col_naslov, col_natrag = st.columns([5, 1])
-        with col_naslov:
-            st.title("Nova narudžba")
-        with col_natrag:
-            if st.button("← Natrag na pregled", key="nova_natrag"):
-                st.session_state.narudzbe_proizvodi = []
-                st.session_state.stranica = "narudžbe"
-                st.rerun()
-        col_lijevo, col_desno = st.columns([1, 2])
-        with col_lijevo:
-            st.markdown("**Korisnik**")
-            korisnik = st.selectbox("", ["Danijel Putar"], key="nova_korisnik", label_visibility="collapsed")
-            st.success(f"✓ {korisnik}")
-            st.markdown("**Skladište**")
-            skladiste = st.selectbox("", ["Osijek - Glavno skladište"], key="nova_skladiste", label_visibility="collapsed")
-            st.success(f"✓ {skladiste}")
-            st.markdown("**Tip klijenta**")
-            tip_klijenta = st.selectbox("", ["Doznaka", "Narudžba", "Uzorak", "Reprezentacija"], key="nova_tip_klijenta", label_visibility="collapsed")
-            if tip_klijenta:
-                st.success(f"✓ {tip_klijenta}")
-            else:
-                st.error("× Tip klijenta")
-            st.markdown("**Klijent**")
-            klijent = st.text_input("", placeholder="Upiši ime", key="nova_klijent", label_visibility="collapsed")
-            if klijent:
-                st.success(f"✓ {klijent}")
-            else:
-                st.error("× Klijent")
-            st.markdown("**Odgovorna osoba**")
-            odgovorna_lista = ["Nema", "Danijel Putar", "Druga osoba"]
-            odgovorna = st.selectbox("", odgovorna_lista, key="nova_odgovorna_select", label_visibility="collapsed")
-            if odgovorna == "Nema":
-                odgovorna = st.text_input("Slobodan unos odgovorne osobe", key="nova_odgovorna_slobodno")
-            st.success(f"✓ {odgovorna}")
-            st.markdown("**Datum**")
-            datum = st.date_input("", datetime.today(), key="nova_datum", label_visibility="collapsed")
-            st.markdown("**Napomena**")
-            napomena = st.text_area("", height=100, key="nova_napomena", label_visibility="collapsed")
-        with col_desno:
-            st.markdown("**Proizvodi**")
-            if st.session_state.narudzbe_proizvodi:
-                df = pd.DataFrame(st.session_state.narudzbe_proizvodi)
-                df["Ukupno"] = df["Kol."] * df["Cijena"]
-                st.dataframe(df, use_container_width=True, height=400)
-                ukupno = df["Ukupno"].sum()
-                st.markdown(f"**UKUPNO: {ukupno:,.2f} EUR + PDV**")
-            else:
-                st.info("Još nema proizvoda.")
-            if st.button("➕ Dodaj proizvod", key="nova_dodaj_gumb", type="primary"):
-                st.session_state.show_dodaj_proizvod = True
-            if st.session_state.get("show_dodaj_proizvod", False):
-                with st.form("dodaj_proizvod_form", clear_on_submit=True):
-                    col1, col2 = st.columns(2)
-                    sifra = col1.text_input("Šifra", key="dodaj_sifra")
-                    naziv = col2.text_input("Naziv proizvoda *", key="dodaj_naziv")
-                    col3, col4 = st.columns(2)
-                    kol = col3.number_input("Količina *", min_value=0.01, step=0.01, format="%.2f", key="dodaj_kol")
-                    cijena = col4.number_input("Cijena po komadu", min_value=0.0, step=0.01, format="%.2f", key="dodaj_cijena")
-                    dobavljac = st.text_input("Dobavljač", key="dodaj_dobavljac")
-                    submitted = st.form_submit_button("Dodaj u narudžbu", key="dodaj_spremi")
-                    if submitted:
-                        if naziv and kol > 0:
-                            novi = {
-                                "Šifra": sifra,
-                                "Naziv": naziv,
-                                "Kol.": kol,
-                                "Cijena": cijena,
-                                "Ukupno": kol * cijena,
-                                "Dobavljač": dobavljac
-                            }
-                            st.session_state.narudzbe_proizvodi.append(novi)
-                            st.success("Proizvod dodan!")
-                            st.rerun()
-                        else:
-                            st.error("Naziv i količina su obavezni!")
-                    if st.form_submit_button("Odustani", key="dodaj_odustani"):
-                        st.session_state.show_dodaj_proizvod = False
-                        st.rerun()
-
-    # ────────────────────────────────────────────────
-    # ADMINISTRACIJA → DOBAVLJAČI (ostaje isto)
-    # ────────────────────────────────────────────────
-    elif st.session_state.stranica == "admin_dobavljaci":
-        st.title("Administracija - Dobavljači")
-        response = supabase.table("dobavljaci").select("*").execute()
-        df_dobavljaci = pd.DataFrame(response.data or [])
-        if not df_dobavljaci.empty:
-            col1, col2 = st.columns([6, 4])
-            with col1:
-                st.subheader("Postojeći dobavljači")
-            with col2:
-                st.text_input(
-                    "Pretraži po svim stupcima",
-                    value=st.session_state.dobavljaci_search,
-                    key="dobavljaci_search_input",
-                    placeholder="upiši naziv, email, rok...",
-                    on_change=on_dobavljaci_search_change
-                )
-            df_display = df_dobavljaci.copy()
-            if st.session_state.dobavljaci_search:
-                search_term = str(st.session_state.dobavljaci_search).strip().lower()
-                mask = df_display.astype(str).apply(lambda x: x.str.lower().str.contains(search_term), axis=1).any(axis=1)
-                df_display = df_display[mask]
-            if df_display.empty and st.session_state.dobavljaci_search:
-                st.info("Ništa nije pronađeno.")
-            elif df_display.empty:
-                st.info("Još nema dobavljača u bazi.")
-            df_display["Odaberi za brisanje"] = False
-            edited_df = st.data_editor(
-                df_display,
-                num_rows="dynamic",
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "naziv_dobavljaca": st.column_config.TextColumn("Naziv dobavljača", required=True),
-                    "email": st.column_config.TextColumn("Email"),
-                    "rok_isporuke": st.column_config.TextColumn("Rok isporuke"),
-                    "telefonski_broj": st.column_config.TextColumn("Telefonski broj"),
-                    "napomena": st.column_config.TextColumn("Napomena"),
-                    "neuneseno1": st.column_config.TextColumn("Neuneseno 1"),
-                    "neuneseno2": st.column_config.TextColumn("Neuneseno 2"),
-                    "created_at": st.column_config.TextColumn("Kreirano"),
-                    "updated_at": st.column_config.TextColumn("Ažurirano"),
-                    "Odaberi za brisanje": st.column_config.CheckboxColumn("Obriši"),
-                }
-            )
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                if st.button("💾 Spremi promjene", type="primary"):
-                    for row in edited_df.to_dict("records"):
-                        row_id = row["id"]
-                        if row["Odaberi za brisanje"]:
-                            supabase.table("dobavljaci").delete().eq("id", row_id).execute()
-                        else:
-                            update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje"]}
-                            supabase.table("dobavljaci").update(update_data).eq("id", row_id).execute()
-                    st.success("Promjene spremljene! Označeni dobavljači su obrisani.")
-                    st.rerun()
-            with col2:
-                if st.button("Izvezi sve dobavljače u Excel"):
-                    output = io.BytesIO()
-                    df_dobavljaci.to_excel(output, index=False, sheet_name="Dobavljači")
-                    output.seek(0)
-                    st.download_button(
-                        label="Preuzmi cijelu listu (.xlsx)",
-                        data=output,
-                        file_name=f"svi_dobavljaci_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-            with col3:
-                st.button("🔄 Osvježi", on_click=st.rerun)
-            st.subheader("Dodaj novog dobavljača")
-            with st.form("dodaj_dobavljaca"):
-                naziv = st.text_input("Naziv dobavljača *", key="dodaj_naziv_dobavljaca")
-                email = st.text_input("Email", key="dodaj_email_dobavljaca")
-                rok = st.text_input("Rok isporuke", key="dodaj_rok_dobavljaca")
-                telefon = st.text_input("Telefonski broj", key="dodaj_telefon_dobavljaca")
-                napomena = st.text_area("Napomena", key="dodaj_napomena_dobavljaca")
-                neuneseno1 = st.text_input("Neuneseno 1", key="dodaj_neuneseno1")
-                neuneseno2 = st.text_input("Neuneseno 2", key="dodaj_neuneseno2")
-                submitted = st.form_submit_button("Dodaj dobavljača")
-                if submitted:
-                    if naziv:
-                        novi = {
-                            "naziv_dobavljaca": naziv,
-                            "email": email,
-                            "rok_isporuke": rok,
-                            "telefonski_broj": telefon,
-                            "napomena": napomena,
-                            "neuneseno1": neuneseno1,
-                            "neuneseno2": neuneseno2
-                        }
-                        supabase.table("dobavljaci").insert(novi).execute()
-                        st.success("Dobavljač dodan!")
-                        st.rerun()
-                    else:
-                        st.error("Naziv dobavljača je obavezan!")
-            st.subheader("Upload dobavljača iz Excela")
-            uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_dobavljaci")
-            if uploaded_file:
-                try:
-                    df_upload = pd.read_excel(uploaded_file)
-                    st.write("Pregled podataka iz datoteke:")
-                    st.dataframe(df_upload.head(10))
-                    if st.button("Učitaj sve u bazu", type="primary"):
-                        broj_dodanih = 0
-                        broj_preskocenih = 0
-                        for _, row in df_upload.iterrows():
-                            novi = {
-                                "naziv_dobavljaca": str(row.get("Naziv dobavljača", "")) or "",
-                                "email": str(row.get("Email", "")) or "",
-                                "rok_isporuke": str(row.get("Rok isporuke", "")) or "",
-                                "telefonski_broj": str(row.get("Telefonski broj", "")) or "",
-                                "napomena": str(row.get("Napomena", "")) or "",
-                                "neuneseno1": "",
-                                "neuneseno2": ""
-                            }
-                            for k in novi:
-                                if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
-                                    novi[k] = None
-                            supabase.table("dobavljaci").insert(novi).execute()
-                            broj_dodanih += 1
-                        st.success(f"Učitano {broj_dodanih} novih dobavljača.")
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"Greška pri čitanju Excela: {e}")
-                    st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
-        else:
-            st.info("Još nema dobavljača u bazi.")
 
     # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI (prilagođeno tvojim slikama)
@@ -584,6 +370,7 @@ else:
             elif df_display.empty:
                 st.info("Još nema korisnika u bazi.")
 
+            # Dodaj checkbox za brisanje
             df_display["Obriši"] = False
 
             edited_df = st.data_editor(
@@ -631,7 +418,7 @@ else:
         else:
             st.info("Još nema korisnika u bazi.")
 
-        # Gumb za novog korisnika (kao + na slici)
+        # Gumb za novog korisnika
         if st.button("➕ Novi korisnik", type="primary"):
             with st.form("novi_korisnik_form", clear_on_submit=True):
                 st.markdown("**Novi korisnik**")
@@ -675,7 +462,7 @@ else:
                         novi = {
                             "ime_prezime": ime_prezime,
                             "email": email,
-                            "lozinka": lozinka,  # kasnije hashiraj
+                            "lozinka": lozinka,  # kasnije hashiraj ako treba
                             "tip_korisnika": tip_korisnika,
                             "aktivan": True,
                             "prava": prava,
@@ -692,7 +479,61 @@ else:
                     else:
                         st.error("Ime i prezime, email i lozinka su obavezni!")
 
-    # ────────────────────────────────────────────────
-    # OSTALE SEKCIJE (admin_proizvodi, itd.) – ostaju isto kao prije
-    # ────────────────────────────────────────────────
-    # ... (možeš dodati ako treba, ali za sada preskačemo da kod ne bude predug)
+        # ────────────────────────────────────────────────
+        # UPLOAD KORISNIKA IZ EXCELA
+        # ────────────────────────────────────────────────
+        st.subheader("Upload korisnika iz Excela")
+        uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_korisnici")
+        if uploaded_file:
+            try:
+                df_upload = pd.read_excel(uploaded_file)
+                st.write("Pregled podataka iz datoteke:")
+                st.dataframe(df_upload.head(10))
+
+                if st.button("Učitaj sve u bazu (batch po 500)", type="primary"):
+                    batch_size = 500
+                    broj_dodanih = 0
+                    broj_duplikata = 0
+                    broj_praznih = 0
+
+                    response = supabase.table("korisnici").select("email").execute()
+                    postojeći_emailovi = {r["email"].strip().lower() for r in response.data if r["email"]}
+
+                    for i in range(0, len(df_upload), batch_size):
+                        batch = df_upload.iloc[i:i + batch_size]
+                        st.write(f"Učitavam batch {i//batch_size + 1}...")
+
+                        for _, row in batch.iterrows():
+                            email = str(row.get("email", "")).strip()
+                            if not email:
+                                broj_praznih += 1
+                                continue
+
+                            if email.lower() in postojeći_emailovi:
+                                broj_duplikata += 1
+                                continue
+
+                            novi = {
+                                "ime_prezime": str(row.get("ime_prezime", "")).strip() or None,
+                                "email": email,
+                                "tip_korisnika": str(row.get("tip_korisnika", "KORISNIK")).strip() or "KORISNIK",
+                                "aktivan": bool(row.get("aktivan", True)),
+                                "prava": [],  # možeš dodati logiku za prava iz Excela
+                                "skladišta": []  # isto
+                            }
+
+                            for k in novi:
+                                if pd.isna(novi[k]):
+                                    novi[k] = None
+
+                            supabase.table("korisnici").insert(novi).execute()
+                            broj_dodanih += 1
+                            postojeći_emailovi.add(email.lower())
+
+                        time.sleep(0.3)
+
+                    st.success(f"Učitano **{broj_dodanih}** novih korisnika. Preskočeno **{broj_duplikata}** duplikata po emailu. Praznih emailova: **{broj_praznih}**.")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Greška pri čitanju/učitavanju Excela: {e}")
+                st.error("Provjeri format datoteke (obavezno 'email').")
