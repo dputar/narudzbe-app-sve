@@ -5,6 +5,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import time
 import io
+import numpy as np
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
@@ -106,7 +107,7 @@ else:
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
     # ────────────────────────────────────────────────
-    # NARUDŽBE – pregled (popravljeno: editabilna tablica + checkbox + tražilica + upload + export)
+    # NARUDŽBE – pregled (popravljeno: editabilna tablica + upload + sve što si tražio)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
@@ -136,13 +137,13 @@ else:
             if "reprezentacija" in df.columns:
                 df = df.rename(columns={"reprezentacija": "Skladište"})
 
-            # Konverzija tipova da data_editor ne baca grešku
+            # Konverzija tipova da editor ne baca grešku
             for col in df.columns:
                 if "datum" in col.lower() or "vrijeme" in col.lower():
                     df[col] = pd.to_datetime(df[col], errors='coerce')
                 elif df[col].dtype == "object":
                     df[col] = df[col].astype(str)
-                elif df[col].dtype == "float64" or df[col].dtype == "int64":
+                elif df[col].dtype in ["float64", "int64"]:
                     df[col] = pd.to_numeric(df[col], errors='coerce')
 
             # Filtriranje
@@ -157,7 +158,7 @@ else:
             elif df_display.empty:
                 st.info("Još nema narudžbi.")
 
-            # Dodaj checkbox za brisanje unutar tablice
+            # Dodaj checkbox za brisanje
             df_display["Obriši"] = False
 
             edited_df = st.data_editor(
@@ -197,9 +198,21 @@ else:
                         if row["Obriši"]:
                             supabase.table("main_orders").delete().eq("id", row_id).execute()
                         else:
-                            # Spremi izmjene u bazi (svi stupci osim Obriši i ID-a)
-                            update_data = {k: v for k, v in row.items() if k not in ["Obriši", "id"]}
-                            supabase.table("main_orders").update(update_data).eq("id", row_id).execute()
+                            # Čišćenje podataka prije update-a
+                            update_data = {}
+                            for k, v in row.items():
+                                if k in ["Obriši", "id"]:
+                                    continue
+                                if pd.isna(v) or (isinstance(v, float) and np.isnan(v)):
+                                    update_data[k] = None
+                                elif isinstance(v, pd.Timestamp):
+                                    update_data[k] = v.isoformat()
+                                elif isinstance(v, datetime):
+                                    update_data[k] = v.isoformat()
+                                else:
+                                    update_data[k] = v
+                            if update_data:  # samo ako ima promjena
+                                supabase.table("main_orders").update(update_data).eq("id", row_id).execute()
                     st.success("Promjene spremljene! Označene narudžbe su obrisane.")
                     st.rerun()
 
