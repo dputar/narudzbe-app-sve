@@ -355,7 +355,7 @@ else:
 
 
 
-       # ────────────────────────────────────────────────
+      # ────────────────────────────────────────────────
     # NOVA NARUDŽBA
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "nova":
@@ -376,7 +376,7 @@ else:
             st.error(f"Greška pri dohvaćanju proizvoda: {str(e)}")
             df_proizvodi = pd.DataFrame()
 
-        # Unique vrijednosti za padajuće izbornike
+        # Unique vrijednosti
         sve_sifre = [""] + df_proizvodi["sifra"].dropna().unique().tolist()
         svi_nazivi = [""] + df_proizvodi["naziv"].dropna().unique().tolist()
         svi_dobavljaci = [""] + df_proizvodi["dobavljac"].dropna().unique().tolist()
@@ -428,7 +428,6 @@ else:
                 ukupno = df["Ukupno"].sum()
                 st.markdown(f"**UKUPNO: {ukupno:,.2f} EUR + PDV**")
 
-                # Gumb za spremanje narudžbe
                 if st.button("💾 Spremi narudžbu i prebaci na pregled", type="primary"):
                     if not klijent or not tip_klijenta:
                         st.error("Klijent / Partner i Tip klijenta su obavezni!")
@@ -473,44 +472,46 @@ else:
 
             if st.session_state.get("show_dodaj_proizvod", False):
                 with st.form("dodaj_proizvod_form", clear_on_submit=True):
-                    col1, col2, col3 = st.columns([1, 2, 1])
-                    # Padajući izbornik Šifra
-                    sifra_select = col1.selectbox("Šifra", sve_sifre, key="dodaj_sifra_select")
-                    # Padajući izbornik Naziv
-                    naziv_select = col2.selectbox("Naziv proizvoda *", svi_nazivi, key="dodaj_naziv_select")
-                    # Padajući izbornik Dobavljač
-                    dobavljac_select = col3.selectbox("Dobavljač", svi_dobavljaci, key="dodaj_dobavljac_select")
+                    st.markdown("**Upiši ili odaberi proizvod**")
+                    col1, col2 = st.columns(2)
+                    sifra_input = col1.text_input("Šifra", key="dodaj_sifra_input")
+                    naziv_input = col2.text_input("Naziv proizvoda *", key="dodaj_naziv_input")
 
-                    col4, col5 = st.columns(2)
-                    kol = col4.number_input("Količina *", min_value=0.0, step=0.01, format="%.2f", value=0.0, key="dodaj_kol")
-                    cijena = col5.number_input("Cijena po komadu", min_value=0.0, step=0.01, format="%.2f", value=0.0, key="dodaj_cijena")
+                    # Padajući izbornik za brzi odabir šifre (pored slobodnog unosa)
+                    sifra_select = st.selectbox("Brzi odabir po šifri", [""] + sve_sifre, key="dodaj_sifra_select")
+                    naziv_select = st.selectbox("Brzi odabir po nazivu", [""] + svi_nazivi, key="dodaj_naziv_select")
 
-                    # Auto-popunjavanje polja ako postoji match
+                    col3, col4, col5 = st.columns(3)
+                    kol = col3.number_input("Količina *", min_value=0.0, step=0.01, format="%.2f", value=0.0, key="dodaj_kol")
+                    cijena = col4.number_input("Cijena po komadu", min_value=0.0, step=0.01, format="%.2f", value=0.0, key="dodaj_cijena")
+                    dobavljac = col5.text_input("Dobavljač", key="dodaj_dobavljac")
+
+                    # Automatsko popunjavanje
                     if sifra_select:
                         match = df_proizvodi[df_proizvodi["sifra"] == sifra_select]
                         if not match.empty:
                             row = match.iloc[0]
-                            naziv_select = row["naziv"] if pd.notna(row["naziv"]) else ""
-                            cijena = row["cijena"] if pd.notna(row["cijena"]) else 0.0
-                            dobavljac_select = row["dobavljac"] if pd.notna(row["dobavljac"]) else ""
+                            naziv_input = row["naziv"] if pd.notna(row["naziv"]) else naziv_input
+                            cijena = row["cijena"] if pd.notna(row["cijena"]) else cijena
+                            dobavljac = row["dobavljac"] if pd.notna(row["dobavljac"]) else dobavljac
                     elif naziv_select:
                         match = df_proizvodi[df_proizvodi["naziv"] == naziv_select]
                         if not match.empty:
                             row = match.iloc[0]
-                            sifra_select = row["sifra"] if pd.notna(row["sifra"]) else ""
-                            cijena = row["cijena"] if pd.notna(row["cijena"]) else 0.0
-                            dobavljac_select = row["dobavljac"] if pd.notna(row["dobavljac"]) else ""
+                            sifra_input = row["sifra"] if pd.notna(row["sifra"]) else sifra_input
+                            cijena = row["cijena"] if pd.notna(row["cijena"]) else cijena
+                            dobavljac = row["dobavljac"] if pd.notna(row["dobavljac"]) else dobavljac
 
                     submitted = st.form_submit_button("Dodaj u narudžbu", key="dodaj_spremi")
                     if submitted:
-                        if naziv_select and kol > 0:
+                        if naziv_input and kol > 0:
                             novi = {
-                                "Šifra": sifra_select or "",
-                                "Naziv": naziv_select,
+                                "Šifra": sifra_input or sifra_select,
+                                "Naziv": naziv_input or naziv_select,
                                 "Kol.": kol,
                                 "Cijena": cijena,
                                 "Ukupno": kol * cijena,
-                                "Dobavljač": dobavljac_select or ""
+                                "Dobavljač": dobavljac
                             }
                             st.session_state.narudzbe_proizvodi.append(novi)
                             st.success("Proizvod dodan!")
