@@ -106,7 +106,7 @@ else:
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
     # ────────────────────────────────────────────────
-    # NARUDŽBE – pregled (sada editabilna tablica + checkbox + tražilica + upload + export)
+    # NARUDŽBE – pregled (sada sa editabilnom tablicom + checkbox + tražilica + upload + export)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
@@ -188,7 +188,8 @@ else:
                         if row["Obriši"]:
                             supabase.table("main_orders").delete().eq("id", row_id).execute()
                         else:
-                            update_data = {k: v for k, v in row.items() if k not in ["Obriši"]}
+                            # Spremi izmjene u bazi (svi stupci osim Obriši i ID-a)
+                            update_data = {k: v for k, v in row.items() if k not in ["Obriši", "id"]}
                             supabase.table("main_orders").update(update_data).eq("id", row_id).execute()
                     st.success("Promjene spremljene! Označene narudžbe su obrisane.")
                     st.rerun()
@@ -209,9 +210,6 @@ else:
                 st.button("➕ Nova narudžba", type="primary", on_click=lambda: st.session_state.update({"stranica": "nova"}))
 
             with col4:
-                # ────────────────────────────────────────────────
-                # UPLOAD NARUDŽBI IZ EXCELA (kao kod proizvoda)
-                # ────────────────────────────────────────────────
                 st.subheader("Upload narudžbi iz Excela")
                 uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_narudzbe")
                 if uploaded_file:
