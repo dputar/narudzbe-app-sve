@@ -737,7 +737,7 @@ else:
 
 
 
-       # ────────────────────────────────────────────────
+        # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI (finalna verzija sa uređivanjem i jednim gumbom)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
@@ -790,6 +790,7 @@ else:
                     "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
                     "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
                     "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
+                    "lozinka": st.column_config.TextColumn("Lozinka", type="password"),  # ← prikazuje ****
                     "aktivan": st.column_config.CheckboxColumn("Aktivan"),
                     "Obriši": st.column_config.CheckboxColumn("Obriši"),
                 }
@@ -894,7 +895,10 @@ else:
             st.info("Još nema korisnika u bazi.")
 
         # Jedini gumb za novog korisnika
-        st.button("➕ Novi korisnik", type="primary", key="novi_korisnik_gumb")
+        if st.button("➕ Novi korisnik", type="primary", key="novi_korisnik_gumb"):
+            st.session_state.novi_korisnik_form_shown = True
+            st.rerun()
+
         if "novi_korisnik_form_shown" not in st.session_state:
             st.session_state.novi_korisnik_form_shown = False
 
@@ -966,8 +970,3 @@ else:
                     if st.form_submit_button("Odustani", key="odustani_form"):
                         st.session_state.novi_korisnik_form_shown = False
                         st.rerun()
-
-        else:
-            if st.button("➕ Novi korisnik", type="primary", key="otvori_formu"):
-                st.session_state.novi_korisnik_form_shown = True
-                st.rerun()
