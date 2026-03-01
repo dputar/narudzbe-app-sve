@@ -355,7 +355,7 @@ else:
 
 
 
-    # ────────────────────────────────────────────────
+        # ────────────────────────────────────────────────
     # NOVA NARUDŽBA
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "nova":
@@ -368,36 +368,31 @@ else:
                 st.session_state.stranica = "narudžbe"
                 st.rerun()
 
-        # Dohvati popis svih aktivnih korisnika za padajući izbornik "unio_korisnik"
+        # Dohvati sve proizvode za pametne izbornike
         try:
-            korisnici_response = supabase.table("korisnici").select("ime_prezime").eq("aktivan", True).execute()
-            svi_korisnici = [k["ime_prezime"] for k in korisnici_response.data or []]
-            if not svi_korisnici:
-                svi_korisnici = ["Nema aktivnih korisnika"]
+            proizvodi_response = supabase.table("proizvodi").select("sifra,naziv,cijena,dobavljac").execute()
+            df_proizvodi = pd.DataFrame(proizvodi_response.data or [])
         except Exception as e:
-            st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
-            svi_korisnici = ["Nema aktivnih korisnika"]
+            st.error(f"Greška pri dohvaćanju proizvoda: {str(e)}")
+            df_proizvodi = pd.DataFrame()
 
-        # Dohvati skladišta prijavljenog korisnika
-        logirani_skladišta = []
-        if "user" in st.session_state and st.session_state.user:
-            logirani_skladišta = st.session_state.user.get("skladišta", [])
-        if not logirani_skladišta:
-            logirani_skladišta = ["Osijek - Glavno skladište"]  # fallback ako nema prava
+        # Unique vrijednosti za padajuće izbornike
+        sve_sifre = df_proizvodi["sifra"].dropna().unique().tolist()
+        svi_nazivi = df_proizvodi["naziv"].dropna().unique().tolist()
+        svi_dobavljaci = df_proizvodi["dobavljac"].dropna().unique().tolist()
 
         col_lijevo, col_desno = st.columns([1, 2])
         with col_lijevo:
             st.markdown("**Korisnik (unio korisnik)**")
-            default_unio = st.session_state.user["ime_prezime"] if "user" in st.session_state and st.session_state.user else svi_korisnici[0]
-            unio_korisnik = st.selectbox("", svi_korisnici, index=svi_korisnici.index(default_unio) if default_unio in svi_korisnici else 0, key="nova_unio_korisnik")
-            st.success(f"✓ {unio_korisnik}")
+            korisnik = st.selectbox("", ["Danijel Putar"], key="nova_korisnik", label_visibility="collapsed")
+            st.success(f"✓ {korisnik}")
 
             st.markdown("**Skladište**")
-            skladiste = st.selectbox("", logirani_skladišta, key="nova_skladiste", label_visibility="collapsed")
+            skladiste = st.selectbox("", ["Osijek - Glavno skladište"], key="nova_skladiste", label_visibility="collapsed")
             st.success(f"✓ {skladiste}")
 
             st.markdown("**Tip klijenta**")
-            tip_klijenta = st.selectbox("", ["Doznaka", "Narudžba", "Uzorak", "Reprezentacija"], key="nova_tip_klijenta", index=None, placeholder="Odaberi tip klijenta", label_visibility="collapsed")
+            tip_klijenta = st.selectbox("", ["Doznaka", "Narudžba", "Uzorak", "Reprezentacija"], key="nova_tip_klijenta", label_visibility="collapsed")
             if tip_klijenta:
                 st.success(f"✓ {tip_klijenta}")
             else:
@@ -433,7 +428,6 @@ else:
                 ukupno = df["Ukupno"].sum()
                 st.markdown(f"**UKUPNO: {ukupno:,.2f} EUR + PDV**")
 
-                # Gumb za spremanje narudžbe
                 if st.button("💾 Spremi narudžbu i prebaci na pregled", type="primary"):
                     if not klijent or not tip_klijenta:
                         st.error("Klijent / Partner i Tip klijenta su obavezni!")
@@ -452,7 +446,7 @@ else:
                                 "cijena": proizvod["Cijena"],
                                 "dobavljac": proizvod["Dobavljač"],
                                 "napomena_za_nas": napomena,
-                                "unio_korisnik": unio_korisnik,
+                                "unio_korisnik": korisnik,
                                 "datum_vrijeme_narudzbe": datetime.now(TZ).isoformat(),
                                 "oznaci_za_narudzbu": False,
                                 "oznaci_zaprimljeno": False,
@@ -478,30 +472,51 @@ else:
 
             if st.session_state.get("show_dodaj_proizvod", False):
                 with st.form("dodaj_proizvod_form", clear_on_submit=True):
-                    col1, col2 = st.columns(2)
-                    sifra = col1.text_input("Šifra", key="dodaj_sifra")
-                    naziv = col2.text_input("Naziv proizvoda *", key="dodaj_naziv")
-                    col3, col4 = st.columns(2)
-                    kol = col3.number_input("Količina *", min_value=0.0, step=0.01, format="%.2f", value=0.0, key="dodaj_kol")
-                    cijena = col4.number_input("Cijena po komadu", min_value=0.0, step=0.01, format="%.2f", value=0.0, key="dodaj_cijena")
-                    dobavljac = st.text_input("Dobavljač", key="dodaj_dobavljac")
+                    col1, col2, col3 = st.columns([1, 2, 1])
+                    # Padajući izbornik Šifra
+                    sifra = col1.selectbox("Šifra", [""] + sve_sifre, key="dodaj_sifra_select")
+                    # Padajući izbornik Naziv
+                    naziv_select = col2.selectbox("Naziv proizvoda *", [""] + svi_nazivi, key="dodaj_naziv_select")
+                    # Padajući izbornik Dobavljač
+                    dobavljac_select = col3.selectbox("Dobavljač", [""] + svi_dobavljaci, key="dodaj_dobavljac_select")
+
+                    col4, col5 = st.columns(2)
+                    kol = col4.number_input("Količina *", min_value=0.0, step=0.01, format="%.2f", value=0.0, key="dodaj_kol")
+                    cijena = col5.number_input("Cijena po komadu", min_value=0.0, step=0.01, format="%.2f", value=0.0, key="dodaj_cijena")
+
+                    # Auto-popunjavanje polja ako postoji match
+                    if sifra:
+                        match = df_proizvodi[df_proizvodi["sifra"] == sifra]
+                        if not match.empty:
+                            row = match.iloc[0]
+                            naziv_select = row["naziv"]
+                            cijena = row["cijena"] if pd.notna(row["cijena"]) else 0.0
+                            dobavljac_select = row["dobavljac"] if pd.notna(row["dobavljac"]) else ""
+                    elif naziv_select:
+                        match = df_proizvodi[df_proizvodi["naziv"] == naziv_select]
+                        if not match.empty:
+                            row = match.iloc[0]
+                            sifra = row["sifra"]
+                            cijena = row["cijena"] if pd.notna(row["cijena"]) else 0.0
+                            dobavljac_select = row["dobavljac"] if pd.notna(row["dobavljac"]) else ""
+
                     submitted = st.form_submit_button("Dodaj u narudžbu", key="dodaj_spremi")
                     if submitted:
-                        if naziv and kol > 0:
+                        if naziv_select and kol > 0:
                             novi = {
-                                "Šifra": sifra,
-                                "Naziv": naziv,
+                                "Šifra": sifra or "",
+                                "Naziv": naziv_select,
                                 "Kol.": kol,
                                 "Cijena": cijena,
                                 "Ukupno": kol * cijena,
-                                "Dobavljač": dobavljac
+                                "Dobavljač": dobavljac_select or ""
                             }
                             st.session_state.narudzbe_proizvodi.append(novi)
                             st.success("Proizvod dodan!")
                             st.session_state.show_dodaj_proizvod = False
                             st.rerun()
                         else:
-                            st.error("Naziv i količina su obavezni!")
+                            st.error("Naziv proizvoda i količina su obavezni!")
                     if st.form_submit_button("Odustani", key="dodaj_odustani"):
                         st.session_state.show_dodaj_proizvod = False
                         st.rerun()
