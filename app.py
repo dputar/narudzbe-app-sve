@@ -740,8 +740,7 @@ else:
 
 
 
-
-      # ────────────────────────────────────────────────
+    # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
@@ -785,9 +784,8 @@ else:
 
             df_display["Obriši"] = False
 
-            # Sakrij lozinku u prikazu tablice (prikazuje ****)
-            def hide_password(x):
-                return "****" if x else ""
+            # Sakrij lozinku u prikazu tablice (prikazuje ******)
+            df_display["lozinka"] = df_display["lozinka"].apply(lambda x: "******" if x else "")
 
             edited_df = st.data_editor(
                 df_display,
@@ -798,7 +796,7 @@ else:
                     "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
                     "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
                     "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
-                    "lozinka": st.column_config.TextColumn("Lozinka", format_func=hide_password),
+                    "lozinka": st.column_config.TextColumn("Lozinka", disabled=True),  # ne dozvoljava edit u tablici
                     "aktivan": st.column_config.CheckboxColumn("Aktivan"),
                     "Obriši": st.column_config.CheckboxColumn("Obriši"),
                 }
@@ -910,8 +908,3 @@ else:
                     if st.form_submit_button("Odustani", key="odustani_form"):
                         st.session_state.novi_korisnik_form_shown = False
                         st.rerun()
-
-        else:
-            if st.button("➕ Novi korisnik", type="primary", key="otvori_formu"):
-                st.session_state.novi_korisnik_form_shown = True
-                st.rerun()
