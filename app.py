@@ -731,11 +731,35 @@ else:
 
 
 
-     # ────────────────────────────────────────────────
+       # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
         st.title("Administracija - Korisnici")
+
+
+	# PRIVREMENI DUMMY TEST – klikni ovo da vidiš hoće li insert uopće raditi
+        if st.button("TEST: Dodaj dummy korisnika (bez forme)"):
+            dummy = {
+                "korisnicko_ime": "dummy_test_123",
+                "ime_prezime": "Dummy Test Korisnik",
+                "lozinka": "test123456",
+                "tip_korisnika": "gost",
+                "aktivan": True,
+                "prava": [],
+                "skladišta": []
+            }
+            st.write("Šaljem dummy podatke:", dummy)
+            try:
+                response = supabase.table("korisnici").insert(dummy).execute()
+                st.success(f"Dummy korisnik dodan! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
+                st.write("Odgovor od Supabasea:", response)
+            except Exception as e:
+                st.error(f"Greška dummy insert: {str(e)}")
+
+
+
+
 
         # Dohvati sve korisnike
         try:
@@ -868,11 +892,13 @@ else:
                             "prava": prava,
                             "skladišta": skladišta
                         }
+                        st.write("Šaljem u bazu:", novi)  # debug – vidiš što šalješ
                         try:
                             response = supabase.table("korisnici").insert(novi).execute()
                             st.success(f"Korisnik dodan! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
-                            st.rerun()
+                            st.write("Odgovor od Supabasea:", response)  # debug – vidiš cijeli odgovor
+                            # st.rerun()  ← zakomentirano da vidiš poruke
                         except Exception as e:
-                            st.error(f"Greška pri dodavanju korisnika: {str(e)}")
+                            st.error(f"Greška pri dodavanju: {str(e)}")
                     else:
                         st.error("Korisničko ime, ime i prezime te lozinka su obavezni!")
