@@ -358,7 +358,7 @@ else:
 
 
 
-      # ────────────────────────────────────────────────
+       # ────────────────────────────────────────────────
     # NOVA NARUDŽBA
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "nova":
@@ -373,7 +373,7 @@ else:
 
         col_lijevo, col_desno = st.columns([1, 2])
         with col_lijevo:
-            st.markdown("**Korisnik**")
+            st.markdown("**Korisnik (unio korisnik)**")
             korisnik = st.selectbox("", ["Danijel Putar"], key="nova_korisnik", label_visibility="collapsed")
             st.success(f"✓ {korisnik}")
 
@@ -389,9 +389,9 @@ else:
                 st.error("× Tip klijenta")
 
             st.markdown("**Klijent / Partner / Kupac**")
-            partner = st.text_input("", placeholder="Upiši ime klijenta", key="nova_partner", label_visibility="collapsed")
-            if partner:
-                st.success(f"✓ {partner}")
+            klijent = st.text_input("", placeholder="Upiši ime klijenta", key="nova_klijent", label_visibility="collapsed")
+            if klijent:
+                st.success(f"✓ {klijent}")
             else:
                 st.error("× Klijent / Partner")
 
@@ -419,14 +419,14 @@ else:
 
                 # Gumb za spremanje narudžbe
                 if st.button("💾 Spremi narudžbu i prebaci na pregled", type="primary"):
-                    if not partner or not tip_klijenta:
+                    if not klijent or not tip_klijenta:
                         st.error("Klijent / Partner i Tip klijenta su obavezni!")
                     else:
                         uspjesno_spremljeno = True
                         for proizvod in st.session_state.narudzbe_proizvodi:
                             novi_red = {
                                 "datum": datum.isoformat(),
-                                "korisnik": korisnik,
+                                "korisnik": klijent,                     # KLIJENT / PARTNER ide u stupac "korisnik"
                                 "Skladište": skladiste,
                                 "odgovorna_osoba": odgovorna,
                                 "tip_klijenta": tip_klijenta,
@@ -435,12 +435,12 @@ else:
                                 "kolicina": proizvod["Kol."],
                                 "cijena": proizvod["Cijena"],
                                 "dobavljac": proizvod["Dobavljač"],
-                                "napomena_za_nas": f"{napomena}\nKlijent: {partner}",
-                                "unio_korisnik": st.session_state.user["korisničko_ime"] if "user" in st.session_state else "admin",
+                                "napomena_za_nas": f"{napomena}\nKlijent: {klijent}",
+                                "unio_korisnik": korisnik,               # PADAJUĆI KORISNIK ide u "unio_korisnik"
                                 "datum_vrijeme_narudzbe": datetime.now(TZ).isoformat(),
-                                "oznaci_za_narudzbu": False,  # default
-                                "oznaci_zaprimljeno": False,  # default
-                                "napomena_dobavljac": ""      # default
+                                "oznaci_za_narudzbu": False,
+                                "oznaci_zaprimljeno": False,
+                                "napomena_dobavljac": ""
                             }
                             try:
                                 supabase.table("main_orders").insert(novi_red).execute()
