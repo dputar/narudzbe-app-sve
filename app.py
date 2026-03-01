@@ -355,8 +355,7 @@ else:
 
 
 
-
-       # ────────────────────────────────────────────────
+    # ────────────────────────────────────────────────
     # NOVA NARUDŽBA
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "nova":
@@ -369,18 +368,36 @@ else:
                 st.session_state.stranica = "narudžbe"
                 st.rerun()
 
+        # Dohvati popis svih aktivnih korisnika za padajući izbornik "unio_korisnik"
+        try:
+            korisnici_response = supabase.table("korisnici").select("ime_prezime").eq("aktivan", True).execute()
+            svi_korisnici = [k["ime_prezime"] for k in korisnici_response.data or []]
+            if not svi_korisnici:
+                svi_korisnici = ["Nema aktivnih korisnika"]
+        except Exception as e:
+            st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
+            svi_korisnici = ["Nema aktivnih korisnika"]
+
+        # Dohvati skladišta prijavljenog korisnika
+        logirani_skladišta = []
+        if "user" in st.session_state and st.session_state.user:
+            logirani_skladišta = st.session_state.user.get("skladišta", [])
+        if not logirani_skladišta:
+            logirani_skladišta = ["Osijek - Glavno skladište"]  # fallback ako nema prava
+
         col_lijevo, col_desno = st.columns([1, 2])
         with col_lijevo:
             st.markdown("**Korisnik (unio korisnik)**")
-            korisnik = st.selectbox("", ["Danijel Putar"], key="nova_korisnik", label_visibility="collapsed")
-            st.success(f"✓ {korisnik}")
+            default_unio = st.session_state.user["ime_prezime"] if "user" in st.session_state and st.session_state.user else svi_korisnici[0]
+            unio_korisnik = st.selectbox("", svi_korisnici, index=svi_korisnici.index(default_unio) if default_unio in svi_korisnici else 0, key="nova_unio_korisnik")
+            st.success(f"✓ {unio_korisnik}")
 
             st.markdown("**Skladište**")
-            skladiste = st.selectbox("", ["Osijek - Glavno skladište"], key="nova_skladiste", label_visibility="collapsed")
+            skladiste = st.selectbox("", logirani_skladišta, key="nova_skladiste", label_visibility="collapsed")
             st.success(f"✓ {skladiste}")
 
             st.markdown("**Tip klijenta**")
-            tip_klijenta = st.selectbox("", ["Doznaka", "Narudžba", "Uzorak", "Reprezentacija"], key="nova_tip_klijenta", label_visibility="collapsed")
+            tip_klijenta = st.selectbox("", ["Doznaka", "Narudžba", "Uzorak", "Reprezentacija"], key="nova_tip_klijenta", index=None, placeholder="Odaberi tip klijenta", label_visibility="collapsed")
             if tip_klijenta:
                 st.success(f"✓ {tip_klijenta}")
             else:
@@ -416,7 +433,7 @@ else:
                 ukupno = df["Ukupno"].sum()
                 st.markdown(f"**UKUPNO: {ukupno:,.2f} EUR + PDV**")
 
-                # Gumb za spremanje cijele narudžbe
+                # Gumb za spremanje narudžbe
                 if st.button("💾 Spremi narudžbu i prebaci na pregled", type="primary"):
                     if not klijent or not tip_klijenta:
                         st.error("Klijent / Partner i Tip klijenta su obavezni!")
@@ -435,7 +452,7 @@ else:
                                 "cijena": proizvod["Cijena"],
                                 "dobavljac": proizvod["Dobavljač"],
                                 "napomena_za_nas": napomena,
-                                "unio_korisnik": korisnik,
+                                "unio_korisnik": unio_korisnik,
                                 "datum_vrijeme_narudzbe": datetime.now(TZ).isoformat(),
                                 "oznaci_za_narudzbu": False,
                                 "oznaci_zaprimljeno": False,
