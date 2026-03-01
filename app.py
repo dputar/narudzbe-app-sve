@@ -727,6 +727,10 @@ else:
 
 
 
+
+
+
+
     # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
@@ -736,7 +740,7 @@ else:
         # PRIVREMENI DEBUG GUMB – KLIKNI OVO PRVO!
         if st.button("DEBUG: Test insert bez forme"):
             test_podaci = {
-                "korisnicko_ime": "debug_test_999",
+                "korisničko_ime": "debug_test_999",
                 "ime_prezime": "Debug Test Korisnik",
                 "lozinka": "debug123",
                 "tip_korisnika": "gost",
@@ -748,7 +752,7 @@ else:
             try:
                 response = supabase.table("korisnici").insert(test_podaci).execute()
                 st.success(f"TEST USPJEŠAN! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
-                st.write("Odgovor od Supabasea:", response)
+                st.write("Odgovor:", response)
             except Exception as e:
                 st.error(f"TEST GREŠKA: {str(e)}")
             # ne radimo st.rerun() da vidimo poruku
@@ -793,7 +797,7 @@ else:
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "korisnicko_ime": st.column_config.TextColumn("Korisničko ime"),
+                    "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
                     "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
                     "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
                     "aktivan": st.column_config.CheckboxColumn("Aktivan"),
@@ -883,7 +887,7 @@ else:
                     if st.form_submit_button("Spremi", key="spremi_form"):
                         if korisnicko_ime and ime_prezime and lozinka:
                             novi = {
-                                "korisnicko_ime": korisnicko_ime,
+                                "korisničko_ime": korisnicko_ime,
                                 "ime_prezime": ime_prezime,
                                 "lozinka": lozinka,
                                 "tip_korisnika": tip_korisnika,
