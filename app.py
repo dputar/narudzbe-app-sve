@@ -355,7 +355,7 @@ else:
 
 
 
-        # ────────────────────────────────────────────────
+       # ────────────────────────────────────────────────
     # NOVA NARUDŽBA
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "nova":
@@ -377,9 +377,9 @@ else:
             df_proizvodi = pd.DataFrame()
 
         # Unique vrijednosti za padajuće izbornike
-        sve_sifre = df_proizvodi["sifra"].dropna().unique().tolist()
-        svi_nazivi = df_proizvodi["naziv"].dropna().unique().tolist()
-        svi_dobavljaci = df_proizvodi["dobavljac"].dropna().unique().tolist()
+        sve_sifre = [""] + df_proizvodi["sifra"].dropna().unique().tolist()
+        svi_nazivi = [""] + df_proizvodi["naziv"].dropna().unique().tolist()
+        svi_dobavljaci = [""] + df_proizvodi["dobavljac"].dropna().unique().tolist()
 
         col_lijevo, col_desno = st.columns([1, 2])
         with col_lijevo:
@@ -428,6 +428,7 @@ else:
                 ukupno = df["Ukupno"].sum()
                 st.markdown(f"**UKUPNO: {ukupno:,.2f} EUR + PDV**")
 
+                # Gumb za spremanje narudžbe
                 if st.button("💾 Spremi narudžbu i prebaci na pregled", type="primary"):
                     if not klijent or not tip_klijenta:
                         st.error("Klijent / Partner i Tip klijenta su obavezni!")
@@ -474,29 +475,29 @@ else:
                 with st.form("dodaj_proizvod_form", clear_on_submit=True):
                     col1, col2, col3 = st.columns([1, 2, 1])
                     # Padajući izbornik Šifra
-                    sifra = col1.selectbox("Šifra", [""] + sve_sifre, key="dodaj_sifra_select")
+                    sifra_select = col1.selectbox("Šifra", sve_sifre, key="dodaj_sifra_select")
                     # Padajući izbornik Naziv
-                    naziv_select = col2.selectbox("Naziv proizvoda *", [""] + svi_nazivi, key="dodaj_naziv_select")
+                    naziv_select = col2.selectbox("Naziv proizvoda *", svi_nazivi, key="dodaj_naziv_select")
                     # Padajući izbornik Dobavljač
-                    dobavljac_select = col3.selectbox("Dobavljač", [""] + svi_dobavljaci, key="dodaj_dobavljac_select")
+                    dobavljac_select = col3.selectbox("Dobavljač", svi_dobavljaci, key="dodaj_dobavljac_select")
 
                     col4, col5 = st.columns(2)
                     kol = col4.number_input("Količina *", min_value=0.0, step=0.01, format="%.2f", value=0.0, key="dodaj_kol")
                     cijena = col5.number_input("Cijena po komadu", min_value=0.0, step=0.01, format="%.2f", value=0.0, key="dodaj_cijena")
 
                     # Auto-popunjavanje polja ako postoji match
-                    if sifra:
-                        match = df_proizvodi[df_proizvodi["sifra"] == sifra]
+                    if sifra_select:
+                        match = df_proizvodi[df_proizvodi["sifra"] == sifra_select]
                         if not match.empty:
                             row = match.iloc[0]
-                            naziv_select = row["naziv"]
+                            naziv_select = row["naziv"] if pd.notna(row["naziv"]) else ""
                             cijena = row["cijena"] if pd.notna(row["cijena"]) else 0.0
                             dobavljac_select = row["dobavljac"] if pd.notna(row["dobavljac"]) else ""
                     elif naziv_select:
                         match = df_proizvodi[df_proizvodi["naziv"] == naziv_select]
                         if not match.empty:
                             row = match.iloc[0]
-                            sifra = row["sifra"]
+                            sifra_select = row["sifra"] if pd.notna(row["sifra"]) else ""
                             cijena = row["cijena"] if pd.notna(row["cijena"]) else 0.0
                             dobavljac_select = row["dobavljac"] if pd.notna(row["dobavljac"]) else ""
 
@@ -504,7 +505,7 @@ else:
                     if submitted:
                         if naziv_select and kol > 0:
                             novi = {
-                                "Šifra": sifra or "",
+                                "Šifra": sifra_select or "",
                                 "Naziv": naziv_select,
                                 "Kol.": kol,
                                 "Cijena": cijena,
