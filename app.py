@@ -730,11 +730,22 @@ else:
 
 
 
-        # ────────────────────────────────────────────────
-    # ADMINISTRACIJA → KORISNICI
+
+
+
+
+
+
+
+       # ────────────────────────────────────────────────
+    # ADMINISTRACIJA → KORISNICI (finalna verzija sa uređivanjem i jednim gumbom)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
         st.title("Administracija - Korisnici")
+
+        # Stanje za uređivanje korisnika
+        if "edit_korisnik_id" not in st.session_state:
+            st.session_state.edit_korisnik_id = None
 
         # Dohvati sve korisnike
         try:
@@ -743,10 +754,6 @@ else:
         except Exception as e:
             st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
             st.stop()
-
-        # Stanje za uređivanje korisnika
-        if "edit_korisnik_id" not in st.session_state:
-            st.session_state.edit_korisnik_id = None
 
         if not df_korisnici.empty:
             col1, col2 = st.columns([6, 4])
@@ -823,7 +830,7 @@ else:
                         col1, col2 = st.columns(2)
                         with col1:
                             edit_ime_prezime = st.text_input("Ime i prezime", value=edit_row["ime_prezime"])
-                            edit_korisnicko_ime = st.text_input("Korisničko ime", value=edit_row["korisničko_ime"])
+                            edit_korisničko_ime = st.text_input("Korisničko ime", value=edit_row["korisničko_ime"])
                             edit_lozinka = st.text_input("Nova lozinka (ostavi prazno ako ne mijenjaš)", type="password", value="")
                             edit_tip_korisnika = st.selectbox("Tip korisnika", [
                                 "administrator", "ured", "skladištar", "terenac", "gost"
@@ -865,7 +872,7 @@ else:
                             if st.form_submit_button("Spremi promjene"):
                                 update_data = {
                                     "ime_prezime": edit_ime_prezime,
-                                    "korisničko_ime": edit_korisnicko_ime,
+                                    "korisničko_ime": edit_korisničko_ime,
                                     "tip_korisnika": edit_tip_korisnika,
                                     "aktivan": edit_aktivan,
                                     "prava": edit_prava,
@@ -886,7 +893,7 @@ else:
         else:
             st.info("Još nema korisnika u bazi.")
 
-        # Gumb za novog korisnika
+        # Jedini gumb za novog korisnika
         st.button("➕ Novi korisnik", type="primary", key="novi_korisnik_gumb")
         if "novi_korisnik_form_shown" not in st.session_state:
             st.session_state.novi_korisnik_form_shown = False
