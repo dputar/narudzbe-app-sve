@@ -724,15 +724,26 @@ else:
                     st.error("Ako ima RLS, privremeno ga isključi u Supabaseu.")
             st.info("Ako se predomisliš, poništi checkbox iznad.")
 
-      # ────────────────────────────────────────────────
-    # ADMINISTRACIJA → KORISNICI (ažurirano prema zahtjevima)
+
+
+
+
+
+
+
+     # ────────────────────────────────────────────────
+    # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
         st.title("Administracija - Korisnici")
 
         # Dohvati sve korisnike
-        response = supabase.table("korisnici").select("*").execute()
-        df_korisnici = pd.DataFrame(response.data or [])
+        try:
+            response = supabase.table("korisnici").select("*").execute()
+            df_korisnici = pd.DataFrame(response.data or [])
+        except Exception as e:
+            st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
+            st.stop()
 
         if not df_korisnici.empty:
             col1, col2 = st.columns([6, 4])
@@ -851,23 +862,18 @@ else:
                         novi = {
                             "korisnicko_ime": korisnicko_ime,
                             "ime_prezime": ime_prezime,
-                            "lozinka": lozinka,  # kasnije hashiraj ako treba
+                            "lozinka": lozinka,
                             "tip_korisnika": tip_korisnika,
                             "aktivan": True,
                             "prava": prava,
                             "skladišta": skladišta
                         }
                         try:
-                            supabase.table("korisnici").insert(novi).execute()
-                            st.success("Korisnik dodan!")
-                            st.rerun()
+                            response = supabase.table("korisnici").insert(novi).execute()
+                            st.success(f"Korisnik dodan! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
+                            # st.rerun()  ← zakomentiraj da vidiš poruku
                         except Exception as e:
-                            st.error(f"Greška: {e}")
-                            if "unique constraint" in str(e):
-                                st.error("Korisničko ime već postoji!")
+                            st.error(f"Greška pri dodavanju korisnika: {str(e)}")
+                            st.error("Provjeri konzolu ili Supabase logove za više detalja.")
                     else:
                         st.error("Korisničko ime, ime i prezime te lozinka su obavezni!")
-
-        # ────────────────────────────────────────────────
-        # UPLOAD KORISNIKA IZ EXCELA – UKLONJEN PO TVOM ZAHTJEVU
-        # (nema više ovog dijela)
