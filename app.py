@@ -16,47 +16,44 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 TZ = ZoneInfo("Europe/Zagreb")
 
 # ────────────────────────────────────────────────
-#  SESSION STATE
+# SESSION STATE
 # ────────────────────────────────────────────────
-
 if "narudzbe_proizvodi" not in st.session_state:
     st.session_state.narudzbe_proizvodi = []
-
 if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
-
 if "proizvodi_search" not in st.session_state:
     st.session_state.proizvodi_search = ""
-
 if "dobavljaci_search" not in st.session_state:
     st.session_state.dobavljaci_search = ""
-
 if "narudzbe_search" not in st.session_state:
     st.session_state.narudzbe_search = ""
 
 # ────────────────────────────────────────────────
-#  CALLBACK ZA TRAŽILICE
+# CALLBACK ZA TRAŽILICU PROIZVODA
 # ────────────────────────────────────────────────
-
 def on_proizvodi_search_change():
     st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
 
+# ────────────────────────────────────────────────
+# CALLBACK ZA TRAŽILICU DOBAVLJAČA
+# ────────────────────────────────────────────────
 def on_dobavljaci_search_change():
     st.session_state.dobavljaci_search = st.session_state.dobavljaci_search_input
 
+# ────────────────────────────────────────────────
+# CALLBACK ZA TRAŽILICU NARUDŽBI
+# ────────────────────────────────────────────────
 def on_narudzbe_search_change():
     st.session_state.narudzbe_search = st.session_state.narudzbe_search_input
 
 # ────────────────────────────────────────────────
-#  LOGIN
+# LOGIN
 # ────────────────────────────────────────────────
-
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
-
     email = st.text_input("Email", key="login_email")
     password = st.text_input("Lozinka", type="password", key="login_password")
-
     if st.button("Prijavi se", key="login_prijavi"):
         try:
             res = supabase.auth.sign_in_with_password({"email": email, "password": password})
@@ -69,46 +66,54 @@ if st.session_state.stranica == "login":
                 st.error("Prijava nije uspjela – provjeri email/lozinku.")
         except Exception as e:
             st.error(f"Greška pri prijavi: {str(e)}")
-
 else:
     # ────────────────────────────────────────────────
-    #  SIDEBAR
+    # SIDEBAR
     # ────────────────────────────────────────────────
-
     with st.sidebar:
         st.title("Sustav narudžbi")
-
         if st.button("🏠 Početna", key="menu_pocetna"):
             st.session_state.stranica = "početna"
             st.rerun()
-
         if st.button("🛒 Narudžbe", key="menu_narudzbe"):
             st.session_state.stranica = "narudžbe"
             st.rerun()
-
-        if st.button("➕ Nova narudžba", key="menu_nova_narudzba"):
-            st.session_state.stranica = "nova"
+        if st.button("🔍 Pretraga narudžbi", key="menu_pretraga"):
+            st.session_state.stranica = "pretraga"
             st.rerun()
-
+        with st.expander("📊 Izvještaji", expanded=False):
+            st.info("Izvještaji dolaze kasnije...")
+        with st.expander("⚙️ Administracija", expanded=False):
+            if st.button("📦 Proizvodi", key="admin_proizvodi"):
+                st.session_state.stranica = "admin_proizvodi"
+                st.rerun()
+            if st.button("🚚 Dobavljači", key="admin_dobavljaci"):
+                st.session_state.stranica = "admin_dobavljaci"
+                st.rerun()
+            if st.button("👥 Korisnici", key="admin_korisnici"):
+                st.session_state.stranica = "admin_korisnici"
+                st.rerun()
+            if st.button("📋 Šifarnici", key="admin_sifarnici"):
+                st.session_state.stranica = "admin_sifarnici"
+                st.rerun()
+        if st.button("📁 Dokumenti", key="menu_dokumenti"):
+            st.session_state.stranica = "dokumenti"
+            st.rerun()
         if st.button("➡️ Odjava", key="menu_odjava"):
             supabase.auth.sign_out()
             st.session_state.user = None
             st.session_state.stranica = "login"
             st.rerun()
-
     # ────────────────────────────────────────────────
-    #  POČETNA
+    # POČETNA
     # ────────────────────────────────────────────────
-
     if st.session_state.stranica == "početna":
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
-
     # ────────────────────────────────────────────────
-    #  NARUDŽBE – pregled (sada editabilna + checkbox + tražilica + export)
+    # NARUDŽBE
     # ────────────────────────────────────────────────
-
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
 
@@ -121,7 +126,7 @@ else:
                 "Pretraži po svim stupcima",
                 value=st.session_state.narudzbe_search,
                 key="narudzbe_search_input",
-                placeholder="upiši broj, datum, klijenta...",
+                placeholder="upiši broj narudžbe, datum, klijenta, proizvod...",
                 on_change=on_narudzbe_search_change
             )
 
@@ -145,7 +150,7 @@ else:
                 df_display = df_display[mask]
 
             if df_display.empty and st.session_state.narudzbe_search:
-                st.info("Ništa nije pronađeno.")
+                st.info("Ništa nije pronađeno po traženom pojmu.")
             elif df_display.empty:
                 st.info("Još nema narudžbi.")
 
@@ -189,7 +194,7 @@ else:
                         if row["Obriši"]:
                             supabase.table("main_orders").delete().eq("id", row_id).execute()
                         else:
-                            # Spremi eventualne izmjene (ako imaš editabilna polja)
+                            # Spremi eventualne izmjene u drugim poljima (ako želiš editabilnost)
                             update_data = {k: v for k, v in row.items() if k not in ["Obriši"]}
                             supabase.table("main_orders").update(update_data).eq("id", row_id).execute()
                     st.success("Promjene spremljene! Označene narudžbe su obrisane.")
@@ -208,67 +213,58 @@ else:
                     )
 
             with col3:
-                st.button("➕ Nova narudžba", type="primary", on_click=lambda: st.session_state.update({"stranica": "nova"}))
+                if st.button("➕ Nova narudžba", type="primary"):
+                    st.session_state.stranica = "nova"
+                    st.rerun()
 
         else:
             st.info("Još nema narudžbi.")
 
     # ────────────────────────────────────────────────
-    #  NOVA NARUDŽBA (ostaje netaknuta)
+    # NOVA NARUDŽBA (ostaje netaknuta)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "nova":
         col_naslov, col_natrag = st.columns([5, 1])
         with col_naslov:
             st.title("Nova narudžba")
-
         with col_natrag:
             if st.button("← Natrag na pregled", key="nova_natrag"):
                 st.session_state.narudzbe_proizvodi = []
                 st.session_state.stranica = "narudžbe"
                 st.rerun()
-
         col_lijevo, col_desno = st.columns([1, 2])
-
         with col_lijevo:
             st.markdown("**Korisnik**")
             korisnik = st.selectbox("", ["Danijel Putar"], key="nova_korisnik", label_visibility="collapsed")
             st.success(f"✓ {korisnik}")
-
             st.markdown("**Skladište**")
             skladiste = st.selectbox("", ["Osijek - Glavno skladište"], key="nova_skladiste", label_visibility="collapsed")
             st.success(f"✓ {skladiste}")
-
             st.markdown("**Tip klijenta**")
             tip_klijenta = st.selectbox("", ["Doznaka", "Narudžba", "Uzorak", "Reprezentacija"], key="nova_tip_klijenta", label_visibility="collapsed")
             if tip_klijenta:
                 st.success(f"✓ {tip_klijenta}")
             else:
                 st.error("× Tip klijenta")
-
             st.markdown("**Klijent**")
             klijent = st.text_input("", placeholder="Upiši ime", key="nova_klijent", label_visibility="collapsed")
             if klijent:
                 st.success(f"✓ {klijent}")
             else:
                 st.error("× Klijent")
-
             st.markdown("**Odgovorna osoba**")
             odgovorna_lista = ["Nema", "Danijel Putar", "Druga osoba"]
             odgovorna = st.selectbox("", odgovorna_lista, key="nova_odgovorna_select", label_visibility="collapsed")
             if odgovorna == "Nema":
                 odgovorna = st.text_input("Slobodan unos odgovorne osobe", key="nova_odgovorna_slobodno")
             st.success(f"✓ {odgovorna}")
-
             st.markdown("**Datum**")
             datum = st.date_input("", datetime.today(), key="nova_datum", label_visibility="collapsed")
-
             st.markdown("**Napomena**")
             napomena = st.text_area("", height=100, key="nova_napomena", label_visibility="collapsed")
-
         with col_desno:
             st.markdown("**Proizvodi**")
-
             if st.session_state.narudzbe_proizvodi:
                 df = pd.DataFrame(st.session_state.narudzbe_proizvodi)
                 df["Ukupno"] = df["Kol."] * df["Cijena"]
@@ -277,22 +273,17 @@ else:
                 st.markdown(f"**UKUPNO: {ukupno:,.2f} EUR + PDV**")
             else:
                 st.info("Još nema proizvoda.")
-
             if st.button("➕ Dodaj proizvod", key="nova_dodaj_gumb", type="primary"):
                 st.session_state.show_dodaj_proizvod = True
-
             if st.session_state.get("show_dodaj_proizvod", False):
                 with st.form("dodaj_proizvod_form", clear_on_submit=True):
                     col1, col2 = st.columns(2)
                     sifra = col1.text_input("Šifra", key="dodaj_sifra")
                     naziv = col2.text_input("Naziv proizvoda *", key="dodaj_naziv")
-
                     col3, col4 = st.columns(2)
                     kol = col3.number_input("Količina *", min_value=0.01, step=0.01, format="%.2f", key="dodaj_kol")
                     cijena = col4.number_input("Cijena po komadu", min_value=0.0, step=0.01, format="%.2f", key="dodaj_cijena")
-
                     dobavljac = st.text_input("Dobavljač", key="dodaj_dobavljac")
-
                     submitted = st.form_submit_button("Dodaj u narudžbu", key="dodaj_spremi")
                     if submitted:
                         if naziv and kol > 0:
@@ -309,13 +300,12 @@ else:
                             st.rerun()
                         else:
                             st.error("Naziv i količina su obavezni!")
-
                     if st.form_submit_button("Odustani", key="dodaj_odustani"):
                         st.session_state.show_dodaj_proizvod = False
                         st.rerun()
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → DOBAVLJAČI (kompletno)
+    # ADMINISTRACIJA → DOBAVLJAČI (kompletno sa svim što si imao)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_dobavljaci":
@@ -464,15 +454,13 @@ else:
             st.info("Još nema dobavljača u bazi.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (ostaje isto)
+    # ADMINISTRACIJA → PROIZVODI (ostaje isto)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
         st.title("Administracija - Proizvodi")
-
         full_response = supabase.table("proizvodi").select("*").order("created_at", desc=True).execute()
         df_full = pd.DataFrame(full_response.data or [])
-
         col1, col2 = st.columns([6, 4])
         with col1:
             st.subheader("Postojeći proizvodi")
@@ -484,20 +472,16 @@ else:
                 placeholder="upiši naziv, šifru, dobavljača...",
                 on_change=on_proizvodi_search_change
             )
-
         df_display = df_full.copy()
         if st.session_state.proizvodi_search:
             search_term = str(st.session_state.proizvodi_search).strip().lower()
             mask = df_display.astype(str).apply(lambda x: x.str.lower().str.contains(search_term), axis=1).any(axis=1)
             df_display = df_display[mask]
-
         if df_display.empty and st.session_state.proizvodi_search:
             st.info("Ništa nije pronađeno po traženom pojmu.")
         elif df_display.empty:
             st.info("Još nema proizvoda u bazi.")
-
         df_display["Odaberi za brisanje"] = False
-
         edited_df = st.data_editor(
             df_display,
             num_rows="dynamic",
@@ -517,7 +501,6 @@ else:
                 "Odaberi za brisanje": st.column_config.CheckboxColumn("Obriši"),
             }
         )
-
         col1, col2 = st.columns(2)
         with col1:
             if st.button("💾 Spremi promjene", type="primary"):
@@ -530,7 +513,6 @@ else:
                         supabase.table("proizvodi").update(update_data).eq("id", row_id).execute()
                 st.success("Promjene spremljene! Označeni proizvodi su obrisani.")
                 st.rerun()
-
         with col2:
             if st.button("Izvezi SVE podatke u Excel"):
                 if not df_full.empty:
@@ -545,7 +527,6 @@ else:
                     )
                 else:
                     st.warning("Nema podataka za export.")
-
         st.subheader("Dodaj novi proizvod")
         with st.form("dodaj_proizvod"):
             naziv = st.text_input("Naziv proizvoda *", key="dodaj_naziv_proizvoda")
@@ -556,7 +537,6 @@ else:
             napomena = st.text_area("Napomena", key="dodaj_napomena_proizvoda")
             link = st.text_input("Link (URL slike)", key="dodaj_link_proizvoda")
             slika = st.text_input("Slika (URL slike)", key="dodaj_slika_proizvoda")
-
             submitted = st.form_submit_button("Dodaj proizvod")
             if submitted:
                 novi = {
@@ -579,7 +559,6 @@ else:
                         st.error("Šifra već postoji u bazi – ali novi red je ipak dodan!")
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
-
         # UPLOAD IZ EXCELA ZA PROIZVODE
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
@@ -588,36 +567,29 @@ else:
                 df_upload = pd.read_excel(uploaded_file)
                 st.write("Pregled podataka iz datoteke:")
                 st.dataframe(df_upload.head(10))
-
                 if st.button("Učitaj sve u bazu (batch po 500)", type="primary"):
                     batch_size = 500
                     broj_dodanih = 0
                     broj_preskocenih = 0
                     broj_duplikata = 0
-
                     response = supabase.table("proizvodi").select("naziv").execute()
                     postojeći_nazivi = {r["naziv"].strip().lower() for r in response.data if r["naziv"]}
-
                     for i in range(0, len(df_upload), batch_size):
                         batch = df_upload.iloc[i:i + batch_size]
                         st.write(f"Učitavam batch {i//batch_size + 1} / {(len(df_upload) + batch_size - 1) // batch_size}...")
-
                         for _, row in batch.iterrows():
                             naziv = str(row.get("NAZIV", "")).strip()
                             if not naziv:
                                 continue
-
                             if naziv.lower() in postojeći_nazivi:
                                 broj_duplikata += 1
                                 continue
-
                             cijena_raw = str(row.get("CIJENA", "0")).strip()
                             cijena_raw = cijena_raw.replace(',', '.').replace(' ', '').replace('kn', '').replace('€', '').replace('HRK', '').strip()
                             try:
                                 cijena = float(cijena_raw) if cijena_raw else 0
                             except ValueError:
                                 cijena = 0
-
                             novi = {
                                 "naziv": naziv,
                                 "sifra": str(row.get("ŠIFRA", "")).strip() or "",
@@ -628,28 +600,21 @@ else:
                                 "link": str(row.get("Link", "")).strip() or "",
                                 "slika": str(row.get("slika", "")).strip() or ""
                             }
-
                             for k in novi:
                                 if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
                                     novi[k] = None
-
                             supabase.table("proizvodi").insert(novi).execute()
                             broj_dodanih += 1
                             postojeći_nazivi.add(naziv.lower())
-
                         time.sleep(0.3)
-
                     st.success(f"Učitano **{broj_dodanih}** novih proizvoda. Preskočeno **{broj_duplikata}** duplikata po nazivu.")
                     st.rerun()
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri format datoteke.")
-
         # GUMB ZA OBRIŠI SVE PROIZVODA
         st.markdown("---")
-
         potvrdi_brisanje_svih = st.checkbox("Potvrdi brisanje svih proizvoda (nepovratno!)", key="potvrdi_obrisi_sve")
-
         if potvrdi_brisanje_svih:
             st.warning("Ovo će **obrisati SVE proizvode** iz baze. Nastavak je nepovratan.")
             if st.button("DA – Obriši sve proizvode", type="primary"):
