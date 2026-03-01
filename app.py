@@ -250,59 +250,59 @@ else:
                         st.dataframe(df_upload.head(10))
 
                         if st.button("Učitaj sve u bazu (batch po 500)", type="primary"):
-                            batch_size = 500
-                            broj_dodanih = 0
-                            broj_duplikata = 0
+    batch_size = 500
+    broj_dodanih = 0
+    broj_duplikata = 0
+    broj_praznih = 0
 
-                            response = supabase.table("main_orders").select("broj_narudzbe").execute()
-                            postojeći_brojevi = {r["broj_narudzbe"] for r in response.data if r["broj_narudzbe"]}
+    response = supabase.table("proizvodi").select("naziv").execute()
+    postojeći_nazivi = {r["naziv"].strip().lower() for r in response.data if r["naziv"]}
 
-                            for i in range(0, len(df_upload), batch_size):
-                                batch = df_upload.iloc[i:i + batch_size]
-                                st.write(f"Učitavam batch {i//batch_size + 1}...")
+    for i in range(0, len(df_upload), batch_size):
+        batch = df_upload.iloc[i:i + batch_size]
+        st.write(f"Učitavam batch {i//batch_size + 1}...")
 
-                                for _, row in batch.iterrows():
-                                    broj_narudzbe = str(row.get("broj_narudzbe", "")).strip()
-                                    if not broj_narudzbe:
-                                        continue
+        for _, row in batch.iterrows():
+            naziv = str(row.get("NAZIV", "")).strip()
+            if not naziv:
+                broj_praznih += 1
+                continue
 
-                                    if broj_narudzbe in postojeći_brojevi:
-                                        broj_duplikata += 1
-                                        continue
+            # Zakomentiraj sljedeće 3 linije ako želiš DOPUSTITI duplikate
+            if naziv.lower() in postojeći_nazivi:
+                broj_duplikata += 1
+                continue
 
-                                    novi = {
-                                        "datum": row.get("datum", None),
-                                        "korisnik": str(row.get("korisnik", "")).strip() or "",
-                                        "Skladište": str(row.get("Skladište", "")).strip() or "",  # ← PROMIJENI OVO U TOČNO IME STUPCA IZ BAZE
-                                        "odgovorna_osoba": str(row.get("odgovorna_osoba", "")).strip() or "",
-                                        "sifra_proizvoda": str(row.get("sifra_proizvoda", "")).strip() or "",
-                                        "naziv_proizvoda": str(row.get("naziv_proizvoda", "")).strip() or "",
-                                        "kolicina": float(row.get("kolicina", 0)) or 0,
-                                        "dobavljac": str(row.get("dobavljac", "")).strip() or "",
-                                        "oznaci_za_narudzbu": bool(row.get("oznaci_za_narudzbu", False)),
-                                        "broj_narudzbe": broj_narudzbe,
-                                        "oznaci_zaprimljeno": bool(row.get("oznaci_zaprimljeno", False)),
-                                        "napomena_dobavljac": str(row.get("napomena_dobavljac", "")).strip() or "",
-                                        "napomena_za_nas": str(row.get("napomena_za_nas", "")).strip() or "",
-                                        "unio_korisnik": str(row.get("unio_korisnik", "")).strip() or "",
-                                        "datum_vrijeme_narudzbe": row.get("datum_vrijeme_narudzbe", None),
-                                        "datum_vrijeme_zaprimanja": row.get("datum_vrijeme_zaprimanja", None),
-                                        "cijena": float(row.get("cijena", 0)) or 0,
-                                        "tip_klijenta": str(row.get("tip_klijenta", "")).strip() or ""
-                                    }
+            cijena_raw = str(row.get("CIJENA", "0")).strip()
+            cijena_raw = cijena_raw.replace(',', '.').replace(' ', '').replace('kn', '').replace('€', '').replace('HRK', '').strip()
+            try:
+                cijena = float(cijena_raw) if cijena_raw else 0
+            except ValueError:
+                cijena = 0
 
-                                    for k in novi:
-                                        if pd.isna(novi[k]):
-                                            novi[k] = None
+            novi = {
+                "naziv": naziv,
+                "sifra": str(row.get("ŠIFRA", "")).strip() or "",
+                "dobavljac": str(row.get("DOBAVLJAČ", "")).strip() or "",
+                "cijena": cijena,
+                "pakiranje": str(row.get("PAKIRANJE", "")).strip() or "",
+                "napomena": str(row.get("NAPOMENA", "")).strip() or "",
+                "link": str(row.get("Link", "")).strip() or "",
+                "slika": str(row.get("slika", "")).strip() or ""
+            }
 
-                                    supabase.table("main_orders").insert(novi).execute()
-                                    broj_dodanih += 1
-                                    postojeći_brojevi.add(broj_narudzbe)
+            for k in novi:
+                if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
+                    novi[k] = None
 
-                                time.sleep(0.3)
+            supabase.table("proizvodi").insert(novi).execute()
+            broj_dodanih += 1
+            postojeći_nazivi.add(naziv.lower())  # ažuriraj da ne duplira unutar batcha
 
-                            st.success(f"Učitano **{broj_dodanih}** novih narudžbi. Preskočeno **{broj_duplikata}** duplikata po broju narudžbe.")
-                            st.rerun()
+        time.sleep(0.3)
+
+    st.success(f"Učitano **{broj_dodanih}** novih proizvoda. Preskočeno **{broj_duplikata}** duplikata. Praznih naziva: **{broj_praznih}**.")
+    st.rerun()
                     except Exception as e:
                         st.error(f"Greška pri čitanju/ učitavanju Excela: {e}")
                         st.error("Provjeri format datoteke i stupce (npr. datum, broj_narudzbe).")
