@@ -734,8 +734,28 @@ else:
         # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
-    elif st.session_state.stranica == "admin_korisnici":
+       elif st.session_state.stranica == "admin_korisnici":
         st.title("Administracija - Korisnici")
+
+        # PRIVREMENI DEBUG GUMB – testiraj ovo prvo!
+        if st.button("DEBUG: Test insert bez forme"):
+            test_podaci = {
+                "korisnicko_ime": "debug_test_999",
+                "ime_prezime": "Debug Test Korisnik",
+                "lozinka": "debug123",
+                "tip_korisnika": "gost",
+                "aktivan": True,
+                "prava": [],
+                "skladišta": []
+            }
+            st.write("Šaljem test podatke:", test_podaci)
+            try:
+                response = supabase.table("korisnici").insert(test_podaci).execute()
+                st.success(f"TEST USPJEŠAN! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
+                st.write("Odgovor:", response)
+            except Exception as e:
+                st.error(f"TEST GREŠKA: {str(e)}")
+            st.stop()  # zaustavi dalje izvršavanje da vidiš poruku
 
         # Dohvati sve korisnike
         try:
@@ -817,17 +837,21 @@ else:
             st.info("Još nema korisnika u bazi.")
 
         # Gumb za novog korisnika
-        if st.button("➕ Novi korisnik", type="primary"):
-            with st.form("novi_korisnik_form", clear_on_submit=True):
+        st.button("➕ Novi korisnik", type="primary", key="novi_korisnik_gumb")
+        if "novi_korisnik_form_shown" not in st.session_state:
+            st.session_state.novi_korisnik_form_shown = False
+
+        if st.session_state.novi_korisnik_form_shown:
+            with st.form("novi_korisnik_form", clear_on_submit=False):
                 st.markdown("**Novi korisnik**")
                 col1, col2 = st.columns(2)
                 with col1:
-                    ime_prezime = st.text_input("Ime i prezime")
-                    korisnicko_ime = st.text_input("Korisničko ime")
-                    lozinka = st.text_input("Lozinka", type="password")
+                    ime_prezime = st.text_input("Ime i prezime", key="ime_prezime_input")
+                    korisnicko_ime = st.text_input("Korisničko ime", key="korisnicko_ime_input")
+                    lozinka = st.text_input("Lozinka", type="password", key="lozinka_input")
                     tip_korisnika = st.selectbox("Tip korisnika", [
                         "administrator", "ured", "skladištar", "terenac", "gost"
-                    ])
+                    ], key="tip_korisnika_input")
 
                 with col2:
                     st.markdown("**Prava**")
@@ -841,7 +865,8 @@ else:
                             "SKLADIŠTE - ADMINISTRATOR",
                             "IZVJEŠTAJ - SVE",
                             "IZVJEŠTAJ - PRODAJA"
-                        ]
+                        ],
+                        key="prava_input"
                     )
 
                     st.markdown("**Odaberi koje skladište može vidjeti:**")
@@ -853,28 +878,40 @@ else:
                             "Skladište Pula",
                             "Skladište Zagreb",
                             "Skladište Rijeka"
-                        ]
+                        ],
+                        key="skladišta_input"
                     )
 
-                submitted = st.form_submit_button("Spremi")
-                if submitted:
-                    if korisnicko_ime and ime_prezime and lozinka:
-                        novi = {
-                            "korisnicko_ime": korisnicko_ime,
-                            "ime_prezime": ime_prezime,
-                            "lozinka": lozinka,
-                            "tip_korisnika": tip_korisnika,
-                            "aktivan": True,
-                            "prava": prava,
-                            "skladišta": skladišta
-                        }
-                        st.write("Šaljem u bazu:", novi)  # ← debug: vidiš što točno šalješ
-                        try:
-                            response = supabase.table("korisnici").insert(novi).execute()
-                            st.success(f"Korisnik dodan! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
-                            st.write("Odgovor od Supabasea:", response)  # ← vidiš cijeli odgovor
-                            # st.rerun()  ← zakomentirano da vidiš poruke
-                        except Exception as e:
-                            st.error(f"Greška pri dodavanju korisnika: {str(e)}")
-                    else:
-                        st.error("Korisničko ime, ime i prezime te lozinka su obavezni!")
+                col_submit, col_cancel = st.columns(2)
+                with col_submit:
+                    if st.form_submit_button("Spremi"):
+                        if korisnicko_ime and ime_prezime and lozinka:
+                            novi = {
+                                "korisnicko_ime": korisnicko_ime,
+                                "ime_prezime": ime_prezime,
+                                "lozinka": lozinka,
+                                "tip_korisnika": tip_korisnika,
+                                "aktivan": True,
+                                "prava": prava,
+                                "skladišta": skladišta
+                            }
+                            st.write("Šaljem u bazu:", novi)
+                            try:
+                                response = supabase.table("korisnici").insert(novi).execute()
+                                st.success(f"Korisnik dodan! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
+                                st.write("Odgovor:", response)
+                            except Exception as e:
+                                st.error(f"Greška pri dodavanju: {str(e)}")
+                        else:
+                            st.error("Korisničko ime, ime i prezime te lozinka su obavezni!")
+                        st.session_state.novi_korisnik_form_shown = False
+
+                with col_cancel:
+                    if st.form_submit_button("Odustani"):
+                        st.session_state.novi_korisnik_form_shown = False
+                        st.rerun()
+
+        else:
+            if st.button("➕ Novi korisnik", type="primary"):
+                st.session_state.novi_korisnik_form_shown = True
+                st.rerun()
