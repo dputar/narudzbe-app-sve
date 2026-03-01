@@ -739,7 +739,7 @@ else:
 
 
 
-    # ────────────────────────────────────────────────
+       # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI (finalna verzija sa olovkom i jednom lozinkom)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
@@ -784,9 +784,9 @@ else:
             df_display["Obriši"] = False
 
             # Sakrij lozinku u prikazu tablice (prikazuje ******)
-            df_display["lozinka_prikaz"] = df_display["lozinka"].apply(lambda x: "******" if x else "")
+            df_display["lozinka"] = df_display["lozinka"].apply(lambda x: "******" if x else "")
 
-            # Dodaj kolonu sa olovkom za uređivanje
+            # Dodaj kolonu sa olovkom za uređivanje (interaktivna)
             df_display["Uredi"] = "✏️"
 
             edited_df = st.data_editor(
@@ -799,14 +799,14 @@ else:
                     "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
                     "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
                     "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
-                    "lozinka_prikaz": st.column_config.TextColumn("Lozinka", disabled=True),
+                    "lozinka": st.column_config.TextColumn("Lozinka", disabled=True),
                     "aktivan": st.column_config.CheckboxColumn("Aktivan"),
                     "Obriši": st.column_config.CheckboxColumn("Obriši"),
                     "Uredi": st.column_config.TextColumn("Uredi", disabled=True),
                 }
             )
 
-            # Detekcija klika na olovku ili red (otvara uređivanje)
+            # Detekcija klika na olovku ili red
             if "edited_rows" in edited_df and edited_df["edited_rows"]:
                 edited_row_index = list(edited_df["edited_rows"].keys())[0]
                 st.session_state.edit_korisnik_id = df_display.iloc[edited_row_index]["id"]
