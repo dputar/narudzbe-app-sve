@@ -727,15 +727,13 @@ else:
 
 
 
-
-
     # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
         st.title("Administracija - Korisnici")
 
-        # PRIVREMENI DEBUG GUMB – klikni ovo prvo da vidiš hoće li insert uopće raditi
+        # PRIVREMENI DEBUG GUMB – KLIKNI OVO PRVO!
         if st.button("DEBUG: Test insert bez forme"):
             test_podaci = {
                 "korisnicko_ime": "debug_test_999",
@@ -750,10 +748,10 @@ else:
             try:
                 response = supabase.table("korisnici").insert(test_podaci).execute()
                 st.success(f"TEST USPJEŠAN! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
-                st.write("Odgovor:", response)
+                st.write("Odgovor od Supabasea:", response)
             except Exception as e:
                 st.error(f"TEST GREŠKA: {str(e)}")
-            # ne radimo st.rerun() ovdje da vidimo poruku
+            # ne radimo st.rerun() da vidimo poruku
 
         # Dohvati sve korisnike
         try:
