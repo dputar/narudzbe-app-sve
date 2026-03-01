@@ -741,7 +741,7 @@ else:
 
 
 
-      # ────────────────────────────────────────────────
+       # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
@@ -831,7 +831,7 @@ else:
             # Osvježi
             st.button("🔄 Osvježi", on_click=st.rerun)
 
-            # Ako je neki korisnik odabran za uređivanje
+            # Ako je neki korisnik odabran za uređivanje (možeš dodati logiku klikom na red)
             if st.session_state.edit_korisnik_id:
                 edit_row = df_korisnici[df_korisnici["id"] == st.session_state.edit_korisnik_id].iloc[0]
                 with st.expander(f"Uređivanje korisnika: {edit_row['korisničko_ime']} ({edit_row['ime_prezime']})", expanded=True):
