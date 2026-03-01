@@ -739,9 +739,8 @@ else:
 
 
 
-
-       # ────────────────────────────────────────────────
-    # ADMINISTRACIJA → KORISNICI (sa olovkom za uređivanje)
+    # ────────────────────────────────────────────────
+    # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
         st.title("Administracija - Korisnici")
@@ -785,35 +784,22 @@ else:
             df_display["Obriši"] = False
 
             # Sakrij lozinku u prikazu tablice (prikazuje ******)
-            def hide_password(x):
-                return "******" if x else ""
-
-            # Dodaj kolonu sa olovkom za uređivanje
-            df_display["Uredi"] = "✏️"
+            df_display["lozinka_prikaz"] = df_display["lozinka"].apply(lambda x: "******" if x else "")
 
             edited_df = st.data_editor(
                 df_display,
                 num_rows="dynamic",
                 use_container_width=True,
                 hide_index=True,
-                key="korisnici_editor",
                 column_config={
                     "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
                     "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
                     "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
-                    "lozinka": st.column_config.TextColumn("Lozinka", format_func=hide_password),
+                    "lozinka_prikaz": st.column_config.TextColumn("Lozinka", disabled=True),  # prikazuje ******, ne dozvoljava edit
                     "aktivan": st.column_config.CheckboxColumn("Aktivan"),
                     "Obriši": st.column_config.CheckboxColumn("Obriši"),
-                    "Uredi": st.column_config.TextColumn("Uredi", disabled=True),
                 }
             )
-
-            # Detekcija klika na olovku (koristimo session_state i rerun)
-            if "edited_rows" in edited_df and edited_df["edited_rows"]:
-                # Ako je korisnik kliknuo na red (ili olovku), postavi ID za uređivanje
-                edited_row_index = list(edited_df["edited_rows"].keys())[0]
-                st.session_state.edit_korisnik_id = df_display.iloc[edited_row_index]["id"]
-                st.rerun()
 
             # Spremi promjene (brisanje označenih)
             if st.button("💾 Spremi promjene", type="primary"):
@@ -838,74 +824,6 @@ else:
 
             # Osvježi
             st.button("🔄 Osvježi", on_click=st.rerun)
-
-            # Uređivanje korisnika (otvara se kada se klikne na olovku u redu)
-            if st.session_state.edit_korisnik_id:
-                edit_row = df_korisnici[df_korisnici["id"] == st.session_state.edit_korisnik_id].iloc[0]
-                with st.expander(f"Uređivanje korisnika: {edit_row['korisničko_ime']} ({edit_row['ime_prezime']})", expanded=True):
-                    with st.form("edit_korisnik_form", clear_on_submit=False):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            edit_ime_prezime = st.text_input("Ime i prezime", value=edit_row["ime_prezime"])
-                            edit_korisničko_ime = st.text_input("Korisničko ime", value=edit_row["korisničko_ime"])
-                            edit_lozinka = st.text_input("Nova lozinka (ostavi prazno ako ne mijenjaš)", type="password", value="")
-                            edit_tip_korisnika = st.selectbox("Tip korisnika", [
-                                "administrator", "ured", "skladištar", "terenac", "gost"
-                            ], index=["administrator", "ured", "skladištar", "terenac", "gost"].index(edit_row["tip_korisnika"]))
-
-                        with col2:
-                            st.markdown("**Prava**")
-                            edit_prava = st.multiselect(
-                                "Odaberi prava (može više)",
-                                [
-                                    "NARUDŽBE - ADMINISTRATOR",
-                                    "PROIZVODI - ADMINISTRATOR",
-                                    "DOBAVLJAČI - ADMINISTRATOR",
-                                    "KORISNICI - ADMINISTRATOR",
-                                    "SKLADIŠTE - ADMINISTRATOR",
-                                    "IZVJEŠTAJ - SVE",
-                                    "IZVJEŠTAJ - PRODAJA"
-                                ],
-                                default=edit_row["prava"] if isinstance(edit_row["prava"], list) else []
-                            )
-
-                            st.markdown("**Odaberi koje skladište može vidjeti:**")
-                            edit_skladišta = st.multiselect(
-                                "Skladišta",
-                                [
-                                    "Osijek - Glavno skladište",
-                                    "Skladište Split",
-                                    "Skladište Pula",
-                                    "Skladište Zagreb",
-                                    "Skladište Rijeka"
-                                ],
-                                default=edit_row["skladišta"] if isinstance(edit_row["skladišta"], list) else []
-                            )
-
-                            edit_aktivan = st.checkbox("Aktivan", value=edit_row["aktivan"])
-
-                        col_submit, col_cancel = st.columns(2)
-                        with col_submit:
-                            if st.form_submit_button("Spremi promjene"):
-                                update_data = {
-                                    "ime_prezime": edit_ime_prezime,
-                                    "korisničko_ime": edit_korisničko_ime,
-                                    "tip_korisnika": edit_tip_korisnika,
-                                    "aktivan": edit_aktivan,
-                                    "prava": edit_prava,
-                                    "skladišta": edit_skladišta
-                                }
-                                if edit_lozinka:
-                                    update_data["lozinka"] = edit_lozinka
-                                supabase.table("korisnici").update(update_data).eq("id", st.session_state.edit_korisnik_id).execute()
-                                st.success("Korisnik ažuriran!")
-                                st.session_state.edit_korisnik_id = None
-                                st.rerun()
-
-                        with col_cancel:
-                            if st.form_submit_button("Odustani"):
-                                st.session_state.edit_korisnik_id = None
-                                st.rerun()
 
         else:
             st.info("Još nema korisnika u bazi.")
