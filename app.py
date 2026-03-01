@@ -739,7 +739,7 @@ else:
 
 
 
-    # ────────────────────────────────────────────────
+       # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
@@ -791,6 +791,7 @@ else:
                 num_rows="dynamic",
                 use_container_width=True,
                 hide_index=True,
+                key="korisnici_editor",
                 column_config={
                     "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
                     "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
