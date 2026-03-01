@@ -857,23 +857,24 @@ else:
                     )
 
                 submitted = st.form_submit_button("Spremi")
-                if submitted:
-                    if korisnicko_ime and ime_prezime and lozinka:
-                        novi = {
-                            "korisnicko_ime": korisnicko_ime,
-                            "ime_prezime": ime_prezime,
-                            "lozinka": lozinka,
-                            "tip_korisnika": tip_korisnika,
-                            "aktivan": True,
-                            "prava": prava,
-                            "skladišta": skladišta
-                        }
-                        try:
-                            response = supabase.table("korisnici").insert(novi).execute()
-                            st.success(f"Korisnik dodan! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
-                            # st.rerun()  ← zakomentiraj da vidiš poruku
-                        except Exception as e:
-                            st.error(f"Greška pri dodavanju korisnika: {str(e)}")
-                            st.error("Provjeri konzolu ili Supabase logove za više detalja.")
-                    else:
-                        st.error("Korisničko ime, ime i prezime te lozinka su obavezni!")
+if submitted:
+    if korisnicko_ime and ime_prezime and lozinka:
+        novi = {
+            "korisnicko_ime": korisnicko_ime,
+            "ime_prezime": ime_prezime,
+            "lozinka": lozinka,
+            "tip_korisnika": tip_korisnika,
+            "aktivan": True,
+            "prava": prava,
+            "skladišta": skladišta
+        }
+        try:
+            response = supabase.table("korisnici").insert(novi).execute()
+            st.success(f"Korisnik dodan! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
+            # st.rerun()  ← ostavi zakomentirano da vidiš poruku
+        except Exception as e:
+            st.error(f"Greška pri dodavanju korisnika: {str(e)}")
+            st.error("Ako je 'relation does not exist' → tablica se zove drugačije ili ne postoji.")
+            st.error("Ako je 'new row violates row-level security policy' → RLS blokira insert.")
+    else:
+        st.error("Korisničko ime, ime i prezime te lozinka su obavezni!")
