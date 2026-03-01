@@ -106,7 +106,7 @@ else:
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
     # ────────────────────────────────────────────────
-    # NARUDŽBE – pregled (sada sa editabilnom tablicom + checkbox + tražilica + upload + export)
+    # NARUDŽBE – pregled (popravljeno: editabilna tablica + checkbox + tražilica + upload + export)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
@@ -135,6 +135,15 @@ else:
             df = df.loc[:, ~df.columns.duplicated()]
             if "reprezentacija" in df.columns:
                 df = df.rename(columns={"reprezentacija": "Skladište"})
+
+            # Konverzija tipova da data_editor ne baca grešku
+            for col in df.columns:
+                if "datum" in col.lower() or "vrijeme" in col.lower():
+                    df[col] = pd.to_datetime(df[col], errors='coerce')
+                elif df[col].dtype == "object":
+                    df[col] = df[col].astype(str)
+                elif df[col].dtype == "float64" or df[col].dtype == "int64":
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
 
             # Filtriranje
             df_display = df.copy()
@@ -172,8 +181,8 @@ else:
                     "napomena_dobavljac": st.column_config.TextColumn("Napomena dobavljaču"),
                     "napomena_za_nas": st.column_config.TextColumn("Napomena za nas"),
                     "unio_korisnik": st.column_config.TextColumn("Unio korisnik"),
-                    "datum_vrijeme_narudzbe": st.column_config.TextColumn("Datum narudžbe"),
-                    "datum_vrijeme_zaprimanja": st.column_config.TextColumn("Datum zaprimanja"),
+                    "datum_vrijeme_narudzbe": st.column_config.DateColumn("Datum narudžbe"),
+                    "datum_vrijeme_zaprimanja": st.column_config.DateColumn("Datum zaprimanja"),
                     "cijena": st.column_config.NumberColumn("Cijena", format="%.2f"),
                     "tip_klijenta": st.column_config.TextColumn("Tip klijenta"),
                     "Obriši": st.column_config.CheckboxColumn("Obriši"),
