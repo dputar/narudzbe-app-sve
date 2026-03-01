@@ -271,7 +271,7 @@ else:
                         st.rerun()
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → DOBAVLJAČI (sa checkboxom, tražilicom i uploadom)
+    #  ADMINISTRACIJA → DOBAVLJAČI (sada sa svim: tablica, checkbox, tražilica, upload, dodaj novog)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_dobavljaci":
@@ -358,7 +358,39 @@ else:
                 st.button("🔄 Osvježi", on_click=st.rerun)
 
             # ────────────────────────────────────────────────
-            #  UPLOAD DOBAVLJAČA IZ EXCELA (vraćeno natrag)
+            #  DODAJ NOVOG DOBAVLJAČA (vraćeno natrag)
+            # ────────────────────────────────────────────────
+
+            st.subheader("Dodaj novog dobavljača")
+            with st.form("dodaj_dobavljaca"):
+                naziv = st.text_input("Naziv dobavljača *", key="dodaj_naziv_dobavljaca")
+                email = st.text_input("Email", key="dodaj_email_dobavljaca")
+                rok = st.text_input("Rok isporuke", key="dodaj_rok_dobavljaca")
+                telefon = st.text_input("Telefonski broj", key="dodaj_telefon_dobavljaca")
+                napomena = st.text_area("Napomena", key="dodaj_napomena_dobavljaca")
+                neuneseno1 = st.text_input("Neuneseno 1", key="dodaj_neuneseno1")
+                neuneseno2 = st.text_input("Neuneseno 2", key="dodaj_neuneseno2")
+
+                submitted = st.form_submit_button("Dodaj dobavljača")
+                if submitted:
+                    if naziv:
+                        novi = {
+                            "naziv_dobavljaca": naziv,
+                            "email": email,
+                            "rok_isporuke": rok,
+                            "telefonski_broj": telefon,
+                            "napomena": napomena,
+                            "neuneseno1": neuneseno1,
+                            "neuneseno2": neuneseno2
+                        }
+                        supabase.table("dobavljaci").insert(novi).execute()
+                        st.success("Dobavljač dodan!")
+                        st.rerun()
+                    else:
+                        st.error("Naziv dobavljača je obavezan!")
+
+            # ────────────────────────────────────────────────
+            #  UPLOAD DOBAVLJAČA IZ EXCELA
             # ────────────────────────────────────────────────
 
             st.subheader("Upload dobavljača iz Excela")
@@ -400,7 +432,7 @@ else:
             st.info("Još nema dobavljača u bazi.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (ostaje isto kao prije)
+    #  ADMINISTRACIJA → PROIZVODI (ostaje isto)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
