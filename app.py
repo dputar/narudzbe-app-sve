@@ -193,10 +193,12 @@ else:
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 if st.button("💾 Spremi promjene", type="primary"):
+                    obrisano = 0
                     for row in edited_df.to_dict("records"):
                         row_id = row["id"]
                         if row["Obriši"]:
                             supabase.table("main_orders").delete().eq("id", row_id).execute()
+                            obrisano += 1
                         else:
                             # Čišćenje podataka prije update-a
                             update_data = {}
@@ -213,7 +215,10 @@ else:
                                     update_data[k] = v
                             if update_data:  # samo ako ima promjena
                                 supabase.table("main_orders").update(update_data).eq("id", row_id).execute()
-                    st.success("Promjene spremljene! Označene narudžbe su obrisane.")
+                    if obrisano > 0:
+                        st.success(f"Obrisano {obrisano} narudžbi! Ostale promjene spremljene.")
+                    else:
+                        st.info("Nema označenih za brisanje ili promjena.")
                     st.rerun()
 
             with col2:
