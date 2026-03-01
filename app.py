@@ -8,17 +8,13 @@ import io
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
-# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 TZ = ZoneInfo("Europe/Zagreb")
 
-# ────────────────────────────────────────────────
-#  SESSION STATE
-# ────────────────────────────────────────────────
-
+# SESSION STATE
 if "narudzbe_proizvodi" not in st.session_state:
     st.session_state.narudzbe_proizvodi = []
 
@@ -31,24 +27,15 @@ if "proizvodi_search" not in st.session_state:
 if "dobavljaci_search" not in st.session_state:
     st.session_state.dobavljaci_search = ""
 
-# ────────────────────────────────────────────────
-#  CALLBACK ZA TRAŽILICU PROIZVODA
-# ────────────────────────────────────────────────
-
+# CALLBACK ZA TRAŽILICU PROIZVODA
 def on_proizvodi_search_change():
     st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
 
-# ────────────────────────────────────────────────
-#  CALLBACK ZA TRAŽILICU DOBAVLJAČA
-# ────────────────────────────────────────────────
-
+# CALLBACK ZA TRAŽILICU DOBAVLJAČA
 def on_dobavljaci_search_change():
     st.session_state.dobavljaci_search = st.session_state.dobavljaci_search_input
 
-# ────────────────────────────────────────────────
-#  LOGIN
-# ────────────────────────────────────────────────
-
+# LOGIN
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
 
@@ -69,10 +56,7 @@ if st.session_state.stranica == "login":
             st.error(f"Greška pri prijavi: {str(e)}")
 
 else:
-    # ────────────────────────────────────────────────
-    #  SIDEBAR
-    # ────────────────────────────────────────────────
-
+    # SIDEBAR
     with st.sidebar:
         st.title("Sustav narudžbi")
 
@@ -84,32 +68,8 @@ else:
             st.session_state.stranica = "narudžbe"
             st.rerun()
 
-        if st.button("🔍 Pretraga narudžbi", key="menu_pretraga"):
-            st.session_state.stranica = "pretraga"
-            st.rerun()
-
-        with st.expander("📊 Izvještaji", expanded=False):
-            st.info("Izvještaji dolaze kasnije...")
-
-        with st.expander("⚙️ Administracija", expanded=False):
-            if st.button("📦 Proizvodi", key="admin_proizvodi"):
-                st.session_state.stranica = "admin_proizvodi"
-                st.rerun()
-
-            if st.button("🚚 Dobavljači", key="admin_dobavljaci"):
-                st.session_state.stranica = "admin_dobavljaci"
-                st.rerun()
-
-            if st.button("👥 Korisnici", key="admin_korisnici"):
-                st.session_state.stranica = "admin_korisnici"
-                st.rerun()
-
-            if st.button("📋 Šifarnici", key="admin_sifarnici"):
-                st.session_state.stranica = "admin_sifarnici"
-                st.rerun()
-
-        if st.button("📁 Dokumenti", key="menu_dokumenti"):
-            st.session_state.stranica = "dokumenti"
+        if st.button("➕ Nova narudžba", key="menu_nova_narudzba"):
+            st.session_state.stranica = "nova"
             st.rerun()
 
         if st.button("➡️ Odjava", key="menu_odjava"):
@@ -118,25 +78,15 @@ else:
             st.session_state.stranica = "login"
             st.rerun()
 
-    # ────────────────────────────────────────────────
-    #  POČETNA
-    # ────────────────────────────────────────────────
-
+    # POČETNA
     if st.session_state.stranica == "početna":
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
 
-    # ────────────────────────────────────────────────
-    #  NARUDŽBE
-    # ────────────────────────────────────────────────
-
+    # PREGLED NARUDŽBI
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
-
-        if st.button("➕ Nova narudžba", type="primary", key="nova_narudzba_gumb"):
-            st.session_state.stranica = "nova"
-            st.rerun()
 
         if st.button("🔄 Osvježi", key="pregled_osvjezi"):
             st.rerun()
@@ -169,10 +119,7 @@ else:
         else:
             st.info("Još nema narudžbi.")
 
-    # ────────────────────────────────────────────────
-    #  NOVA NARUDŽBA
-    # ────────────────────────────────────────────────
-
+    # NOVA NARUDŽBA
     elif st.session_state.stranica == "nova":
         col_naslov, col_natrag = st.columns([5, 1])
         with col_naslov:
@@ -270,10 +217,7 @@ else:
                         st.session_state.show_dodaj_proizvod = False
                         st.rerun()
 
-    # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → DOBAVLJAČI (sada sa svim: tablica, checkbox, tražilica, upload, dodaj novog)
-    # ────────────────────────────────────────────────
-
+    # ADMINISTRACIJA → DOBAVLJAČI (sada sa svim što treba)
     elif st.session_state.stranica == "admin_dobavljaci":
         st.title("Administracija - Dobavljači")
 
@@ -282,7 +226,7 @@ else:
         df_dobavljaci = pd.DataFrame(response.data or [])
 
         if not df_dobavljaci.empty:
-            # Naslov + tražilica pored
+            # Naslov + tražilica
             col1, col2 = st.columns([6, 4])
             with col1:
                 st.subheader("Postojeći dobavljači")
@@ -357,10 +301,7 @@ else:
             with col3:
                 st.button("🔄 Osvježi", on_click=st.rerun)
 
-            # ────────────────────────────────────────────────
-            #  DODAJ NOVOG DOBAVLJAČA (vraćeno natrag)
-            # ────────────────────────────────────────────────
-
+            # DODAJ NOVOG DOBAVLJAČA
             st.subheader("Dodaj novog dobavljača")
             with st.form("dodaj_dobavljaca"):
                 naziv = st.text_input("Naziv dobavljača *", key="dodaj_naziv_dobavljaca")
@@ -389,10 +330,7 @@ else:
                     else:
                         st.error("Naziv dobavljača je obavezan!")
 
-            # ────────────────────────────────────────────────
-            #  UPLOAD DOBAVLJAČA IZ EXCELA
-            # ────────────────────────────────────────────────
-
+            # UPLOAD DOBAVLJAČA IZ EXCELA
             st.subheader("Upload dobavljača iz Excela")
             uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_dobavljaci")
             if uploaded_file:
@@ -432,7 +370,7 @@ else:
             st.info("Još nema dobavljača u bazi.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (ostaje isto)
+    #  ADMINISTRACIJA → PROIZVODI (ostaje kao prije)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
