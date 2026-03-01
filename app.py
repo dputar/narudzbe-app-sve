@@ -737,8 +737,12 @@ else:
 
 
 
-        # ────────────────────────────────────────────────
-    # ADMINISTRACIJA → KORISNICI (finalna verzija sa uređivanjem i jednim gumbom)
+
+
+
+
+      # ────────────────────────────────────────────────
+    # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
         st.title("Administracija - Korisnici")
@@ -781,6 +785,10 @@ else:
 
             df_display["Obriši"] = False
 
+            # Sakrij lozinku u prikazu tablice (prikazuje ****)
+            def hide_password(x):
+                return "****" if x else ""
+
             edited_df = st.data_editor(
                 df_display,
                 num_rows="dynamic",
@@ -790,7 +798,7 @@ else:
                     "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
                     "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
                     "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
-                    "lozinka": st.column_config.TextColumn("Lozinka", type="password"),  # ← prikazuje ****
+                    "lozinka": st.column_config.TextColumn("Lozinka", format_func=hide_password),
                     "aktivan": st.column_config.CheckboxColumn("Aktivan"),
                     "Obriši": st.column_config.CheckboxColumn("Obriši"),
                 }
