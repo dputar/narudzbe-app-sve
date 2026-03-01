@@ -158,7 +158,7 @@ else:
             elif df_display.empty:
                 st.info("Još nema narudžbi.")
 
-            # Dodaj checkbox za brisanje
+            # Dodaj checkbox za brisanje unutar tablice
             df_display["Obriši"] = False
 
             edited_df = st.data_editor(
