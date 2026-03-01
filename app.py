@@ -730,7 +730,7 @@ else:
 
 
 
-    # ────────────────────────────────────────────────
+        # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
@@ -743,6 +743,10 @@ else:
         except Exception as e:
             st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
             st.stop()
+
+        # Stanje za uređivanje korisnika
+        if "edit_korisnik_id" not in st.session_state:
+            st.session_state.edit_korisnik_id = None
 
         if not df_korisnici.empty:
             col1, col2 = st.columns([6, 4])
@@ -784,33 +788,100 @@ else:
                 }
             )
 
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                if st.button("💾 Spremi promjene", type="primary"):
-                    for row in edited_df.to_dict("records"):
-                        row_id = row["id"]
-                        if row["Obriši"]:
-                            supabase.table("korisnici").delete().eq("id", row_id).execute()
-                        else:
-                            update_data = {k: v for k, v in row.items() if k not in ["Obriši", "id"]}
-                            supabase.table("korisnici").update(update_data).eq("id", row_id).execute()
-                    st.success("Promjene spremljene! Označeni korisnici obrisani.")
-                    st.rerun()
+            # Spremi promjene (edit + brisanje)
+            if st.button("💾 Spremi promjene", type="primary"):
+                for row in edited_df.to_dict("records"):
+                    row_id = row["id"]
+                    if row["Obriši"]:
+                        supabase.table("korisnici").delete().eq("id", row_id).execute()
+                    else:
+                        update_data = {k: v for k, v in row.items() if k not in ["Obriši", "id"]}
+                        supabase.table("korisnici").update(update_data).eq("id", row_id).execute()
+                st.success("Promjene spremljene! Označeni korisnici obrisani.")
+                st.rerun()
 
-            with col2:
-                if st.button("Izvezi sve korisnike u Excel"):
-                    output = io.BytesIO()
-                    df_korisnici.to_excel(output, index=False, sheet_name="Korisnici")
-                    output.seek(0)
-                    st.download_button(
-                        label="Preuzmi .xlsx",
-                        data=output,
-                        file_name=f"korisnici_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
+            # Izvoz u Excel
+            if st.button("Izvezi sve korisnike u Excel"):
+                output = io.BytesIO()
+                df_korisnici.to_excel(output, index=False, sheet_name="Korisnici")
+                output.seek(0)
+                st.download_button(
+                    label="Preuzmi .xlsx",
+                    data=output,
+                    file_name=f"korisnici_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
-            with col3:
-                st.button("🔄 Osvježi", on_click=st.rerun)
+            # Osvježi
+            st.button("🔄 Osvježi", on_click=st.rerun)
+
+            # Ako je neki korisnik odabran za uređivanje
+            if st.session_state.edit_korisnik_id:
+                edit_row = df_korisnici[df_korisnici["id"] == st.session_state.edit_korisnik_id].iloc[0]
+                with st.expander(f"Uređivanje korisnika: {edit_row['korisničko_ime']} ({edit_row['ime_prezime']})", expanded=True):
+                    with st.form("edit_korisnik_form", clear_on_submit=False):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            edit_ime_prezime = st.text_input("Ime i prezime", value=edit_row["ime_prezime"])
+                            edit_korisnicko_ime = st.text_input("Korisničko ime", value=edit_row["korisničko_ime"])
+                            edit_lozinka = st.text_input("Nova lozinka (ostavi prazno ako ne mijenjaš)", type="password", value="")
+                            edit_tip_korisnika = st.selectbox("Tip korisnika", [
+                                "administrator", "ured", "skladištar", "terenac", "gost"
+                            ], index=["administrator", "ured", "skladištar", "terenac", "gost"].index(edit_row["tip_korisnika"]))
+
+                        with col2:
+                            st.markdown("**Prava**")
+                            edit_prava = st.multiselect(
+                                "Odaberi prava (može više)",
+                                [
+                                    "NARUDŽBE - ADMINISTRATOR",
+                                    "PROIZVODI - ADMINISTRATOR",
+                                    "DOBAVLJAČI - ADMINISTRATOR",
+                                    "KORISNICI - ADMINISTRATOR",
+                                    "SKLADIŠTE - ADMINISTRATOR",
+                                    "IZVJEŠTAJ - SVE",
+                                    "IZVJEŠTAJ - PRODAJA"
+                                ],
+                                default=edit_row["prava"] if isinstance(edit_row["prava"], list) else []
+                            )
+
+                            st.markdown("**Odaberi koje skladište može vidjeti:**")
+                            edit_skladišta = st.multiselect(
+                                "Skladišta",
+                                [
+                                    "Osijek - Glavno skladište",
+                                    "Skladište Split",
+                                    "Skladište Pula",
+                                    "Skladište Zagreb",
+                                    "Skladište Rijeka"
+                                ],
+                                default=edit_row["skladišta"] if isinstance(edit_row["skladišta"], list) else []
+                            )
+
+                            edit_aktivan = st.checkbox("Aktivan", value=edit_row["aktivan"])
+
+                        col_submit, col_cancel = st.columns(2)
+                        with col_submit:
+                            if st.form_submit_button("Spremi promjene"):
+                                update_data = {
+                                    "ime_prezime": edit_ime_prezime,
+                                    "korisničko_ime": edit_korisnicko_ime,
+                                    "tip_korisnika": edit_tip_korisnika,
+                                    "aktivan": edit_aktivan,
+                                    "prava": edit_prava,
+                                    "skladišta": edit_skladišta
+                                }
+                                if edit_lozinka:
+                                    update_data["lozinka"] = edit_lozinka
+                                supabase.table("korisnici").update(update_data).eq("id", st.session_state.edit_korisnik_id).execute()
+                                st.success("Korisnik ažuriran!")
+                                st.session_state.edit_korisnik_id = None
+                                st.rerun()
+
+                        with col_cancel:
+                            if st.form_submit_button("Odustani"):
+                                st.session_state.edit_korisnik_id = None
+                                st.rerun()
 
         else:
             st.info("Još nema korisnika u bazi.")
