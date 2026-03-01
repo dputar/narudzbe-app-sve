@@ -724,8 +724,8 @@ else:
                     st.error("Ako ima RLS, privremeno ga isključi u Supabaseu.")
             st.info("Ako se predomisliš, poništi checkbox iznad.")
 
-    # ────────────────────────────────────────────────
-    # ADMINISTRACIJA → KORISNICI
+      # ────────────────────────────────────────────────
+    # ADMINISTRACIJA → KORISNICI (ažurirano prema zahtjevima)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
         st.title("Administracija - Korisnici")
@@ -743,7 +743,7 @@ else:
                     "Pretraži po svim stupcima",
                     value=st.session_state.korisnici_search,
                     key="korisnici_search_input",
-                    placeholder="upiši email, ime, tip korisnika...",
+                    placeholder="upiši korisničko ime, ime i prezime, tip...",
                     on_change=on_korisnici_search_change
                 )
 
@@ -766,8 +766,8 @@ else:
                 use_container_width=True,
                 hide_index=True,
                 column_config={
+                    "korisnicko_ime": st.column_config.TextColumn("Korisničko ime"),
                     "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
-                    "email": st.column_config.TextColumn("Email"),
                     "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
                     "aktivan": st.column_config.CheckboxColumn("Aktivan"),
                     "Obriši": st.column_config.CheckboxColumn("Obriši"),
@@ -812,14 +812,16 @@ else:
                 col1, col2 = st.columns(2)
                 with col1:
                     ime_prezime = st.text_input("Ime i prezime")
-                    email = st.text_input("Email adresa")
+                    korisnicko_ime = st.text_input("Korisničko ime")
                     lozinka = st.text_input("Lozinka", type="password")
-                    tip_korisnika = st.selectbox("Tip korisnika", ["ADMINISTRATOR", "KORISNIK", "DOSTAVLJAČ"])
+                    tip_korisnika = st.selectbox("Tip korisnika", [
+                        "administrator", "ured", "skladištar", "terenac", "gost"
+                    ])
 
                 with col2:
                     st.markdown("**Prava**")
                     prava = st.multiselect(
-                        "Prava",
+                        "Odaberi prava (može više)",
                         [
                             "NARUDŽBE - ADMINISTRATOR",
                             "PROIZVODI - ADMINISTRATOR",
@@ -845,10 +847,10 @@ else:
 
                 submitted = st.form_submit_button("Spremi")
                 if submitted:
-                    if email and ime_prezime and lozinka:
+                    if korisnicko_ime and ime_prezime and lozinka:
                         novi = {
+                            "korisnicko_ime": korisnicko_ime,
                             "ime_prezime": ime_prezime,
-                            "email": email,
                             "lozinka": lozinka,  # kasnije hashiraj ako treba
                             "tip_korisnika": tip_korisnika,
                             "aktivan": True,
@@ -862,65 +864,10 @@ else:
                         except Exception as e:
                             st.error(f"Greška: {e}")
                             if "unique constraint" in str(e):
-                                st.error("Email već postoji!")
+                                st.error("Korisničko ime već postoji!")
                     else:
-                        st.error("Ime i prezime, email i lozinka su obavezni!")
+                        st.error("Korisničko ime, ime i prezime te lozinka su obavezni!")
 
         # ────────────────────────────────────────────────
-        # UPLOAD KORISNIKA IZ EXCELA
-        # ────────────────────────────────────────────────
-        st.subheader("Upload korisnika iz Excela")
-        uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_korisnici")
-        if uploaded_file:
-            try:
-                df_upload = pd.read_excel(uploaded_file)
-                st.write("Pregled podataka iz datoteke:")
-                st.dataframe(df_upload.head(10))
-
-                if st.button("Učitaj sve u bazu (batch po 500)", type="primary"):
-                    batch_size = 500
-                    broj_dodanih = 0
-                    broj_duplikata = 0
-                    broj_praznih = 0
-
-                    response = supabase.table("korisnici").select("email").execute()
-                    postojeći_emailovi = {r["email"].strip().lower() for r in response.data if r["email"]}
-
-                    for i in range(0, len(df_upload), batch_size):
-                        batch = df_upload.iloc[i:i + batch_size]
-                        st.write(f"Učitavam batch {i//batch_size + 1}...")
-
-                        for _, row in batch.iterrows():
-                            email = str(row.get("email", "")).strip()
-                            if not email:
-                                broj_praznih += 1
-                                continue
-
-                            if email.lower() in postojeći_emailovi:
-                                broj_duplikata += 1
-                                continue
-
-                            novi = {
-                                "ime_prezime": str(row.get("ime_prezime", "")).strip() or None,
-                                "email": email,
-                                "tip_korisnika": str(row.get("tip_korisnika", "KORISNIK")).strip() or "KORISNIK",
-                                "aktivan": bool(row.get("aktivan", True)),
-                                "prava": [],  # možeš dodati logiku za prava iz Excela
-                                "skladišta": []  # isto
-                            }
-
-                            for k in novi:
-                                if pd.isna(novi[k]):
-                                    novi[k] = None
-
-                            supabase.table("korisnici").insert(novi).execute()
-                            broj_dodanih += 1
-                            postojeći_emailovi.add(email.lower())
-
-                        time.sleep(0.3)
-
-                    st.success(f"Učitano **{broj_dodanih}** novih korisnika. Preskočeno **{broj_duplikata}** duplikata po emailu. Praznih emailova: **{broj_praznih}**.")
-                    st.rerun()
-            except Exception as e:
-                st.error(f"Greška pri čitanju/učitavanju Excela: {e}")
-                st.error("Provjeri format datoteke (obavezno 'email').")
+        # UPLOAD KORISNIKA IZ EXCELA – UKLONJEN PO TVOM ZAHTJEVU
+        # (nema više ovog dijela)
