@@ -741,7 +741,7 @@ else:
 
 
 
-      # ────────────────────────────────────────────────
+        # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
@@ -910,3 +910,8 @@ else:
                     if st.form_submit_button("Odustani", key="odustani_form"):
                         st.session_state.novi_korisnik_form_shown = False
                         st.rerun()
+
+        else:
+            if st.button("➕ Novi korisnik", type="primary", key="otvori_formu"):
+                st.session_state.novi_korisnik_form_shown = True
+                st.rerun()
