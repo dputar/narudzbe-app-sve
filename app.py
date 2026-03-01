@@ -348,7 +348,7 @@ else:
         else:
             st.info("Još nema narudžbi.")
 
-    # ────────────────────────────────────────────────
+       # ────────────────────────────────────────────────
     # NOVA NARUDŽBA
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "nova":
@@ -360,36 +360,44 @@ else:
                 st.session_state.narudzbe_proizvodi = []
                 st.session_state.stranica = "narudžbe"
                 st.rerun()
+
         col_lijevo, col_desno = st.columns([1, 2])
         with col_lijevo:
             st.markdown("**Korisnik**")
             korisnik = st.selectbox("", ["Danijel Putar"], key="nova_korisnik", label_visibility="collapsed")
             st.success(f"✓ {korisnik}")
+
             st.markdown("**Skladište**")
             skladiste = st.selectbox("", ["Osijek - Glavno skladište"], key="nova_skladiste", label_visibility="collapsed")
             st.success(f"✓ {skladiste}")
+
             st.markdown("**Tip klijenta**")
             tip_klijenta = st.selectbox("", ["Doznaka", "Narudžba", "Uzorak", "Reprezentacija"], key="nova_tip_klijenta", label_visibility="collapsed")
             if tip_klijenta:
                 st.success(f"✓ {tip_klijenta}")
             else:
                 st.error("× Tip klijenta")
+
             st.markdown("**Klijent**")
             klijent = st.text_input("", placeholder="Upiši ime", key="nova_klijent", label_visibility="collapsed")
             if klijent:
                 st.success(f"✓ {klijent}")
             else:
                 st.error("× Klijent")
+
             st.markdown("**Odgovorna osoba**")
             odgovorna_lista = ["Nema", "Danijel Putar", "Druga osoba"]
             odgovorna = st.selectbox("", odgovorna_lista, key="nova_odgovorna_select", label_visibility="collapsed")
             if odgovorna == "Nema":
                 odgovorna = st.text_input("Slobodan unos odgovorne osobe", key="nova_odgovorna_slobodno")
             st.success(f"✓ {odgovorna}")
+
             st.markdown("**Datum**")
             datum = st.date_input("", datetime.today(), key="nova_datum", label_visibility="collapsed")
+
             st.markdown("**Napomena**")
             napomena = st.text_area("", height=100, key="nova_napomena", label_visibility="collapsed")
+
         with col_desno:
             st.markdown("**Proizvodi**")
             if st.session_state.narudzbe_proizvodi:
@@ -398,10 +406,46 @@ else:
                 st.dataframe(df, use_container_width=True, height=400)
                 ukupno = df["Ukupno"].sum()
                 st.markdown(f"**UKUPNO: {ukupno:,.2f} EUR + PDV**")
+
+                # Gumb za spremanje narudžbe
+                if st.button("💾 Spremi narudžbu i prebaci na pregled", type="primary"):
+                    if not klijent or not tip_klijenta:
+                        st.error("Klijent i Tip klijenta su obavezni!")
+                    else:
+                        for proizvod in st.session_state.narudzbe_proizvodi:
+                            novi_red = {
+                                "datum": datum.isoformat(),
+                                "korisnik": korisnik,
+                                "Skladište": skladiste,
+                                "odgovorna_osoba": odgovorna,
+                                "tip_klijenta": tip_klijenta,
+                                "klijent": klijent,
+                                "sifra_proizvoda": proizvod["Šifra"],
+                                "naziv_proizvoda": proizvod["Naziv"],
+                                "kolicina": proizvod["Kol."],
+                                "cijena": proizvod["Cijena"],
+                                "dobavljac": proizvod["Dobavljač"],
+                                "napomena_za_nas": napomena,
+                                "unio_korisnik": st.session_state.user["korisničko_ime"] if "user" in st.session_state else "admin",
+                                "datum_vrijeme_narudzbe": datetime.now(TZ).isoformat(),
+                                "aktivan": True  # ili po potrebi
+                            }
+                            try:
+                                supabase.table("main_orders").insert(novi_red).execute()
+                            except Exception as e:
+                                st.error(f"Greška pri spremanju proizvoda: {str(e)}")
+                                break
+                        else:
+                            st.success("Narudžba spremljena!")
+                            st.session_state.narudzbe_proizvodi = []
+                            st.session_state.stranica = "narudžbe"
+                            st.rerun()
             else:
-                st.info("Još nema proizvoda.")
+                st.info("Još nema proizvoda u narudžbi.")
+
             if st.button("➕ Dodaj proizvod", key="nova_dodaj_gumb", type="primary"):
                 st.session_state.show_dodaj_proizvod = True
+
             if st.session_state.get("show_dodaj_proizvod", False):
                 with st.form("dodaj_proizvod_form", clear_on_submit=True):
                     col1, col2 = st.columns(2)
@@ -424,13 +468,13 @@ else:
                             }
                             st.session_state.narudzbe_proizvodi.append(novi)
                             st.success("Proizvod dodan!")
+                            st.session_state.show_dodaj_proizvod = False
                             st.rerun()
                         else:
                             st.error("Naziv i količina su obavezni!")
                     if st.form_submit_button("Odustani", key="dodaj_odustani"):
                         st.session_state.show_dodaj_proizvod = False
                         st.rerun()
-
     # ────────────────────────────────────────────────
     # ADMINISTRACIJA → DOBAVLJAČI
     # ────────────────────────────────────────────────
