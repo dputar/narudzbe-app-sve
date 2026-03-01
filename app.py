@@ -398,6 +398,7 @@ else:
                     if st.form_submit_button("Odustani", key="dodaj_odustani"):
                         st.session_state.show_dodaj_proizvod = False
                         st.rerun()
+
     # ────────────────────────────────────────────────
     # ADMINISTRACIJA → DOBAVLJAČI (ostaje identično)
     # ────────────────────────────────────────────────
@@ -661,7 +662,7 @@ else:
                                 broj_praznih += 1
                                 continue
 
-                            # Zakomentiraj sljedeće 3 linije ako želiš DOPUSTITI duplikate
+                            # Zakomentiraj sljedeće 3 linije ako želiš DOPUSTITI duplikate (da doda sve redove)
                             # if naziv.lower() in postojeći_nazivi:
                             #     broj_duplikata += 1
                             #     continue
@@ -690,7 +691,7 @@ else:
 
                             supabase.table("proizvodi").insert(novi).execute()
                             broj_dodanih += 1
-                            postojeći_nazivi.add(naziv.lower())
+                            # postojeći_nazivi.add(naziv.lower())  # zakomentirano da ne blokira unutar batcha
 
                         time.sleep(0.3)
 
@@ -703,6 +704,7 @@ else:
             except Exception as e:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri format datoteke.")
+
         # GUMB ZA OBRIŠI SVE PROIZVODA
         st.markdown("---")
         potvrdi_brisanje_svih = st.checkbox("Potvrdi brisanje svih proizvoda (nepovratno!)", key="potvrdi_obrisi_sve")
