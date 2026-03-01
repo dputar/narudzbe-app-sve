@@ -739,8 +739,8 @@ else:
 
 
 
-      # ────────────────────────────────────────────────
-    # ADMINISTRACIJA → KORISNICI (sa olovkom za uređivanje i jednom lozinkom)
+       # ────────────────────────────────────────────────
+    # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
         st.title("Administracija - Korisnici")
@@ -783,12 +783,12 @@ else:
 
             df_display["Obriši"] = False
 
+            # Dodaj kolonu sa olovkom za uređivanje
+            df_display["Uredi"] = "✏️"
+
             # Sakrij lozinku u prikazu tablice (prikazuje ******)
             def hide_password(x):
                 return "******" if x else ""
-
-            # Dodaj kolonu sa olovkom za uređivanje
-            df_display["Uredi"] = "✏️ Uredi"
 
             edited_df = st.data_editor(
                 df_display,
