@@ -201,7 +201,6 @@ else:
                             supabase.table("main_orders").delete().eq("id", row_id).execute()
                             obrisano += 1
                         else:
-                            # Čišćenje podataka prije update-a
                             update_data = {}
                             for k, v in row.items():
                                 if k in ["Obriši", "id"]:
@@ -217,7 +216,7 @@ else:
                                     update_data[k] = None
                                 else:
                                     update_data[k] = v
-                            if update_data:  # SAMO AKO IMA PROMJENA – ovo je ključ za rješavanje greške
+                            if update_data:  # SAMO AKO IMA PROMJENA – ovo rješava grešku
                                 supabase.table("main_orders").update(update_data).eq("id", row_id).execute()
                                 spremljeno += 1
                     if obrisano > 0 or spremljeno > 0:
@@ -274,7 +273,7 @@ else:
                                     novi = {
                                         "datum": row.get("datum", None),
                                         "korisnik": str(row.get("korisnik", "")).strip() or "",
-                                        "reprezentacija": str(row.get("Skladište", "")).strip() or "",
+                                        "skladiste": str(row.get("Skladište", "")).strip() or "",  # ← PROMIJENI OVO U TOČNO IME STUPCA IZ BAZE
                                         "odgovorna_osoba": str(row.get("odgovorna_osoba", "")).strip() or "",
                                         "sifra_proizvoda": str(row.get("sifra_proizvoda", "")).strip() or "",
                                         "naziv_proizvoda": str(row.get("naziv_proizvoda", "")).strip() or "",
