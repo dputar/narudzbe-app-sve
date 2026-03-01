@@ -98,7 +98,6 @@ else:
             st.session_state.user = None
             st.session_state.stranica = "login"
             st.rerun()
-
     # ────────────────────────────────────────────────
     # POČETNA
     # ────────────────────────────────────────────────
@@ -106,9 +105,8 @@ else:
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
-
     # ────────────────────────────────────────────────
-    # NARUDŽBE – pregled (popravljeno: checkbox unutar tablice)
+    # NARUDŽBE – pregled (sada editabilna tablica + checkbox + tražilica + upload + export)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
@@ -160,36 +158,39 @@ else:
                 hide_index=True,
                 column_config={
                     "id": st.column_config.NumberColumn("ID", disabled=True),
-                    "datum": st.column_config.DateColumn("Datum", disabled=True),
-                    "korisnik": st.column_config.TextColumn("Korisnik", disabled=True),
-                    "Skladište": st.column_config.TextColumn("Skladište", disabled=True),
-                    "odgovorna_osoba": st.column_config.TextColumn("Odgovorna osoba", disabled=True),
-                    "sifra_proizvoda": st.column_config.TextColumn("Šifra proizvoda", disabled=True),
-                    "naziv_proizvoda": st.column_config.TextColumn("Naziv proizvoda", disabled=True),
-                    "kolicina": st.column_config.NumberColumn("Količina", disabled=True),
-                    "dobavljac": st.column_config.TextColumn("Dobavljač", disabled=True),
-                    "oznaci_za_narudzbu": st.column_config.CheckboxColumn("Označi za narudžbu", disabled=True),
-                    "broj_narudzbe": st.column_config.TextColumn("Broj narudžbe", disabled=True),
-                    "oznaci_zaprimljeno": st.column_config.CheckboxColumn("Zaprimljeno", disabled=True),
-                    "napomena_dobavljac": st.column_config.TextColumn("Napomena dobavljaču", disabled=True),
-                    "napomena_za_nas": st.column_config.TextColumn("Napomena za nas", disabled=True),
-                    "unio_korisnik": st.column_config.TextColumn("Unio korisnik", disabled=True),
-                    "datum_vrijeme_narudzbe": st.column_config.TextColumn("Datum narudžbe", disabled=True),
-                    "datum_vrijeme_zaprimanja": st.column_config.TextColumn("Datum zaprimanja", disabled=True),
-                    "cijena": st.column_config.NumberColumn("Cijena", format="%.2f", disabled=True),
-                    "tip_klijenta": st.column_config.TextColumn("Tip klijenta", disabled=True),
+                    "datum": st.column_config.DateColumn("Datum"),
+                    "korisnik": st.column_config.TextColumn("Korisnik"),
+                    "Skladište": st.column_config.TextColumn("Skladište"),
+                    "odgovorna_osoba": st.column_config.TextColumn("Odgovorna osoba"),
+                    "sifra_proizvoda": st.column_config.TextColumn("Šifra proizvoda"),
+                    "naziv_proizvoda": st.column_config.TextColumn("Naziv proizvoda"),
+                    "kolicina": st.column_config.NumberColumn("Količina"),
+                    "dobavljac": st.column_config.TextColumn("Dobavljač"),
+                    "oznaci_za_narudzbu": st.column_config.CheckboxColumn("Označi za narudžbu"),
+                    "broj_narudzbe": st.column_config.TextColumn("Broj narudžbe"),
+                    "oznaci_zaprimljeno": st.column_config.CheckboxColumn("Zaprimljeno"),
+                    "napomena_dobavljac": st.column_config.TextColumn("Napomena dobavljaču"),
+                    "napomena_za_nas": st.column_config.TextColumn("Napomena za nas"),
+                    "unio_korisnik": st.column_config.TextColumn("Unio korisnik"),
+                    "datum_vrijeme_narudzbe": st.column_config.TextColumn("Datum narudžbe"),
+                    "datum_vrijeme_zaprimanja": st.column_config.TextColumn("Datum zaprimanja"),
+                    "cijena": st.column_config.NumberColumn("Cijena", format="%.2f"),
+                    "tip_klijenta": st.column_config.TextColumn("Tip klijenta"),
                     "Obriši": st.column_config.CheckboxColumn("Obriši"),
                 }
             )
 
-            col1, col2 = st.columns(2)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 if st.button("💾 Spremi promjene", type="primary"):
                     for row in edited_df.to_dict("records"):
                         row_id = row["id"]
                         if row["Obriši"]:
                             supabase.table("main_orders").delete().eq("id", row_id).execute()
-                    st.success("Označene narudžbe su obrisane!")
+                        else:
+                            update_data = {k: v for k, v in row.items() if k not in ["Obriši"]}
+                            supabase.table("main_orders").update(update_data).eq("id", row_id).execute()
+                    st.success("Promjene spremljene! Označene narudžbe su obrisane.")
                     st.rerun()
 
             with col2:
@@ -200,9 +201,82 @@ else:
                     st.download_button(
                         label="Preuzmi .xlsx",
                         data=output,
-                        file_name=f"narudzbe_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
+                        file_name=f"narudzbe_pregled_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
+
+            with col3:
+                st.button("➕ Nova narudžba", type="primary", on_click=lambda: st.session_state.update({"stranica": "nova"}))
+
+            with col4:
+                # ────────────────────────────────────────────────
+                # UPLOAD NARUDŽBI IZ EXCELA (kao kod proizvoda)
+                # ────────────────────────────────────────────────
+                st.subheader("Upload narudžbi iz Excela")
+                uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_narudzbe")
+                if uploaded_file:
+                    try:
+                        df_upload = pd.read_excel(uploaded_file)
+                        st.write("Pregled podataka iz datoteke:")
+                        st.dataframe(df_upload.head(10))
+
+                        if st.button("Učitaj sve u bazu (batch po 500)", type="primary"):
+                            batch_size = 500
+                            broj_dodanih = 0
+                            broj_duplikata = 0
+
+                            response = supabase.table("main_orders").select("broj_narudzbe").execute()
+                            postojeći_brojevi = {r["broj_narudzbe"] for r in response.data if r["broj_narudzbe"]}
+
+                            for i in range(0, len(df_upload), batch_size):
+                                batch = df_upload.iloc[i:i + batch_size]
+                                st.write(f"Učitavam batch {i//batch_size + 1}...")
+
+                                for _, row in batch.iterrows():
+                                    broj_narudzbe = str(row.get("broj_narudzbe", "")).strip()
+                                    if not broj_narudzbe:
+                                        continue
+
+                                    if broj_narudzbe in postojeći_brojevi:
+                                        broj_duplikata += 1
+                                        continue
+
+                                    novi = {
+                                        "datum": row.get("datum", None),
+                                        "korisnik": str(row.get("korisnik", "")).strip() or "",
+                                        "reprezentacija": str(row.get("Skladište", "")).strip() or "",
+                                        "odgovorna_osoba": str(row.get("odgovorna_osoba", "")).strip() or "",
+                                        "sifra_proizvoda": str(row.get("sifra_proizvoda", "")).strip() or "",
+                                        "naziv_proizvoda": str(row.get("naziv_proizvoda", "")).strip() or "",
+                                        "kolicina": float(row.get("kolicina", 0)) or 0,
+                                        "dobavljac": str(row.get("dobavljac", "")).strip() or "",
+                                        "oznaci_za_narudzbu": bool(row.get("oznaci_za_narudzbu", False)),
+                                        "broj_narudzbe": broj_narudzbe,
+                                        "oznaci_zaprimljeno": bool(row.get("oznaci_zaprimljeno", False)),
+                                        "napomena_dobavljac": str(row.get("napomena_dobavljac", "")).strip() or "",
+                                        "napomena_za_nas": str(row.get("napomena_za_nas", "")).strip() or "",
+                                        "unio_korisnik": str(row.get("unio_korisnik", "")).strip() or "",
+                                        "datum_vrijeme_narudzbe": row.get("datum_vrijeme_narudzbe", None),
+                                        "datum_vrijeme_zaprimanja": row.get("datum_vrijeme_zaprimanja", None),
+                                        "cijena": float(row.get("cijena", 0)) or 0,
+                                        "tip_klijenta": str(row.get("tip_klijenta", "")).strip() or ""
+                                    }
+
+                                    for k in novi:
+                                        if pd.isna(novi[k]):
+                                            novi[k] = None
+
+                                    supabase.table("main_orders").insert(novi).execute()
+                                    broj_dodanih += 1
+                                    postojeći_brojevi.add(broj_narudzbe)
+
+                                time.sleep(0.3)
+
+                            st.success(f"Učitano **{broj_dodanih}** novih narudžbi. Preskočeno **{broj_duplikata}** duplikata po broju narudžbe.")
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Greška pri čitanju/ učitavanju Excela: {e}")
+                        st.error("Provjeri format datoteke i stupce (npr. datum, broj_narudzbe).")
 
         else:
             st.info("Još nema narudžbi.")
