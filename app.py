@@ -388,12 +388,12 @@ else:
             else:
                 st.error("× Tip klijenta")
 
-            st.markdown("**Klijent**")
-            klijent = st.text_input("", placeholder="Upiši ime", key="nova_klijent", label_visibility="collapsed")
-            if klijent:
-                st.success(f"✓ {klijent}")
+            st.markdown("**Klijent / Partner / Kupac**")
+            partner = st.text_input("", placeholder="Upiši ime klijenta", key="nova_partner", label_visibility="collapsed")
+            if partner:
+                st.success(f"✓ {partner}")
             else:
-                st.error("× Klijent")
+                st.error("× Klijent / Partner")
 
             st.markdown("**Odgovorna osoba**")
             odgovorna_lista = ["Nema", "Danijel Putar", "Druga osoba"]
@@ -419,9 +419,10 @@ else:
 
                 # Gumb za spremanje narudžbe
                 if st.button("💾 Spremi narudžbu i prebaci na pregled", type="primary"):
-                    if not klijent or not tip_klijenta:
-                        st.error("Klijent i Tip klijenta su obavezni!")
+                    if not partner or not tip_klijenta:
+                        st.error("Klijent / Partner i Tip klijenta su obavezni!")
                     else:
+                        uspjesno_spremljeno = True
                         for proizvod in st.session_state.narudzbe_proizvodi:
                             novi_red = {
                                 "datum": datum.isoformat(),
@@ -429,26 +430,27 @@ else:
                                 "Skladište": skladiste,
                                 "odgovorna_osoba": odgovorna,
                                 "tip_klijenta": tip_klijenta,
-                                "klijent": klijent,
                                 "sifra_proizvoda": proizvod["Šifra"],
                                 "naziv_proizvoda": proizvod["Naziv"],
                                 "kolicina": proizvod["Kol."],
                                 "cijena": proizvod["Cijena"],
                                 "dobavljac": proizvod["Dobavljač"],
-                                "napomena_za_nas": napomena,
+                                "napomena_za_nas": f"{napomena}\nKlijent: {partner}",
                                 "unio_korisnik": st.session_state.user["korisničko_ime"] if "user" in st.session_state else "admin",
                                 "datum_vrijeme_narudzbe": datetime.now(TZ).isoformat(),
-                                # Dodaj ostala polja koja imaš u tablici (npr. oznaci_za_narudzbu, napomena_dobavljac itd.)
-                                # "oznaci_za_narudzbu": False,
-                                # "napomena_dobavljac": "",
+                                "oznaci_za_narudzbu": False,  # default
+                                "oznaci_zaprimljeno": False,  # default
+                                "napomena_dobavljac": ""      # default
                             }
                             try:
                                 supabase.table("main_orders").insert(novi_red).execute()
                             except Exception as e:
-                                st.error(f"Greška pri spremanju proizvoda: {str(e)}")
+                                st.error(f"Greška pri spremanju proizvoda '{proizvod['Naziv']}': {str(e)}")
+                                uspjesno_spremljeno = False
                                 break
-                        else:
-                            st.success("Narudžba spremljena!")
+
+                        if uspjesno_spremljeno:
+                            st.success("Narudžba uspješno spremljena!")
                             st.session_state.narudzbe_proizvodi = []
                             st.session_state.stranica = "narudžbe"
                             st.rerun()
