@@ -271,7 +271,7 @@ else:
                         st.rerun()
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → DOBAVLJAČI (s checkboxom, tražilicom i exportom)
+    #  ADMINISTRACIJA → DOBAVLJAČI (sa checkboxom, tražilicom i uploadom)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_dobavljaci":
@@ -357,11 +357,50 @@ else:
             with col3:
                 st.button("🔄 Osvježi", on_click=st.rerun)
 
+            # ────────────────────────────────────────────────
+            #  UPLOAD DOBAVLJAČA IZ EXCELA (vraćeno natrag)
+            # ────────────────────────────────────────────────
+
+            st.subheader("Upload dobavljača iz Excela")
+            uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_dobavljaci")
+            if uploaded_file:
+                try:
+                    df_upload = pd.read_excel(uploaded_file)
+                    st.write("Pregled podataka iz datoteke:")
+                    st.dataframe(df_upload.head(10))
+
+                    if st.button("Učitaj sve u bazu", type="primary"):
+                        broj_dodanih = 0
+                        broj_preskocenih = 0
+
+                        for _, row in df_upload.iterrows():
+                            novi = {
+                                "naziv_dobavljaca": str(row.get("Naziv dobavljača", "")) or "",
+                                "email": str(row.get("Email", "")) or "",
+                                "rok_isporuke": str(row.get("Rok isporuke", "")) or "",
+                                "telefonski_broj": str(row.get("Telefonski broj", "")) or "",
+                                "napomena": str(row.get("Napomena", "")) or "",
+                                "neuneseno1": "",
+                                "neuneseno2": ""
+                            }
+                            for k in novi:
+                                if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
+                                    novi[k] = None
+
+                            supabase.table("dobavljaci").insert(novi).execute()
+                            broj_dodanih += 1
+
+                        st.success(f"Učitano {broj_dodanih} novih dobavljača.")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Greška pri čitanju Excela: {e}")
+                    st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
+
         else:
             st.info("Još nema dobavljača u bazi.")
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → PROIZVODI (ostaje isto kao zadnji radni kod)
+    #  ADMINISTRACIJA → PROIZVODI (ostaje isto kao prije)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_proizvodi":
@@ -477,7 +516,7 @@ else:
             if st.form_submit_button("Odustani", key="dodaj_odustani"):
                 st.rerun()
 
-        # UPLOAD IZ EXCELA
+        # UPLOAD IZ EXCELA ZA PROIZVODE
         st.subheader("Upload proizvoda iz Excela")
         uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_proizvodi")
         if uploaded_file:
@@ -542,7 +581,7 @@ else:
                 st.error(f"Greška pri čitanju Excela: {e}")
                 st.error("Provjeri format datoteke.")
 
-        # GUMB ZA OBRIŠI SVE – DOLJE + POTVRDA
+        # GUMB ZA OBRIŠI SVE PROIZVODA
         st.markdown("---")
 
         potvrdi_brisanje_svih = st.checkbox("Potvrdi brisanje svih proizvoda (nepovratno!)", key="potvrdi_obrisi_sve")
