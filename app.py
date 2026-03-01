@@ -28,22 +28,18 @@ if "dobavljaci_search" not in st.session_state:
     st.session_state.dobavljaci_search = ""
 if "narudzbe_search" not in st.session_state:
     st.session_state.narudzbe_search = ""
+if "narudzbe_obrisi" not in st.session_state:
+    st.session_state.narudzbe_obrisi = {}  # dict id -> True/False za checkbox
 
 # ────────────────────────────────────────────────
-# CALLBACK ZA TRAŽILICU PROIZVODA
+# CALLBACK ZA TRAŽILICE
 # ────────────────────────────────────────────────
 def on_proizvodi_search_change():
     st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
 
-# ────────────────────────────────────────────────
-# CALLBACK ZA TRAŽILICU DOBAVLJAČA
-# ────────────────────────────────────────────────
 def on_dobavljaci_search_change():
     st.session_state.dobavljaci_search = st.session_state.dobavljaci_search_input
 
-# ────────────────────────────────────────────────
-# CALLBACK ZA TRAŽILICU NARUDŽBI (novi callback za pregled narudžbi)
-# ────────────────────────────────────────────────
 def on_narudzbe_search_change():
     st.session_state.narudzbe_search = st.session_state.narudzbe_search_input
 
@@ -104,6 +100,7 @@ else:
             st.session_state.user = None
             st.session_state.stranica = "login"
             st.rerun()
+
     # ────────────────────────────────────────────────
     # POČETNA
     # ────────────────────────────────────────────────
@@ -111,8 +108,9 @@ else:
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
+
     # ────────────────────────────────────────────────
-    # NARUDŽBE – pregled (sada sa editabilnom tablicom, checkboxom, tražilicom i exportom)
+    # NARUDŽBE – pregled (popravljeno: tražilica, checkbox za brisanje, export)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
@@ -154,66 +152,51 @@ else:
             elif df_display.empty:
                 st.info("Još nema narudžbi.")
 
-            # Dodaj checkbox za brisanje
-            df_display["Obriši"] = False
+            # Dodaj checkbox za brisanje (koristimo session_state jer data_editor može biti problematičan)
+            st.markdown("**Označi narudžbe za brisanje i spremi promjene**")
 
-            edited_df = st.data_editor(
-                df_display,
-                num_rows="dynamic",
+            # Prikaz tablice s checkboxovima (koristimo st.dataframe + session_state za checkbox)
+            if "obrisi_ids" not in st.session_state:
+                st.session_state.obrisi_ids = set()
+
+            # Checkboxovi pored svakog reda
+            for idx, row in df_display.iterrows():
+                row_id = row["id"]
+                checked = st.checkbox(f"Obriši ID {row_id}", value=row_id in st.session_state.obrisi_ids, key=f"obrisi_{row_id}")
+                if checked:
+                    st.session_state.obrisi_ids.add(row_id)
+                else:
+                    st.session_state.obrisi_ids.discard(row_id)
+
+            st.dataframe(
+                df_display.drop(columns=["Obriši"], errors="ignore"),
                 use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "id": st.column_config.NumberColumn("ID", disabled=True),
-                    "datum": st.column_config.DateColumn("Datum"),
-                    "korisnik": st.column_config.TextColumn("Korisnik"),
-                    "Skladište": st.column_config.TextColumn("Skladište"),
-                    "odgovorna_osoba": st.column_config.TextColumn("Odgovorna osoba"),
-                    "sifra_proizvoda": st.column_config.TextColumn("Šifra proizvoda"),
-                    "naziv_proizvoda": st.column_config.TextColumn("Naziv proizvoda"),
-                    "kolicina": st.column_config.NumberColumn("Količina"),
-                    "dobavljac": st.column_config.TextColumn("Dobavljač"),
-                    "oznaci_za_narudzbu": st.column_config.CheckboxColumn("Označi za narudžbu"),
-                    "broj_narudzbe": st.column_config.TextColumn("Broj narudžbe"),
-                    "oznaci_zaprimljeno": st.column_config.CheckboxColumn("Zaprimljeno"),
-                    "napomena_dobavljac": st.column_config.TextColumn("Napomena dobavljaču"),
-                    "napomena_za_nas": st.column_config.TextColumn("Napomena za nas"),
-                    "unio_korisnik": st.column_config.TextColumn("Unio korisnik"),
-                    "datum_vrijeme_narudzbe": st.column_config.TextColumn("Datum narudžbe"),
-                    "datum_vrijeme_zaprimanja": st.column_config.TextColumn("Datum zaprimanja"),
-                    "cijena": st.column_config.NumberColumn("Cijena", format="%.2f"),
-                    "tip_klijenta": st.column_config.TextColumn("Tip klijenta"),
-                    "Obriši": st.column_config.CheckboxColumn("Obriši"),
-                }
+                height=750
             )
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2 = st.columns(2)
             with col1:
                 if st.button("💾 Spremi promjene", type="primary"):
-                    for row in edited_df.to_dict("records"):
-                        row_id = row["id"]
-                        if row["Obriši"]:
+                    if st.session_state.obrisi_ids:
+                        for row_id in list(st.session_state.obrisi_ids):
                             supabase.table("main_orders").delete().eq("id", row_id).execute()
-                        else:
-                            # Ako želiš da se neke kolone mogu mijenjati, tu možeš dodati logiku za update
-                            # za sada samo briše označene (ostalo je readonly)
-                            pass
-                    st.success("Promjene spremljene! Označene narudžbe su obrisane.")
-                    st.rerun()
+                        st.success(f"Obrisano {len(st.session_state.obrisi_ids)} narudžbi!")
+                        st.session_state.obrisi_ids.clear()
+                        st.rerun()
+                    else:
+                        st.info("Nema označenih narudžbi za brisanje.")
 
             with col2:
                 if st.button("Izvezi pregled u Excel"):
                     output = io.BytesIO()
-                    edited_df.drop(columns=["Obriši"]).to_excel(output, index=False, sheet_name="Narudžbe")
+                    df_display.drop(columns=["Obriši"], errors="ignore").to_excel(output, index=False, sheet_name="Narudžbe")
                     output.seek(0)
                     st.download_button(
                         label="Preuzmi .xlsx",
                         data=output,
-                        file_name=f"narudzbe_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
+                        file_name=f"narudzbe_pregled_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
-
-            with col3:
-                st.button("➕ Nova narudžba", type="primary", on_click=lambda: st.session_state.update({"stranica": "nova"}))
 
         else:
             st.info("Još nema narudžbi.")
@@ -441,7 +424,7 @@ else:
         else:
             st.info("Još nema dobavljača u bazi.")
     # ────────────────────────────────────────────────
-    # ADMINISTRACIJA → PROIZVODI (ostaje isto kao u tvom kodu)
+    # ADMINISTRACIJA → PROIZVODI (ostaje isto)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_proizvodi":
         st.title("Administracija - Proizvodi")
