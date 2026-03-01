@@ -729,15 +729,13 @@ else:
 
 
 
-
-
-        # ────────────────────────────────────────────────
+    # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
-       elif st.session_state.stranica == "admin_korisnici":
+    elif st.session_state.stranica == "admin_korisnici":
         st.title("Administracija - Korisnici")
 
-        # PRIVREMENI DEBUG GUMB – testiraj ovo prvo!
+        # PRIVREMENI DEBUG GUMB – klikni ovo prvo da vidiš hoće li insert uopće raditi
         if st.button("DEBUG: Test insert bez forme"):
             test_podaci = {
                 "korisnicko_ime": "debug_test_999",
@@ -755,7 +753,7 @@ else:
                 st.write("Odgovor:", response)
             except Exception as e:
                 st.error(f"TEST GREŠKA: {str(e)}")
-            st.stop()  # zaustavi dalje izvršavanje da vidiš poruku
+            # ne radimo st.rerun() ovdje da vidimo poruku
 
         # Dohvati sve korisnike
         try:
@@ -884,7 +882,7 @@ else:
 
                 col_submit, col_cancel = st.columns(2)
                 with col_submit:
-                    if st.form_submit_button("Spremi"):
+                    if st.form_submit_button("Spremi", key="spremi_form"):
                         if korisnicko_ime and ime_prezime and lozinka:
                             novi = {
                                 "korisnicko_ime": korisnicko_ime,
@@ -905,13 +903,14 @@ else:
                         else:
                             st.error("Korisničko ime, ime i prezime te lozinka su obavezni!")
                         st.session_state.novi_korisnik_form_shown = False
+                        st.rerun()
 
                 with col_cancel:
-                    if st.form_submit_button("Odustani"):
+                    if st.form_submit_button("Odustani", key="odustani_form"):
                         st.session_state.novi_korisnik_form_shown = False
                         st.rerun()
 
         else:
-            if st.button("➕ Novi korisnik", type="primary"):
+            if st.button("➕ Novi korisnik", type="primary", key="otvori_formu"):
                 st.session_state.novi_korisnik_form_shown = True
                 st.rerun()
