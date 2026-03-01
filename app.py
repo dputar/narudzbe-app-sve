@@ -31,19 +31,21 @@ if "proizvodi_search" not in st.session_state:
 if "dobavljaci_search" not in st.session_state:
     st.session_state.dobavljaci_search = ""
 
+if "narudzbe_search" not in st.session_state:
+    st.session_state.narudzbe_search = ""
+
 # ────────────────────────────────────────────────
-#  CALLBACK ZA TRAŽILICU PROIZVODA
+#  CALLBACK ZA TRAŽILICE
 # ────────────────────────────────────────────────
 
 def on_proizvodi_search_change():
     st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
 
-# ────────────────────────────────────────────────
-#  CALLBACK ZA TRAŽILICU DOBAVLJAČA
-# ────────────────────────────────────────────────
-
 def on_dobavljaci_search_change():
     st.session_state.dobavljaci_search = st.session_state.dobavljaci_search_input
+
+def on_narudzbe_search_change():
+    st.session_state.narudzbe_search = st.session_state.narudzbe_search_input
 
 # ────────────────────────────────────────────────
 #  LOGIN
@@ -84,32 +86,8 @@ else:
             st.session_state.stranica = "narudžbe"
             st.rerun()
 
-        if st.button("🔍 Pretraga narudžbi", key="menu_pretraga"):
-            st.session_state.stranica = "pretraga"
-            st.rerun()
-
-        with st.expander("📊 Izvještaji", expanded=False):
-            st.info("Izvještaji dolaze kasnije...")
-
-        with st.expander("⚙️ Administracija", expanded=False):
-            if st.button("📦 Proizvodi", key="admin_proizvodi"):
-                st.session_state.stranica = "admin_proizvodi"
-                st.rerun()
-
-            if st.button("🚚 Dobavljači", key="admin_dobavljaci"):
-                st.session_state.stranica = "admin_dobavljaci"
-                st.rerun()
-
-            if st.button("👥 Korisnici", key="admin_korisnici"):
-                st.session_state.stranica = "admin_korisnici"
-                st.rerun()
-
-            if st.button("📋 Šifarnici", key="admin_sifarnici"):
-                st.session_state.stranica = "admin_sifarnici"
-                st.rerun()
-
-        if st.button("📁 Dokumenti", key="menu_dokumenti"):
-            st.session_state.stranica = "dokumenti"
+        if st.button("➕ Nova narudžba", key="menu_nova_narudzba"):
+            st.session_state.stranica = "nova"
             st.rerun()
 
         if st.button("➡️ Odjava", key="menu_odjava"):
@@ -128,15 +106,24 @@ else:
         st.info("Ovdje će biti dashboard, statistike...")
 
     # ────────────────────────────────────────────────
-    #  NARUDŽBE
+    #  NARUDŽBE – pregled (sada editabilna + checkbox + tražilica + export)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "narudžbe":
         st.title("Pregled narudžbi")
 
-        if st.button("➕ Nova narudžba", type="primary", key="nova_narudzba_gumb"):
-            st.session_state.stranica = "nova"
-            st.rerun()
+        # Naslov + tražilica pored
+        col1, col2 = st.columns([6, 4])
+        with col1:
+            st.subheader("Postojeće narudžbe")
+        with col2:
+            st.text_input(
+                "Pretraži po svim stupcima",
+                value=st.session_state.narudzbe_search,
+                key="narudzbe_search_input",
+                placeholder="upiši broj, datum, klijenta...",
+                on_change=on_narudzbe_search_change
+            )
 
         if st.button("🔄 Osvježi", key="pregled_osvjezi"):
             st.rerun()
@@ -150,27 +137,84 @@ else:
             if "reprezentacija" in df.columns:
                 df = df.rename(columns={"reprezentacija": "Skladište"})
 
-            prikaz_stupci = [
-                "id", "datum", "korisnik", "Skladište", "odgovorna_osoba",
-                "sifra_proizvoda", "naziv_proizvoda", "kolicina", "dobavljac",
-                "oznaci_za_narudzbu", "broj_narudzbe", "oznaci_zaprimljeno",
-                "napomena_dobavljac", "napomena_za_nas", "unio_korisnik",
-                "datum_vrijeme_narudzbe", "datum_vrijeme_zaprimanja", "cijena",
-                "tip_klijenta"
-            ]
+            # Filtriranje
+            df_display = df.copy()
+            if st.session_state.narudzbe_search:
+                search_term = str(st.session_state.narudzbe_search).strip().lower()
+                mask = df_display.astype(str).apply(lambda x: x.str.lower().str.contains(search_term), axis=1).any(axis=1)
+                df_display = df_display[mask]
 
-            postojeći = [c for c in prikaz_stupci if c in df.columns]
+            if df_display.empty and st.session_state.narudzbe_search:
+                st.info("Ništa nije pronađeno.")
+            elif df_display.empty:
+                st.info("Još nema narudžbi.")
 
-            st.dataframe(
-                df[postojeći],
+            # Dodaj checkbox za brisanje
+            df_display["Obriši"] = False
+
+            edited_df = st.data_editor(
+                df_display,
+                num_rows="dynamic",
                 use_container_width=True,
-                height=750
+                hide_index=True,
+                column_config={
+                    "id": st.column_config.NumberColumn("ID", disabled=True),
+                    "datum": st.column_config.DateColumn("Datum"),
+                    "korisnik": st.column_config.TextColumn("Korisnik"),
+                    "Skladište": st.column_config.TextColumn("Skladište"),
+                    "odgovorna_osoba": st.column_config.TextColumn("Odgovorna osoba"),
+                    "sifra_proizvoda": st.column_config.TextColumn("Šifra proizvoda"),
+                    "naziv_proizvoda": st.column_config.TextColumn("Naziv proizvoda"),
+                    "kolicina": st.column_config.NumberColumn("Količina"),
+                    "dobavljac": st.column_config.TextColumn("Dobavljač"),
+                    "oznaci_za_narudzbu": st.column_config.CheckboxColumn("Označi za narudžbu"),
+                    "broj_narudzbe": st.column_config.TextColumn("Broj narudžbe"),
+                    "oznaci_zaprimljeno": st.column_config.CheckboxColumn("Zaprimljeno"),
+                    "napomena_dobavljac": st.column_config.TextColumn("Napomena dobavljaču"),
+                    "napomena_za_nas": st.column_config.TextColumn("Napomena za nas"),
+                    "unio_korisnik": st.column_config.TextColumn("Unio korisnik"),
+                    "datum_vrijeme_narudzbe": st.column_config.TextColumn("Datum narudžbe"),
+                    "datum_vrijeme_zaprimanja": st.column_config.TextColumn("Datum zaprimanja"),
+                    "cijena": st.column_config.NumberColumn("Cijena", format="%.2f"),
+                    "tip_klijenta": st.column_config.TextColumn("Tip klijenta"),
+                    "Obriši": st.column_config.CheckboxColumn("Obriši"),
+                }
             )
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.button("💾 Spremi promjene", type="primary"):
+                    for row in edited_df.to_dict("records"):
+                        row_id = row["id"]
+                        if row["Obriši"]:
+                            supabase.table("main_orders").delete().eq("id", row_id).execute()
+                        else:
+                            # Spremi eventualne izmjene (ako imaš editabilna polja)
+                            update_data = {k: v for k, v in row.items() if k not in ["Obriši"]}
+                            supabase.table("main_orders").update(update_data).eq("id", row_id).execute()
+                    st.success("Promjene spremljene! Označene narudžbe su obrisane.")
+                    st.rerun()
+
+            with col2:
+                if st.button("Izvezi pregled u Excel"):
+                    output = io.BytesIO()
+                    edited_df.drop(columns=["Obriši"]).to_excel(output, index=False, sheet_name="Narudžbe")
+                    output.seek(0)
+                    st.download_button(
+                        label="Preuzmi .xlsx",
+                        data=output,
+                        file_name=f"narudzbe_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+
+            with col3:
+                st.button("➕ Nova narudžba", type="primary", on_click=lambda: st.session_state.update({"stranica": "nova"}))
+
         else:
             st.info("Još nema narudžbi.")
 
     # ────────────────────────────────────────────────
-    #  NOVA NARUDŽBA
+    #  NOVA NARUDŽBA (ostaje netaknuta)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "nova":
@@ -271,18 +315,16 @@ else:
                         st.rerun()
 
     # ────────────────────────────────────────────────
-    #  ADMINISTRACIJA → DOBAVLJAČI (sada sa svim: tablica, checkbox, tražilica, upload, dodaj novog)
+    #  ADMINISTRACIJA → DOBAVLJAČI (kompletno)
     # ────────────────────────────────────────────────
 
     elif st.session_state.stranica == "admin_dobavljaci":
         st.title("Administracija - Dobavljači")
 
-        # Dohvati sve dobavljače
         response = supabase.table("dobavljaci").select("*").execute()
         df_dobavljaci = pd.DataFrame(response.data or [])
 
         if not df_dobavljaci.empty:
-            # Naslov + tražilica pored
             col1, col2 = st.columns([6, 4])
             with col1:
                 st.subheader("Postojeći dobavljači")
@@ -295,7 +337,6 @@ else:
                     on_change=on_dobavljaci_search_change
                 )
 
-            # Filtriranje
             df_display = df_dobavljaci.copy()
             if st.session_state.dobavljaci_search:
                 search_term = str(st.session_state.dobavljaci_search).strip().lower()
@@ -307,7 +348,6 @@ else:
             elif df_display.empty:
                 st.info("Još nema dobavljača u bazi.")
 
-            # Dodaj checkbox za brisanje
             df_display["Odaberi za brisanje"] = False
 
             edited_df = st.data_editor(
@@ -357,10 +397,6 @@ else:
             with col3:
                 st.button("🔄 Osvježi", on_click=st.rerun)
 
-            # ────────────────────────────────────────────────
-            #  DODAJ NOVOG DOBAVLJAČA (vraćeno natrag)
-            # ────────────────────────────────────────────────
-
             st.subheader("Dodaj novog dobavljača")
             with st.form("dodaj_dobavljaca"):
                 naziv = st.text_input("Naziv dobavljača *", key="dodaj_naziv_dobavljaca")
@@ -388,10 +424,6 @@ else:
                         st.rerun()
                     else:
                         st.error("Naziv dobavljača je obavezan!")
-
-            # ────────────────────────────────────────────────
-            #  UPLOAD DOBAVLJAČA IZ EXCELA
-            # ────────────────────────────────────────────────
 
             st.subheader("Upload dobavljača iz Excela")
             uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_dobavljaci")
