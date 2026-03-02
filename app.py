@@ -1219,15 +1219,15 @@ else:
 
                 # Dodaj dane u tjednu na vrhu kalendara (Ovo je ključno – mora biti nakon petlje)
                 ax.set_xticks(range(7))
-                ax.set_xticklabels(['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'], fontsize=12, fontweight='bold')
-                ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=True)
+                ax.set_xticklabels(['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'], fontsize=14, fontweight='bold')
+                ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=True, pad=10)  # malo veći pad za bolju vidljivost
 
                 plt.xlim(0, 7)
                 plt.ylim(-5, 0)
                 plt.tight_layout()
 
                 buf = io.BytesIO()
-                fig.savefig(buf, format="png")
+                fig.savefig(buf, format="png", bbox_inches='tight')  # bbox_inches='tight' pomaže da se ne obreže
                 buf.seek(0)
                 st.image(buf, caption="Kalendar odsustava (crveno za preklapanja, boje po korisniku, imena ispod datuma)")
             else:
