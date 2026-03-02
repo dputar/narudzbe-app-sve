@@ -1240,7 +1240,7 @@ else:
                             count += 1
                         current += timedelta(days=1)
                     return count
-                # Dohvati praznike iz bazi
+                # Dohvati praznike iz baze
                 praznici_response = supabase.table("praznici").select("datum").execute()
                 holidays = {datetime.fromisoformat(p["datum"]).date() for p in praznici_response.data or []}
                 df_odmori["broj_dana"] = df_odmori.apply(lambda row: calculate_working_days(row["datum_od"], row["datum_do"], holidays), axis=1)
