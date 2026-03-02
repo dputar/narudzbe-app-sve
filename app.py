@@ -1235,10 +1235,10 @@ else:
                             ax.text(x + 0.5, y - 0.8, user, ha='center', va='center', fontsize=8, color='white')
 
                 ax.set_xlim(0, 7)
-                ax.set_ylim(-7.0, 0.8)  # ← OVO POPRAVLJA MARGINE – zadnji red je vidljiv
+                ax.set_ylim(-7.0, 0.8)  # POPRAVLJENO – zadnji red je vidljiv
                 ax.set_aspect('equal')
 
-                fig.tight_layout(pad=4.5)  # još više paddinga
+                fig.tight_layout(pad=4.5)  # veći padding
 
                 buf = io.BytesIO()
                 fig.savefig(buf, format="png", bbox_inches='tight', dpi=120)
