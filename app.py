@@ -991,14 +991,6 @@ else:
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # Inicijaliziraj session_state za privremeni unos i reset forme
-        if "temp_odmor" not in st.session_state:
-            st.session_state.temp_odmor = None
-        if "form_reset" not in st.session_state:
-            st.session_state.form_reset = False
-        if "preklapanja" not in st.session_state:
-            st.session_state.preklapanja = 0
-
         # Ručno definirani hrvatski praznici i blagdani za 2026-2040 (koristi date objekat)
         holidays_dict = {
             2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
@@ -1057,16 +1049,6 @@ else:
                 datum_od = datum_od_input
                 datum_do = datum_do_input
 
-                # Spremi privremeno u session_state
-                st.session_state.temp_odmor = {
-                    "korisnik_id": korisnik_id,
-                    "datum_od": datum_od,
-                    "datum_do": datum_do,
-                    "tip": tip_odmora,
-                    "napomena": napomena.strip() or None,
-                    "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
-                }
-
                 # Provjera preklapanja
                 try:
                     odmori_response = supabase.table("odmori").select("*").execute()
@@ -1080,10 +1062,16 @@ else:
                         if start <= end:
                             preklapanja += (end - start).days + 1
 
-                    st.session_state.preklapanja = preklapanja
-
                     if preklapanja > 0:
-                        st.rerun()  # rerun da se prikaže gumb za potvrdu
+                        st.session_state.temp_odmor = {
+                            "korisnik_id": korisnik_id,
+                            "datum_od": datum_od,
+                            "datum_do": datum_do,
+                            "tip": tip_odmora,
+                            "napomena": napomena.strip() or None,
+                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
+                        }
+                        st.rerun()
                     else:
                         # Ako nema preklapanja, odmah spremi
                         novi = {
@@ -1117,7 +1105,7 @@ else:
                     if start <= end:
                         preklapanja += (end - start).days + 1
             except Exception as e:
-                preklapanja = 0  # fallback ako dohvaćanje ne uspije
+                preklapanja = 0
                 st.error(f"Greška pri ponovnom dohvaćanju: {str(e)}")
 
             st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
@@ -1199,7 +1187,7 @@ else:
 
                 fig = plt.figure(figsize=(12, 8))
                 ax = fig.add_subplot(111)
-                ax.set_title(f"Kalendar za {calendar.month_name[month]} {year}", fontsize=16, pad=30)  # veći pad za naslov
+                ax.set_title(f"Kalendar za {calendar.month_name[month]} {year}", fontsize=16, pad=30)
                 ax.axis('off')
 
                 # Prikaz kalendara sa imenima ispod datuma
@@ -1226,7 +1214,7 @@ else:
                         is_weekend = current_date.weekday() >= 5
                         is_holiday = current_date in holidays_dict.get(year, [])
                         if is_weekend or is_holiday:
-                            continue  # preskoči bojanje
+                            continue
 
                         # Ako više korisnika → crveno + imena
                         if len(overlapping_users) > 1:
@@ -1242,11 +1230,11 @@ else:
                 # Dodaj dane u tjednu na vrhu kalendara
                 ax.set_xticks(range(7))
                 ax.set_xticklabels(['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'], fontsize=14, fontweight='bold')
-                ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=True, pad=20)  # veći pad za bolju vidljivost
+                ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=True, pad=20)
 
                 plt.xlim(0, 7)
                 plt.ylim(-5, 0)
-                plt.tight_layout(rect=[0, 0.05, 1, 0.95])  # dodatni prostor na vrhu za naslov i dane
+                plt.tight_layout(rect=[0, 0.05, 1, 0.95])
 
                 buf = io.BytesIO()
                 fig.savefig(buf, format="png", bbox_inches='tight')
@@ -1273,7 +1261,7 @@ else:
                         current += timedelta(days=1)
                     return count
 
-                # Dohvati praznike iz bazi
+                # Dohvati praznike iz baze
                 praznici_response = supabase.table("praznici").select("datum").execute()
                 holidays = {datetime.fromisoformat(p["datum"]).date() for p in praznici_response.data or []}
 
