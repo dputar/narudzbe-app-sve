@@ -1055,6 +1055,16 @@ else:
                 datum_od = datum_od_input
                 datum_do = datum_do_input
 
+                # Spremi privremeno u session_state
+                st.session_state.temp_odmor = {
+                    "korisnik_id": korisnik_id,
+                    "datum_od": datum_od,
+                    "datum_do": datum_do,
+                    "tip": tip_odmora,
+                    "napomena": napomena.strip() or None,
+                    "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
+                }
+
                 # Provjera preklapanja
                 try:
                     odmori_response = supabase.table("odmori").select("*").execute()
@@ -1069,15 +1079,7 @@ else:
                             preklapanja += (end - start).days + 1
 
                     if preklapanja > 0:
-                        st.session_state.temp_odmor = {
-                            "korisnik_id": korisnik_id,
-                            "datum_od": datum_od,
-                            "datum_do": datum_do,
-                            "tip": tip_odmora,
-                            "napomena": napomena.strip() or None,
-                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
-                        }
-                        st.rerun()
+                        st.rerun()  # rerun da se prikaže gumb za potvrdu
                     else:
                         # Ako nema preklapanja, odmah spremi
                         novi = {
@@ -1098,15 +1100,21 @@ else:
 
         # Potvrda preklapanja (izvan forme)
         if st.session_state.temp_odmor:
-            # Ponovno izračunaj preklapanja za sigurnost
-            preklapanja = 0
-            for _, row in df_odmori.iterrows():
-                start_db = datetime.fromisoformat(row["datum_od"]).date()
-                end_db = datetime.fromisoformat(row["datum_do"]).date()
-                start = max(st.session_state.temp_odmor["datum_od"], start_db)
-                end = min(st.session_state.temp_odmor["datum_do"], end_db)
-                if start <= end:
-                    preklapanja += (end - start).days + 1
+            # Ponovno dohvati podatke i izračunaj preklapanja
+            try:
+                odmori_response = supabase.table("odmori").select("*").execute()
+                df_odmori = pd.DataFrame(odmori_response.data or [])
+                preklapanja = 0
+                for _, row in df_odmori.iterrows():
+                    start_db = datetime.fromisoformat(row["datum_od"]).date()
+                    end_db = datetime.fromisoformat(row["datum_do"]).date()
+                    start = max(st.session_state.temp_odmor["datum_od"], start_db)
+                    end = min(st.session_state.temp_odmor["datum_do"], end_db)
+                    if start <= end:
+                        preklapanja += (end - start).days + 1
+            except Exception as e:
+                preklapanja = 0  # fallback ako dohvaćanje ne uspije
+                st.error(f"Greška pri ponovnom dohvaćanju: {str(e)}")
 
             st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
             col1, col2 = st.columns(2)
