@@ -991,9 +991,11 @@ else:
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # Inicijaliziraj session_state za privremeni unos
+        # Inicijaliziraj session_state za privremeni unos i reset forme
         if "temp_odmor" not in st.session_state:
             st.session_state.temp_odmor = None
+        if "form_reset" not in st.session_state:
+            st.session_state.form_reset = False
 
         # Ručno definirani hrvatski praznici i blagdani za 2026-2040 (koristi date objekat)
         holidays_dict = {
@@ -1002,7 +1004,16 @@ else:
             2028: [date(2028, 1, 1), date(2028, 1, 6), date(2028, 4, 16), date(2028, 4, 17), date(2028, 5, 1), date(2028, 5, 30), date(2028, 6, 22), date(2028, 8, 15), date(2028, 11, 1), date(2028, 11, 18), date(2028, 12, 25), date(2028, 12, 26)],
             2029: [date(2029, 1, 1), date(2029, 1, 6), date(2029, 4, 1), date(2029, 4, 2), date(2029, 5, 1), date(2029, 5, 30), date(2029, 6, 22), date(2029, 8, 15), date(2029, 11, 1), date(2029, 11, 18), date(2029, 12, 25), date(2029, 12, 26)],
             2030: [date(2030, 1, 1), date(2030, 1, 6), date(2030, 4, 21), date(2030, 4, 22), date(2030, 5, 1), date(2030, 5, 30), date(2030, 6, 22), date(2030, 8, 15), date(2030, 11, 1), date(2030, 11, 18), date(2030, 12, 25), date(2030, 12, 26)],
-            # Dodaj ostale godine po potrebi – za sada 2026-2030, možeš proširiti
+            2031: [date(2031, 1, 1), date(2031, 1, 6), date(2031, 4, 13), date(2031, 4, 14), date(2031, 5, 1), date(2031, 5, 30), date(2031, 6, 22), date(2031, 8, 15), date(2031, 11, 1), date(2031, 11, 18), date(2031, 12, 25), date(2031, 12, 26)],
+            2032: [date(2032, 1, 1), date(2032, 1, 6), date(2032, 3, 28), date(2032, 3, 29), date(2032, 5, 1), date(2032, 5, 30), date(2032, 6, 22), date(2032, 8, 15), date(2032, 11, 1), date(2032, 11, 18), date(2032, 12, 25), date(2032, 12, 26)],
+            2033: [date(2033, 1, 1), date(2033, 1, 6), date(2033, 4, 17), date(2033, 4, 18), date(2033, 5, 1), date(2033, 5, 30), date(2033, 6, 22), date(2033, 8, 15), date(2033, 11, 1), date(2033, 11, 18), date(2033, 12, 25), date(2033, 12, 26)],
+            2034: [date(2034, 1, 1), date(2034, 1, 6), date(2034, 4, 9), date(2034, 4, 10), date(2034, 5, 1), date(2034, 5, 30), date(2034, 6, 22), date(2034, 8, 15), date(2034, 11, 1), date(2034, 11, 18), date(2034, 12, 25), date(2034, 12, 26)],
+            2035: [date(2035, 1, 1), date(2035, 1, 6), date(2035, 3, 25), date(2035, 3, 26), date(2035, 5, 1), date(2035, 5, 30), date(2035, 6, 22), date(2035, 8, 15), date(2035, 11, 1), date(2035, 11, 18), date(2035, 12, 25), date(2035, 12, 26)],
+            2036: [date(2036, 1, 1), date(2036, 1, 6), date(2036, 4, 13), date(2036, 4, 14), date(2036, 5, 1), date(2036, 5, 30), date(2036, 6, 22), date(2036, 8, 15), date(2036, 11, 1), date(2036, 11, 18), date(2036, 12, 25), date(2036, 12, 26)],
+            2037: [date(2037, 1, 1), date(2037, 1, 6), date(2037, 4, 5), date(2037, 4, 6), date(2037, 5, 1), date(2037, 5, 30), date(2037, 6, 22), date(2037, 8, 15), date(2037, 11, 1), date(2037, 11, 18), date(2037, 12, 25), date(2037, 12, 26)],
+            2038: [date(2038, 1, 1), date(2038, 1, 6), date(2038, 4, 25), date(2038, 4, 26), date(2038, 5, 1), date(2038, 5, 30), date(2038, 6, 22), date(2038, 8, 15), date(2038, 11, 1), date(2038, 11, 18), date(2038, 12, 25), date(2038, 12, 26)],
+            2039: [date(2039, 1, 1), date(2039, 1, 6), date(2039, 4, 10), date(2039, 4, 11), date(2039, 5, 1), date(2039, 5, 30), date(2039, 6, 22), date(2039, 8, 15), date(2039, 11, 1), date(2039, 11, 18), date(2039, 12, 25), date(2039, 12, 26)],
+            2040: [date(2040, 1, 1), date(2040, 1, 6), date(2040, 4, 1), date(2040, 4, 2), date(2040, 5, 1), date(2040, 5, 30), date(2040, 6, 22), date(2040, 8, 15), date(2040, 11, 1), date(2040, 11, 18), date(2040, 12, 25), date(2040, 12, 26)],
         }
 
         # Dohvati korisnike za padajući izbornik
@@ -1015,7 +1026,7 @@ else:
             korisnik_options = {}
 
         # Forma za dodavanje odmora
-        with st.form("dodaj_odmor_form"):
+        with st.form("dodaj_odmor_form", clear_on_submit=True):
             st.subheader("Dodaj novi unos godišnjeg / slobodnog dana")
 
             if korisnik_options:
@@ -1040,15 +1051,9 @@ else:
             elif datum_do_input < datum_od_input:
                 st.error("Datum 'do' ne može biti prije 'od'!")
             else:
-                # Spremi privremeno u session_state
-                st.session_state.temp_odmor = {
-                    "korisnik_id": korisnik_id,
-                    "datum_od": datum_od_input,
-                    "datum_do": datum_do_input,
-                    "tip": tip_odmora,
-                    "napomena": napomena.strip() or None,
-                    "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
-                }
+                # Pretvori u date za usporedbu
+                datum_od = datum_od_input
+                datum_do = datum_do_input
 
                 # Provjera preklapanja
                 try:
@@ -1058,19 +1063,27 @@ else:
                     for _, row in df_odmori.iterrows():
                         start_db = datetime.fromisoformat(row["datum_od"]).date()
                         end_db = datetime.fromisoformat(row["datum_do"]).date()
-                        start = max(datum_od_input, start_db)
-                        end = min(datum_do_input, end_db)
+                        start = max(datum_od, start_db)
+                        end = min(datum_do, end_db)
                         if start <= end:
                             preklapanja += (end - start).days + 1
 
                     if preklapanja > 0:
-                        st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
+                        st.session_state.temp_odmor = {
+                            "korisnik_id": korisnik_id,
+                            "datum_od": datum_od,
+                            "datum_do": datum_do,
+                            "tip": tip_odmora,
+                            "napomena": napomena.strip() or None,
+                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
+                        }
+                        st.rerun()
                     else:
                         # Ako nema preklapanja, odmah spremi
                         novi = {
                             "korisnik_id": korisnik_id,
-                            "datum_od": datum_od_input.isoformat(),
-                            "datum_do": datum_do_input.isoformat(),
+                            "datum_od": datum_od.isoformat(),
+                            "datum_do": datum_do.isoformat(),
                             "tip": tip_odmora,
                             "napomena": napomena.strip() or None,
                             "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
@@ -1078,14 +1091,14 @@ else:
                         }
                         supabase.table("odmori").insert(novi).execute()
                         st.success("Unos dodan bez preklapanja!")
-                        st.session_state.temp_odmor = None
+                        st.session_state.form_reset = True
                         st.rerun()
                 except Exception as e:
-                    st.error(f"Greška pri provjeri: {str(e)}")
+                    st.error(f"Greška pri provjeri/spremanju: {str(e)}")
 
         # Potvrda preklapanja (izvan forme)
         if st.session_state.temp_odmor:
-            preklapanja = 0  # ponovno izračunaj ako je potrebno (ali koristi prethodnu vrijednost)
+            st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
             col1, col2 = st.columns(2)
             if col1.button("Potvrdi dodavanje sa preklapanjem"):
                 novi = {
@@ -1100,10 +1113,17 @@ else:
                 supabase.table("odmori").insert(novi).execute()
                 st.success("Unos dodan sa preklapanjem!")
                 st.session_state.temp_odmor = None
+                st.session_state.form_reset = True
                 st.rerun()
             if col2.button("Odustani"):
                 st.session_state.temp_odmor = None
+                st.session_state.form_reset = True
                 st.rerun()
+
+        # Reset forme nakon dodavanja (clear_on_submit=True radi, ali session_state pomaže)
+        if st.session_state.form_reset:
+            st.session_state.form_reset = False
+            st.rerun()
 
         # Prikaz svih unosa sa imenom korisnika
         st.subheader("Svi unosi godišnjeg / slobodnih dana")
@@ -1199,7 +1219,7 @@ else:
 
                 plt.xlim(0, 7)
                 plt.ylim(-5, 0)
-                plt.xticks(range(7), ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'])
+                plt.xticks(range(7), ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'], fontsize=12, fontweight='bold')
                 plt.tight_layout()
 
                 buf = io.BytesIO()
