@@ -985,27 +985,11 @@ else:
 
 
 
-    # ────────────────────────────────────────────────
+       # ────────────────────────────────────────────────
     # GODIŠNJI ODMOR / SLOBODNI DANI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
-
-        # Ručno definirani hrvatski praznici i blagdani za 2026. (možeš proširiti za druge godine)
-        hr_praznici_2026 = [
-            datetime(2026, 1, 1).date(),   # Nova godina
-            datetime(2026, 1, 6).date(),   # Bogojavljenje (Sveta tri kralja)
-            datetime(2026, 4, 5).date(),   # Uskrs (promjenjivo – provjeri za 2026.)
-            datetime(2026, 4, 6).date(),   # Uskrsni ponedjeljak
-            datetime(2026, 5, 1).date(),   # Praznik rada
-            datetime(2026, 5, 30).date(),  # Dan državnosti
-            datetime(2026, 6, 22).date(),  # Dan antifašističke borbe
-            datetime(2026, 8, 15).date(),  # Velika Gospa
-            datetime(2026, 11, 1).date(),  # Dan svih svetih
-            datetime(2026, 11, 18).date(), # Dan sjećanja na žrtve Domovinskog rata
-            datetime(2026, 12, 25).date(), # Božić
-            datetime(2026, 12, 26).date(), # Sveti Stjepan
-        ]
 
         # Dohvati korisnike za padajući izbornik
         try:
@@ -1016,7 +1000,7 @@ else:
             st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
             korisnik_options = {}
 
-        # Forma za dodavanje odmora (sa kalendarom za odabir)
+        # Forma za dodavanje odmora
         with st.form("dodaj_odmor_form"):
             st.subheader("Dodaj novi unos godišnjeg / slobodnog dana")
 
@@ -1098,7 +1082,10 @@ else:
             df_odmori = pd.DataFrame(odmori_response.data or [])
 
             if not df_odmori.empty:
-                df_odmori = df_odmori.rename(columns={"korisnici": "korisnik_ime"})
+                # Izvuci ime iz dict-a
+                df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
+                df_odmori = df_odmori.drop(columns=["korisnici"])  # ukloni nepotreban dict
+
                 st.dataframe(
                     df_odmori[["korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at"]],
                     use_container_width=True,
@@ -1109,92 +1096,6 @@ else:
         except Exception as e:
             st.error(f"Greška pri dohvaćanju unosa: {str(e)}")
             st.info("Ako vidiš ovu poruku, provjeri da li postoji foreign key između 'odmori.korisnik_id' i 'korisnici.id' u Supabaseu.")
-
-        # Prikaz kalendara sa bojama
-        st.subheader("Kalendar preklapanja")
-        try:
-            # Dohvati sve unose sa imenom korisnika
-            odmori_response = supabase.table("odmori")\
-                .select("*, korisnici!inner(ime_prezime)")\
-                .execute()
-
-            df_odmori = pd.DataFrame(odmori_response.data or [])
-
-            if not df_odmori.empty:
-                df_odmori = df_odmori.rename(columns={"korisnici": "korisnik_ime"})
-
-                # Dodijeli boje po korisniku (fiksno ili random)
-                unique_users = df_odmori["korisnik_ime"].unique()
-                color_map = {user: plt.cm.get_cmap("tab10")(i % 10) for i, user in enumerate(unique_users)}
-
-                # Trenutni mjesec
-                today = datetime.now()
-                year = today.year
-                month = today.month
-
-                # Kreiraj kalendar
-                cal = calendar.monthcalendar(year, month)
-
-                fig = plt.figure(figsize=(10, 6))
-                ax = fig.add_subplot(111)
-                ax.set_title(f"Kalendar za {calendar.month_name[month]} {year}")
-                ax.axis('off')
-
-                # Prikaz kalendara
-                for week_num, week in enumerate(cal):
-                    for day_num, day in enumerate(week):
-                        if day == 0:
-                            continue
-                        x = day_num
-                        y = -week_num
-                        rect = plt.Rectangle((x, y), 1, -1, fill=False)
-                        ax.add_patch(rect)
-                        ax.text(x + 0.5, y - 0.5, day, ha='center', va='center')
-
-                        # Bojaj prema unosi
-                        current_date = datetime(year, month, day).date()
-                        for _, unos in df_odmori.iterrows():
-                            start = datetime.fromisoformat(unos["datum_od"]).date()
-                            end = datetime.fromisoformat(unos["datum_do"]).date()
-                            if start <= current_date <= end:
-                                rect = plt.Rectangle((x, y), 1, -1, color=color_map.get(unos["korisnik_ime"], 'gray'), alpha=0.5)
-                                ax.add_patch(rect)
-
-                plt.xlim(0, 7)
-                plt.ylim(-5, 0)  # Prilagodi za 5 tjedana
-                plt.xticks(np.arange(0.5, 7.5), ['Ponedjeljak', 'Utorak', 'Srijeda', 'Četvrtak', 'Petak', 'Subota', 'Nedjelja'])
-                plt.tight_layout()
-
-                buf = io.BytesIO()
-                fig.savefig(buf, format="png")
-                buf.seek(0)
-                st.image(buf, caption="Kalendar preklapanja (boje po korisnicima)")
-            else:
-                st.info("Nema unosa za prikaz kalendara.")
-        except Exception as e:
-            st.error(f"Greška pri prikazu kalendara: {str(e)}")
-
-        # Prikaz svih unosa
-        st.subheader("Svi unosi godišnjeg / slobodnih dana")
-        try:
-            odmori_response = supabase.table("odmori")\
-                .select("*, korisnici!inner(ime_prezime)")\
-                .order("datum_od", desc=True)\
-                .execute()
-
-            df_odmori = pd.DataFrame(odmori_response.data or [])
-
-            if not df_odmori.empty:
-                df_odmori = df_odmori.rename(columns={"korisnici": "korisnik_ime"})
-                st.dataframe(
-                    df_odmori[["korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at"]],
-                    use_container_width=True,
-                    hide_index=True
-                )
-            else:
-                st.info("Još nema unosa.")
-        except Exception as e:
-            st.error(f"Greška pri dohvaćanju unosa: {str(e)}")
 
         # Pregled po korisniku (broj dana)
         st.subheader("Pregled po korisniku")
