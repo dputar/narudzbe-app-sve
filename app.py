@@ -985,28 +985,29 @@ else:
 
 
 
-    # ────────────────────────────────────────────────
-    # GODIŠNJI / SLOBODNI (kalendar odmora)
+       # ────────────────────────────────────────────────
+    # GODIŠNJI ODMOR / SLOBODNI DANI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # Dohvati korisnike za padajući izbornik
+        # 1. Dohvati korisnike za padajući izbornik
         try:
-            korisnici_response = supabase.table("korisnici").select("id,ime_prezime").eq("aktivan", True).execute()
+            korisnici_response = supabase.table("korisnici").select("id,ime_prezime,aktivan").eq("aktivan", True).execute()
             korisnici = korisnici_response.data or []
             korisnik_options = {k["ime_prezime"]: k["id"] for k in korisnici}
+            korisnik_ime_to_id = korisnik_options
         except Exception as e:
             st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
-            korisnik_options = {}
+            korisnik_ime_to_id = {}
 
-        # Forma za dodavanje odmora
+        # 2. Forma za dodavanje odmora
         with st.form("dodaj_odmor_form"):
             st.subheader("Dodaj novi unos godišnjeg / slobodnog dana")
 
-            if korisnik_options:
-                korisnik_ime = st.selectbox("Korisnik", list(korisnik_options.keys()), key="odmor_korisnik")
-                korisnik_id = korisnik_options.get(korisnik_ime)
+            if korisnik_ime_to_id:
+                korisnik_ime = st.selectbox("Korisnik", list(korisnik_ime_to_id.keys()), key="odmor_korisnik")
+                korisnik_id = korisnik_ime_to_id.get(korisnik_ime)
             else:
                 st.warning("Nema aktivnih korisnika u bazi.")
                 korisnik_id = None
@@ -1015,8 +1016,8 @@ else:
             datum_od = col1.date_input("Datum od", value=datetime.today(), key="odmor_datum_od")
             datum_do = col2.date_input("Datum do", value=datetime.today(), key="odmor_datum_do")
 
-            tip_odmora = st.selectbox("Tip", ["Godišnji odmor", "Slobodni dan", "Bolovanje", "Ostalo"], key="odmor_tip")
-            napomena = st.text_area("Napomena (opcionalno)", key="odmor_napomena")
+            tip_odmora = st.selectbox("Tip odsustva", ["Godišnji odmor", "Slobodni dan", "Bolovanje", "Ostalo"], key="odmor_tip")
+            napomena = st.text_area("Napomena (npr. razlog, zamjena...)", key="odmor_napomena")
 
             submitted = st.form_submit_button("Dodaj unos", type="primary")
             if submitted:
@@ -1031,36 +1032,58 @@ else:
                         "datum_do": datum_do.isoformat(),
                         "tip": tip_odmora,
                         "napomena": napomena.strip() or None,
-                        "unio_korisnik": st.session_state.user["korisničko_ime"] if "user" in st.session_state else "Nepoznato",
+                        "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
                         "created_at": datetime.now(TZ).isoformat()
                     }
                     try:
                         supabase.table("odmori").insert(novi).execute()
-                        st.success("Unos dodan!")
+                        st.success("Unos uspješno dodan!")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Greška pri spremanju: {str(e)}")
 
-        # Prikaz svih unosa
+        # 3. Prikaz svih unosa (sa imenom korisnika)
         st.subheader("Svi unosi godišnjeg / slobodnih dana")
         try:
-            odmori_response = supabase.table("odmori").select("*, korisnici!inner(ime_prezime)").order("datum_od", desc=True).execute()
+            # Dohvati sa join-om na ime korisnika
+            odmori_response = supabase.table("odmori")\
+                .select("*, korisnici!inner(ime_prezime)")\
+                .order("datum_od", desc=True)\
+                .execute()
+
             df_odmori = pd.DataFrame(odmori_response.data or [])
+
             if not df_odmori.empty:
+                # Preimenuj kolonu iz join-a
                 df_odmori = df_odmori.rename(columns={"korisnici": "korisnik_ime"})
-                st.dataframe(df_odmori[["korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at"]],
-                             use_container_width=True, hide_index=True)
+                # Prikazuj korisno
+                st.dataframe(
+                    df_odmori[["korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at"]],
+                    use_container_width=True,
+                    hide_index=True
+                )
             else:
                 st.info("Još nema unosa.")
         except Exception as e:
             st.error(f"Greška pri dohvaćanju unosa: {str(e)}")
+            st.info("Ako vidiš ovu poruku, provjeri da li postoji foreign key između 'odmori.korisnik_id' i 'korisnici.id' u Supabaseu.")
 
-        # Summary po korisniku (pretpostavka 20 dana godišnjeg godišnje)
+        # 4. Pregled po korisniku (broj dana)
         st.subheader("Pregled po korisniku")
         try:
-            # Ukupno planiranih dana po korisniku za slijedeću godinu
-            summary = df_odmori.groupby("korisnik_ime").size().reset_index(name="Broj unosa")
-            st.dataframe(summary, use_container_width=True, hide_index=True)
-            st.info("Napomena: Ovo je samo broj unosa. Za točan broj dana godišnjeg odmora treba dodatna logika (računanje dana između datuma).")
+            if not df_odmori.empty:
+                # Jednostavna suma dana (pretpostavka: datum_do - datum_od + 1)
+                df_odmori["broj_dana"] = (pd.to_datetime(df_odmori["datum_do"]) - pd.to_datetime(df_odmori["datum_od"])).dt.days + 1
+                df_odmori["broj_dana"] = df_odmori["broj_dana"].clip(lower=1)  # min 1 dan
+
+                summary = df_odmori.groupby("korisnik_ime").agg(
+                    ukupno_dana=("broj_dana", "sum"),
+                    broj_unosa=("id", "count")
+                ).reset_index()
+
+                st.dataframe(summary, use_container_width=True, hide_index=True)
+                st.info("Napomena: Broj dana je izračunat kao (datum_do - datum_od + 1). Ovo je samo informativno.")
+            else:
+                st.info("Nema podataka za pregled.")
         except Exception as e:
             st.error(f"Greška pri sumiranju: {str(e)}")
