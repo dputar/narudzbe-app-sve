@@ -992,6 +992,14 @@ else:
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
+        # Ručno definirani hrvatski praznici i blagdani za 2026-2040
+        holidays_dict = {
+            2026: [datetime.date(2026, 1, 1), datetime.date(2026, 1, 6), datetime.date(2026, 4, 5), datetime.date(2026, 4, 6), datetime.date(2026, 5, 1), datetime.date(2026, 5, 30), datetime.date(2026, 6, 22), datetime.date(2026, 8, 15), datetime.date(2026, 11, 1), datetime.date(2026, 11, 18), datetime.date(2026, 12, 25), datetime.date(2026, 12, 26)],
+            2027: [datetime.date(2027, 1, 1), datetime.date(2027, 1, 6), datetime.date(2027, 3, 28), datetime.date(2027, 3, 29), datetime.date(2027, 5, 1), datetime.date(2027, 5, 27), datetime.date(2027, 6, 22), datetime.date(2027, 8, 15), datetime.date(2027, 11, 1), datetime.date(2027, 11, 18), datetime.date(2027, 12, 25), datetime.date(2027, 12, 26)],
+            2028: [datetime.date(2028, 1, 1), datetime.date(2028, 1, 6), datetime.date(2028, 4, 16), datetime.date(2028, 4, 17), datetime.date(2028, 5, 1), datetime.date(2028, 5, 30), datetime.date(2028, 6, 22), datetime.date(2028, 8, 15), datetime.date(2028, 11, 1), datetime.date(2028, 11, 18), datetime.date(2028, 12, 25), datetime.date(2028, 12, 26)],
+            # Dodaj ostale godine po potrebi – za sada 2026-2028, možeš proširiti
+        }
+
         # Dohvati korisnike za padajući izbornik
         try:
             korisnici_response = supabase.table("korisnici").select("id,ime_prezime").eq("aktivan", True).execute()
@@ -1208,7 +1216,7 @@ else:
         if st.button("Dodaj praznike za 2026-2040 (klikni jednom)"):
             praznici_data = []
             for year in range(2026, 2041):
-                praznici = holidays_dict.get(year, set())
+                praznici = holidays_dict.get(year, [])
                 for datum in praznici:
                     praznici_data.append({
                         "datum": datum.isoformat(),
