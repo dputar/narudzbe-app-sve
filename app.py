@@ -992,13 +992,6 @@ else:
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # Ručno definirani hrvatski praznici i blagdani za 2026-2040 (možeš proširiti)
-        holidays_dict = {
-            2026: [datetime.date(2026, 1, 1), datetime.date(2026, 1, 6), datetime.date(2026, 4, 5), datetime.date(2026, 4, 6), datetime.date(2026, 5, 1), datetime.date(2026, 5, 30), datetime.date(2026, 6, 22), datetime.date(2026, 8, 15), datetime.date(2026, 11, 1), datetime.date(2026, 11, 18), datetime.date(2026, 12, 25), datetime.date(2026, 12, 26)],
-            2027: [datetime.date(2027, 1, 1), datetime.date(2027, 1, 6), datetime.date(2027, 3, 28), datetime.date(2027, 3, 29), datetime.date(2027, 5, 1), datetime.date(2027, 5, 27), datetime.date(2027, 6, 22), datetime.date(2027, 8, 15), datetime.date(2027, 11, 1), datetime.date(2027, 11, 18), datetime.date(2027, 12, 25), datetime.date(2027, 12, 26)],
-            # Dodaj ostale godine po potrebi – za sada 2026-2027, možeš proširiti
-        }
-
         # Dohvati korisnike za padajući izbornik
         try:
             korisnici_response = supabase.table("korisnici").select("id,ime_prezime").eq("aktivan", True).execute()
@@ -1020,8 +1013,8 @@ else:
                 korisnik_id = None
 
             col1, col2 = st.columns(2)
-            datum_od = col1.date_input("Datum od", value=datetime.today(), key="odmor_datum_od")
-            datum_do = col2.date_input("Datum do", value=datetime.today(), key="odmor_datum_do")
+            datum_od_input = col1.date_input("Datum od", value=datetime.today(), key="odmor_datum_od")
+            datum_do_input = col2.date_input("Datum do", value=datetime.today(), key="odmor_datum_do")
 
             tip_odmora = st.selectbox("Tip odsustva", ["Godišnji odmor", "Slobodni dan", "Bolovanje", "Ostalo"], key="odmor_tip")
             napomena = st.text_area("Napomena (opcionalno)", key="odmor_napomena")
@@ -1031,17 +1024,24 @@ else:
         if submitted:
             if not korisnik_id:
                 st.error("Odaberi korisnika!")
-            elif datum_do < datum_od:
+            elif datum_do_input < datum_od_input:
                 st.error("Datum 'do' ne može biti prije 'od'!")
             else:
+                # Pretvori u date za usporedbu
+                datum_od = datum_od_input
+                datum_do = datum_do_input
+
                 # Provjera preklapanja
                 try:
                     odmori_response = supabase.table("odmori").select("*").execute()
                     df_odmori = pd.DataFrame(odmori_response.data or [])
                     preklapanja = 0
                     for _, row in df_odmori.iterrows():
-                        start = max(datum_od, row["datum_od"])
-                        end = min(datum_do, row["datum_do"])
+                        # Pretvori string iz baze u date
+                        start_db = datetime.fromisoformat(row["datum_od"]).date()
+                        end_db = datetime.fromisoformat(row["datum_do"]).date()
+                        start = max(datum_od, start_db)
+                        end = min(datum_do, end_db)
                         if start <= end:
                             preklapanja += (end - start).days + 1
 
