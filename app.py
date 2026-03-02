@@ -991,6 +991,10 @@ else:
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
+        # Import dodatnih biblioteka za kalendar i praznike
+        import holidays
+        from datetime import timedelta
+
         # Dohvati korisnike za padajući izbornik
         try:
             korisnici_response = supabase.table("korisnici").select("id,ime_prezime").eq("aktivan", True).execute()
@@ -1025,38 +1029,64 @@ else:
                 elif datum_do < datum_od:
                     st.error("Datum 'do' ne može biti prije 'od'!")
                 else:
-                    novi = {
-                        "korisnik_id": korisnik_id,
-                        "datum_od": datum_od.isoformat(),
-                        "datum_do": datum_do.isoformat(),
-                        "tip": tip_odmora,
-                        "napomena": napomena.strip() or None,
-                        "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
-                        "created_at": datetime.now(TZ).isoformat()
-                    }
+                    # Provjera preklapanja sa drugim korisnicima
                     try:
-                        supabase.table("odmori").insert(novi).execute()
-                        st.success("Unos uspješno dodan!")
-                        st.rerun()
+                        odmori_response = supabase.table("odmori").select("*").execute()
+                        df_odmori = pd.DataFrame(odmori_response.data or [])
+                        preklapanja = 0
+                        for _, row in df_odmori.iterrows():
+                            start = max(datum_od, row["datum_od"])
+                            end = min(datum_do, row["datum_do"])
+                            if start <= end:
+                                preklapanja += (end - start).days + 1
+
+                        if preklapanja > 0:
+                            if st.button(f"Preklapanje u {preklapanja} dana sa drugim korisnicima. Potvrdi?"):
+                                # Spremi ako potvrđeno
+                                novi = {
+                                    "korisnik_id": korisnik_id,
+                                    "datum_od": datum_od.isoformat(),
+                                    "datum_do": datum_do.isoformat(),
+                                    "tip": tip_odmora,
+                                    "napomena": napomena.strip() or None,
+                                    "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
+                                    "created_at": datetime.now(TZ).isoformat()
+                                }
+                                supabase.table("odmori").insert(novi).execute()
+                                st.success("Unos dodan sa preklapanjem!")
+                                st.rerun()
+                            else:
+                                st.warning("Odustano od dodavanja zbog preklapanja.")
+                        else:
+                            # Spremi ako nema preklapanja
+                            novi = {
+                                "korisnik_id": korisnik_id,
+                                "datum_od": datum_od.isoformat(),
+                                "datum_do": datum_do.isoformat(),
+                                "tip": tip_odmora,
+                                "napomena": napomena.strip() or None,
+                                "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
+                                "created_at": datetime.now(TZ).isoformat()
+                            }
+                            supabase.table("odmori").insert(novi).execute()
+                            st.success("Unos dodan bez preklapanja!")
+                            st.rerun()
                     except Exception as e:
-                        st.error(f"Greška pri spremanju: {str(e)}")
+                        st.error(f"Greška pri provjeri/spremanju: {str(e)}")
 
         # Prikaz svih unosa sa imenom korisnika
         st.subheader("Svi unosi godišnjeg / slobodnih dana")
         try:
-            # Join na ime korisnika (pretpostavka da postoji foreign key)
+            # Dohvati sa join-om na ime korisnika (pretpostavka da postoji foreign key)
             odmori_response = supabase.table("odmori")\
-                .select("id, korisnik_id, datum_od, datum_do, tip, napomena, unio_korisnik, created_at, korisnici!inner(ime_prezime)")\
+                .select("*, korisnici!inner(ime_prezime)")\
                 .order("datum_od", desc=True)\
                 .execute()
 
             df_odmori = pd.DataFrame(odmori_response.data or [])
 
             if not df_odmori.empty:
-                # Izvuci ime iz join-a (korisnici je dict)
-                df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
-                df_odmori = df_odmori.drop(columns=["korisnici"])  # ukloni nepotreban dict stupac
-
+                df_odmori = df_odmori.rename(columns={"korisnici": "korisnik_ime"})
                 st.dataframe(
                     df_odmori[["korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at"]],
                     use_container_width=True,
@@ -1068,11 +1098,96 @@ else:
             st.error(f"Greška pri dohvaćanju unosa: {str(e)}")
             st.info("Ako vidiš ovu poruku, provjeri da li postoji foreign key između 'odmori.korisnik_id' i 'korisnici.id' u Supabaseu.")
 
+        # Prikaz kalendara sa bojama
+        st.subheader("Kalendar preklapanja")
+        try:
+            # Dohvati sve unose sa imenom korisnika
+            odmori_response = supabase.table("odmori")\
+                .select("*, korisnici!inner(ime_prezime)")\
+                .execute()
+
+            df_odmori = pd.DataFrame(odmori_response.data or [])
+
+            if not df_odmori.empty:
+                df_odmori = df_odmori.rename(columns={"korisnici": "korisnik_ime"})
+
+                # Dodijeli boje po korisniku (fiksno ili random)
+                unique_users = df_odmori["korisnik_ime"].unique()
+                color_map = {user: plt.cm.get_cmap("tab10")(i % 10) for i, user in enumerate(unique_users)}
+
+                # Trenutni mjesec
+                today = datetime.now()
+                year = today.year
+                month = today.month
+
+                # Kreiraj kalendar
+                cal = calendar.monthcalendar(year, month)
+
+                fig = plt.figure(figsize=(10, 6))
+                ax = fig.add_subplot(111)
+                ax.set_title(f"Kalendar za {calendar.month_name[month]} {year}")
+                ax.axis('off')
+
+                # Prikaz kalendara
+                for week_num, week in enumerate(cal):
+                    for day_num, day in enumerate(week):
+                        if day == 0:
+                            continue
+                        x = day_num
+                        y = -week_num
+                        rect = plt.Rectangle((x, y), 1, -1, fill=False)
+                        ax.add_patch(rect)
+                        ax.text(x + 0.5, y - 0.5, day, ha='center', va='center')
+
+                        # Bojaj prema unosi
+                        current_date = datetime(year, month, day)
+                        for _, unos in df_odmori.iterrows():
+                            start = datetime.fromisoformat(unos["datum_od"])
+                            end = datetime.fromisoformat(unos["datum_do"])
+                            if start <= current_date <= end:
+                                rect = plt.Rectangle((x, y), 1, -1, color=color_map.get(unos["korisnik_ime"], 'gray'), alpha=0.5)
+                                ax.add_patch(rect)
+
+                plt.xlim(0, 7)
+                plt.ylim(-5, 0)  # Prilagodi za 5 tjedana
+                plt.xticks(np.arange(0.5, 7.5), ['Ponedjeljak', 'Utorak', 'Srijeda', 'Četvrtak', 'Petak', 'Subota', 'Nedjelja'])
+                plt.tight_layout()
+
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png")
+                buf.seek(0)
+                st.image(buf, caption="Kalendar preklapanja (boje po korisnicima)")
+            else:
+                st.info("Nema unosa za prikaz kalendara.")
+        except Exception as e:
+            st.error(f"Greška pri prikazu kalendara: {str(e)}")
+
+        # Prikaz svih unosa
+        st.subheader("Svi unosi godišnjeg / slobodnih dana")
+        try:
+            odmori_response = supabase.table("odmori")\
+                .select("*, korisnici!inner(ime_prezime)")\
+                .order("datum_od", desc=True)\
+                .execute()
+
+            df_odmori = pd.DataFrame(odmori_response.data or [])
+
+            if not df_odmori.empty:
+                df_odmori = df_odmori.rename(columns={"korisnici": "korisnik_ime"})
+                st.dataframe(
+                    df_odmori[["korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at"]],
+                    use_container_width=True,
+                    hide_index=True
+                )
+            else:
+                st.info("Još nema unosa.")
+        except Exception as e:
+            st.error(f"Greška pri dohvaćanju unosa: {str(e)}")
+
         # Pregled po korisniku (broj dana)
         st.subheader("Pregled po korisniku")
         try:
             if not df_odmori.empty:
-                # Računanje broja dana (datum_do - datum_od + 1)
                 df_odmori["broj_dana"] = (pd.to_datetime(df_odmori["datum_do"]) - pd.to_datetime(df_odmori["datum_od"])).dt.days + 1
                 df_odmori["broj_dana"] = df_odmori["broj_dana"].clip(lower=1)  # min 1 dan
 
