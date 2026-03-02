@@ -985,7 +985,6 @@ else:
 
 
 
-       # ────────────────────────────────────────────────
     # ────────────────────────────────────────────────
     # GODIŠNJI ODMOR / SLOBODNI DANI
     # ────────────────────────────────────────────────
@@ -1042,18 +1041,22 @@ else:
                     except Exception as e:
                         st.error(f"Greška pri spremanju: {str(e)}")
 
-        # Prikaz svih unosa sa imenom korisnika (pretpostavka da postoji foreign key)
+        # Prikaz svih unosa sa imenom korisnika
         st.subheader("Svi unosi godišnjeg / slobodnih dana")
         try:
+            # Join na ime korisnika (pretpostavka da postoji foreign key)
             odmori_response = supabase.table("odmori")\
-                .select("*, korisnici!inner(ime_prezime)")\
+                .select("id, korisnik_id, datum_od, datum_do, tip, napomena, unio_korisnik, created_at, korisnici!inner(ime_prezime)")\
                 .order("datum_od", desc=True)\
                 .execute()
 
             df_odmori = pd.DataFrame(odmori_response.data or [])
 
             if not df_odmori.empty:
-                df_odmori = df_odmori.rename(columns={"korisnici": "korisnik_ime"})
+                # Izvuci ime iz join-a (korisnici je dict)
+                df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
+                df_odmori = df_odmori.drop(columns=["korisnici"])  # ukloni nepotreban dict stupac
+
                 st.dataframe(
                     df_odmori[["korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at"]],
                     use_container_width=True,
@@ -1069,8 +1072,9 @@ else:
         st.subheader("Pregled po korisniku")
         try:
             if not df_odmori.empty:
+                # Računanje broja dana (datum_do - datum_od + 1)
                 df_odmori["broj_dana"] = (pd.to_datetime(df_odmori["datum_do"]) - pd.to_datetime(df_odmori["datum_od"])).dt.days + 1
-                df_odmori["broj_dana"] = df_odmori["broj_dana"].clip(lower=1)  # minimum 1 dan
+                df_odmori["broj_dana"] = df_odmori["broj_dana"].clip(lower=1)  # min 1 dan
 
                 summary = df_odmori.groupby("korisnik_ime").agg(
                     ukupno_dana=("broj_dana", "sum"),
