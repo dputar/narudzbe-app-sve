@@ -175,6 +175,39 @@ else:
             elif df_display.empty:
                 st.info("Još nema narudžbi.")
 
+	# Željeni redoslijed stupaca za Pregled narudžbi – točno kao na slici
+            zeljeni_redoslijed = [
+                "oznaci_zaprimljeno",       # 1. Zaprimljeno
+                "datum",                    # 2. Datum
+                "tip_klijenta",             # 3. Tip klijenta
+                "korisnik",                 # 4. Korisnik
+                "odgovorna_osoba",          # 5. Odgovorna osoba
+                "sifra_proizvoda",          # 6. Šifra proizvoda
+                "naziv_proizvoda",          # 7. Naziv proizvoda
+                "kolicina",                 # 8. Količina
+                "dobavljac",                # 9. Dobavljač
+                "Skladište",                # 10. Skladište
+                "oznaci_za_narudzbu",       # 11. Označi za narudžbu
+                "broj_narudzbe",            # 12. Broj narudžbe
+                "napomena_dobavljac",       # 13. Napomena dobavljaču
+                "unio_korisnik",            # 14. Unio korisnik
+                "napomena_za_nas",          # 15. Napomena za nas
+                "datum_vrijeme_narudzbe",   # 16. Datum narudžbe
+                "datum_vrijeme_zaprimanja", # 17. Datum zaprimanja
+                "created_at",               # 18. created_at
+                "updated_at",               # 19. updated_at
+                "cijena",                   # 20. Cijena
+                "id",                       # 21. ID
+                "user_id",                  # 22. user_id
+                "Obriši"                    # 23. Obriši
+            ]
+
+            # Zadrži samo stupce koji stvarno postoje u DataFrame-u
+            dostupni_stupci = [col for col in zeljeni_redoslijed if col in df_display.columns]
+            df_display = df_display[dostupni_stupci]
+
+
+
             df_display["Obriši"] = False
 
             edited_df = st.data_editor(
@@ -902,6 +935,28 @@ else:
             # Sakrij lozinku u prikazu tablice
             df_display["lozinka"] = df_display["lozinka"].apply(lambda x: "******" if x else "")
 
+
+            # Željeni redoslijed stupaca – točno kao na slici
+            zeljeni_redoslijed = [
+                "ime_prezime",
+                "korisničko_ime",
+                "lozinka",
+                "tip_korisnika",
+                "skladišta",
+                "prava",
+                "id",
+                "created_at",
+                "updated_at",
+                "aktivan",
+                "Obriši",
+                "Uredi"
+            ]
+
+            # Primijeni redoslijed
+            dostupni_stupci = [col for col in zeljeni_redoslijed if col in df_display.columns]
+            df_display = df_display[dostupni_stupci]
+
+
             edited_df = st.data_editor(
                 df_display,
                 num_rows="dynamic",
@@ -942,16 +997,16 @@ else:
                 st.rerun()
 
             # Izvoz u Excel
-            if st.button("Izvezi sve korisnike u Excel"):
-                output = io.BytesIO()
-                df_korisnici.to_excel(output, index=False, sheet_name="Korisnici")
-                output.seek(0)
-                st.download_button(
-                    label="Preuzmi .xlsx",
-                    data=output,
-                    file_name=f"korisnici_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+            # if st.button("Izvezi sve korisnike u Excel"):
+            #    output = io.BytesIO()
+            #    df_korisnici.to_excel(output, index=False, sheet_name="Korisnici")
+            #    output.seek(0)
+            #    st.download_button(
+            #        label="Preuzmi .xlsx",
+            #        data=output,
+            #        file_name=f"korisnici_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
+            #        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            #    )
 
             # Osvježi
             st.button("🔄 Osvježi", on_click=st.rerun)
