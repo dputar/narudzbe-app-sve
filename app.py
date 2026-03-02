@@ -984,13 +984,13 @@ else:
 
 
 
-    # ────────────────────────────────────────────────
+      # ────────────────────────────────────────────────
     # GODIŠNJI ODMOR / SLOBODNI DANI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # 1. Dohvati korisnike za padajući izbornik
+        # Dohvati korisnike za padajući izbornik
         try:
             korisnici_response = supabase.table("korisnici").select("id,ime_prezime").eq("aktivan", True).execute()
             korisnici = korisnici_response.data or []
@@ -999,7 +999,7 @@ else:
             st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
             korisnik_options = {}
 
-        # 2. Forma za dodavanje odmora
+        # Forma za dodavanje odmora
         with st.form("dodaj_odmor_form"):
             st.subheader("Dodaj novi unos godišnjeg / slobodnog dana")
 
@@ -1067,7 +1067,7 @@ else:
                     except Exception as e:
                         st.error(f"Greška pri provjeri/spremanju: {str(e)}")
 
-        # 3. Prikaz svih unosa sa imenom korisnika
+        # Prikaz svih unosa sa imenom korisnika
         st.subheader("Svi unosi godišnjeg / slobodnih dana")
         try:
             odmori_response = supabase.table("odmori")\
@@ -1091,7 +1091,7 @@ else:
         except Exception as e:
             st.error(f"Greška pri dohvaćanju unosa: {str(e)}")
 
-        # 4. Kalendar sa bojama po korisniku i crvenim preklapanjem
+        # Kalendar sa bojama po korisniku i crvenim preklapanjem
         st.subheader("Kalendar preklapanja")
         try:
             # Dohvati sve unose sa imenom korisnika
