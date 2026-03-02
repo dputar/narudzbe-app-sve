@@ -991,9 +991,21 @@ else:
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # Import dodatnih biblioteka za kalendar i praznike
-        import holidays
-        from datetime import timedelta
+        # Ručno definirani hrvatski praznici i blagdani za 2026. (možeš proširiti za druge godine)
+        hr_praznici_2026 = [
+            datetime(2026, 1, 1).date(),   # Nova godina
+            datetime(2026, 1, 6).date(),   # Bogojavljenje (Sveta tri kralja)
+            datetime(2026, 4, 5).date(),   # Uskrs (promjenjivo – provjeri za 2026.)
+            datetime(2026, 4, 6).date(),   # Uskrsni ponedjeljak
+            datetime(2026, 5, 1).date(),   # Praznik rada
+            datetime(2026, 5, 30).date(),  # Dan državnosti
+            datetime(2026, 6, 22).date(),  # Dan antifašističke borbe
+            datetime(2026, 8, 15).date(),  # Velika Gospa
+            datetime(2026, 11, 1).date(),  # Dan svih svetih
+            datetime(2026, 11, 18).date(), # Dan sjećanja na žrtve Domovinskog rata
+            datetime(2026, 12, 25).date(), # Božić
+            datetime(2026, 12, 26).date(), # Sveti Stjepan
+        ]
 
         # Dohvati korisnike za padajući izbornik
         try:
@@ -1004,7 +1016,7 @@ else:
             st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
             korisnik_options = {}
 
-        # Forma za dodavanje odmora
+        # Forma za dodavanje odmora (sa kalendarom za odabir)
         with st.form("dodaj_odmor_form"):
             st.subheader("Dodaj novi unos godišnjeg / slobodnog dana")
 
@@ -1140,10 +1152,10 @@ else:
                         ax.text(x + 0.5, y - 0.5, day, ha='center', va='center')
 
                         # Bojaj prema unosi
-                        current_date = datetime(year, month, day)
+                        current_date = datetime(year, month, day).date()
                         for _, unos in df_odmori.iterrows():
-                            start = datetime.fromisoformat(unos["datum_od"])
-                            end = datetime.fromisoformat(unos["datum_do"])
+                            start = datetime.fromisoformat(unos["datum_od"]).date()
+                            end = datetime.fromisoformat(unos["datum_do"]).date()
                             if start <= current_date <= end:
                                 rect = plt.Rectangle((x, y), 1, -1, color=color_map.get(unos["korisnik_ime"], 'gray'), alpha=0.5)
                                 ax.add_patch(rect)
