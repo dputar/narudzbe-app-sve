@@ -991,12 +991,6 @@ else:
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # Inicijaliziraj session_state za privremeni unos i reset forme
-        if "temp_odmor" not in st.session_state:
-            st.session_state.temp_odmor = None
-        if "form_reset" not in st.session_state:
-            st.session_state.form_reset = False
-
         # Ručno definirani hrvatski praznici i blagdani za 2026-2040 (koristi date objekat)
         holidays_dict = {
             2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
@@ -1120,7 +1114,7 @@ else:
                 st.session_state.form_reset = True
                 st.rerun()
 
-        # Reset forme nakon dodavanja (clear_on_submit=True radi, ali session_state pomaže)
+        # Reset forme nakon dodavanja
         if st.session_state.form_reset:
             st.session_state.form_reset = False
             st.rerun()
