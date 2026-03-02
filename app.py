@@ -1195,7 +1195,7 @@ else:
 
                 fig = plt.figure(figsize=(12, 8))
                 ax = fig.add_subplot(111)
-                ax.set_title(f"Kalendar za {calendar.month_name[month]} {year}", fontsize=16)
+                ax.set_title(f"Kalendar za {calendar.month_name[month]} {year}", fontsize=16, pad=20)
                 ax.axis('off')
 
                 # Prikaz kalendara sa imenima ispod datuma
@@ -1235,14 +1235,14 @@ else:
                             ax.add_patch(plt.Rectangle((x, y), 1, -1, color=user_color, alpha=0.5))
                             ax.text(x + 0.5, y - 0.8, user, ha='center', va='center', fontsize=8, color='white')
 
-                # Dodaj dane u tjednu na vrhu kalendara
+                # Dodaj dane u tjednu na vrhu kalendara (ključno – mora biti nakon petlje)
                 ax.set_xticks(range(7))
                 ax.set_xticklabels(['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'], fontsize=14, fontweight='bold')
-                ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=True, pad=15)  # veći pad za bolju vidljivost
+                ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=True, pad=20)  # veći pad za bolju vidljivost
 
                 plt.xlim(0, 7)
                 plt.ylim(-5, 0)
-                plt.tight_layout(rect=[0, 0.05, 1, 0.95])  # dodatni prostor na vrhu za naslov i dane
+                plt.tight_layout(rect=[0, 0.1, 1, 0.95])  # dodatni prostor na vrhu za naslov i dane
 
                 buf = io.BytesIO()
                 fig.savefig(buf, format="png", bbox_inches='tight')
