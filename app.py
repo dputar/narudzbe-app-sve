@@ -991,6 +991,12 @@ else:
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
+        # Inicijaliziraj session_state za privremeni unos i reset forme
+        if "temp_odmor" not in st.session_state:
+            st.session_state.temp_odmor = None
+        if "form_reset" not in st.session_state:
+            st.session_state.form_reset = False
+
         # Ručno definirani hrvatski praznici i blagdani za 2026-2040 (koristi date objekat)
         holidays_dict = {
             2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
@@ -1211,7 +1217,7 @@ else:
                             ax.add_patch(plt.Rectangle((x, y), 1, -1, color=user_color, alpha=0.5))
                             ax.text(x + 0.5, y - 0.8, user, ha='center', va='center', fontsize=8, color='white')
 
-                # Dodaj dane u tjednu na vrhu kalendara
+                # Dodaj dane u tjednu na vrhu kalendara (Ovo je ključno – mora biti nakon petlje)
                 ax.set_xticks(range(7))
                 ax.set_xticklabels(['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'], fontsize=12, fontweight='bold')
                 ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=True)
