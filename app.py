@@ -1055,6 +1055,16 @@ else:
                 datum_od = datum_od_input
                 datum_do = datum_do_input
 
+                # Spremi privremeno u session_state
+                st.session_state.temp_odmor = {
+                    "korisnik_id": korisnik_id,
+                    "datum_od": datum_od,
+                    "datum_do": datum_do,
+                    "tip": tip_odmora,
+                    "napomena": napomena.strip() or None,
+                    "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
+                }
+
                 # Provjera preklapanja
                 try:
                     odmori_response = supabase.table("odmori").select("*").execute()
@@ -1069,15 +1079,7 @@ else:
                             preklapanja += (end - start).days + 1
 
                     if preklapanja > 0:
-                        st.session_state.temp_odmor = {
-                            "korisnik_id": korisnik_id,
-                            "datum_od": datum_od,
-                            "datum_do": datum_do,
-                            "tip": tip_odmora,
-                            "napomena": napomena.strip() or None,
-                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
-                        }
-                        st.rerun()
+                        st.rerun()  # rerun da se prikaže gumb za potvrdu
                     else:
                         # Ako nema preklapanja, odmah spremi
                         novi = {
@@ -1098,6 +1100,15 @@ else:
 
         # Potvrda preklapanja (izvan forme)
         if st.session_state.temp_odmor:
+            preklapanja = 0  # ponovno izračunaj ako je potrebno
+            for _, row in df_odmori.iterrows():
+                start_db = datetime.fromisoformat(row["datum_od"]).date()
+                end_db = datetime.fromisoformat(row["datum_do"]).date()
+                start = max(st.session_state.temp_odmor["datum_od"], start_db)
+                end = min(st.session_state.temp_odmor["datum_do"], end_db)
+                if start <= end:
+                    preklapanja += (end - start).days + 1
+
             st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
             col1, col2 = st.columns(2)
             if col1.button("Potvrdi dodavanje sa preklapanjem"):
@@ -1220,14 +1231,14 @@ else:
                 # Dodaj dane u tjednu na vrhu kalendara (Ovo je ključno – mora biti nakon petlje)
                 ax.set_xticks(range(7))
                 ax.set_xticklabels(['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'], fontsize=14, fontweight='bold')
-                ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=True, pad=10)  # malo veći pad za bolju vidljivost
+                ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=True, pad=15)  # veći pad za bolju vidljivost
 
                 plt.xlim(0, 7)
                 plt.ylim(-5, 0)
-                plt.tight_layout()
+                plt.tight_layout(rect=[0, 0, 1, 0.95])  # malo više prostora na vrhu za naslov i dane
 
                 buf = io.BytesIO()
-                fig.savefig(buf, format="png", bbox_inches='tight')  # bbox_inches='tight' pomaže da se ne obreže
+                fig.savefig(buf, format="png", bbox_inches='tight')
                 buf.seek(0)
                 st.image(buf, caption="Kalendar odsustava (crveno za preklapanja, boje po korisniku, imena ispod datuma)")
             else:
