@@ -992,7 +992,7 @@ else:
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # Ručno definirani hrvatski praznici i blagdani za 2026-2040 (koristi date objekat)
+        # Ručno definirani hrvatski praznici i blagdani za 2026–2040 (koristi date objekat)
         holidays_dict = {
             2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
             2027: [date(2027, 1, 1), date(2027, 1, 6), date(2027, 3, 28), date(2027, 3, 29), date(2027, 5, 1), date(2027, 5, 27), date(2027, 6, 22), date(2027, 8, 15), date(2027, 11, 1), date(2027, 11, 18), date(2027, 12, 25), date(2027, 12, 26)],
@@ -1056,7 +1056,6 @@ else:
                     df_odmori = pd.DataFrame(odmori_response.data or [])
                     preklapanja = 0
                     for _, row in df_odmori.iterrows():
-                        # Pretvori string iz baze u date
                         start_db = datetime.fromisoformat(row["datum_od"]).date()
                         end_db = datetime.fromisoformat(row["datum_do"]).date()
                         start = max(datum_od, start_db)
@@ -1065,21 +1064,15 @@ else:
                             preklapanja += (end - start).days + 1
 
                     if preklapanja > 0:
-                        if st.button(f"Preklapanje u {preklapanja} dana sa drugim korisnicima. Potvrdi?"):
-                            novi = {
-                                "korisnik_id": korisnik_id,
-                                "datum_od": datum_od.isoformat(),
-                                "datum_do": datum_do.isoformat(),
-                                "tip": tip_odmora,
-                                "napomena": napomena.strip() or None,
-                                "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
-                                "created_at": datetime.now(TZ).isoformat()
-                            }
-                            supabase.table("odmori").insert(novi).execute()
-                            st.success("Unos dodan sa preklapanjem!")
-                            st.rerun()
-                        else:
-                            st.warning("Odustano od dodavanja zbog preklapanja.")
+                        st.session_state.temp_odmor = {
+                            "korisnik_id": korisnik_id,
+                            "datum_od": datum_od,
+                            "datum_do": datum_do,
+                            "tip": tip_odmora,
+                            "napomena": napomena.strip() or None,
+                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
+                        }
+                        st.rerun()
                     else:
                         novi = {
                             "korisnik_id": korisnik_id,
@@ -1095,6 +1088,28 @@ else:
                         st.rerun()
                 except Exception as e:
                     st.error(f"Greška pri provjeri/spremanju: {str(e)}")
+
+        # Potvrda preklapanja (izvan forme)
+        if "temp_odmor" in st.session_state and st.session_state.temp_odmor:
+            st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
+            col1, col2 = st.columns(2)
+            if col1.button("Potvrdi dodavanje sa preklapanjem"):
+                novi = {
+                    "korisnik_id": st.session_state.temp_odmor["korisnik_id"],
+                    "datum_od": st.session_state.temp_odmor["datum_od"].isoformat(),
+                    "datum_do": st.session_state.temp_odmor["datum_do"].isoformat(),
+                    "tip": st.session_state.temp_odmor["tip"],
+                    "napomena": st.session_state.temp_odmor["napomena"],
+                    "unio_korisnik": st.session_state.temp_odmor["unio_korisnik"],
+                    "created_at": datetime.now(TZ).isoformat()
+                }
+                supabase.table("odmori").insert(novi).execute()
+                st.success("Unos dodan sa preklapanjem!")
+                st.session_state.temp_odmor = None
+                st.rerun()
+            if col2.button("Odustani"):
+                st.session_state.temp_odmor = None
+                st.rerun()
 
         # Prikaz svih unosa sa imenom korisnika
         st.subheader("Svi unosi godišnjeg / slobodnih dana")
