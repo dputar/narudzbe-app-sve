@@ -52,27 +52,22 @@ def on_korisnici_search_change():
     st.session_state.korisnici_search = st.session_state.korisnici_search_input
 
 # ────────────────────────────────────────────────
-# LOGIN (korisničko ime + lozinka iz tablice korisnici)
+# LOGIN (korisničko ime + lozinka)
 # ────────────────────────────────────────────────
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
     korisnicko_ime = st.text_input("Korisničko ime", key="login_korisnicko_ime")
     lozinka = st.text_input("Lozinka", type="password", key="login_lozinka")
-
     if st.button("Prijavi se", key="login_prijavi"):
         try:
             # Dohvati korisnika po korisničko_ime
             response = supabase.table("korisnici").select("*").eq("korisničko_ime", korisnicko_ime).execute()
-            
             if response.data and len(response.data) > 0:
                 user = response.data[0]
-                
-                # Provjeri lozinku (plain text za sada – kasnije hashiraj)
                 if user["lozinka"] == lozinka:
-                    # Spremi cijelog korisnika u session_state
                     st.session_state.user = user
                     st.session_state.stranica = "početna"
-                    st.success(f"Dobrodošli, {user['ime_prezime']}!")
+                    st.success("Uspješna prijava!")
                     st.rerun()
                 else:
                     st.error("Neispravna lozinka.")
@@ -110,7 +105,7 @@ else:
             if st.button("📋 Šifarnici", key="admin_sifarnici"):
                 st.session_state.stranica = "admin_sifarnici"
                 st.rerun()
-        if st.button("📁 Dokumenti", key="menu_dokumenti"):
+        if st.button("🏖️ Godišnji/Slobodni", key="menu_dokumenti"):
             st.session_state.stranica = "dokumenti"
             st.rerun()
         if st.button("➡️ Odjava", key="menu_odjava"):
@@ -174,39 +169,6 @@ else:
                 st.info("Ništa nije pronađeno po traženom pojmu.")
             elif df_display.empty:
                 st.info("Još nema narudžbi.")
-
-	# Željeni redoslijed stupaca za Pregled narudžbi – točno kao na slici
-            zeljeni_redoslijed = [
-                "oznaci_zaprimljeno",       # 1. Zaprimljeno
-                "datum",                    # 2. Datum
-                "tip_klijenta",             # 3. Tip klijenta
-                "korisnik",                 # 4. Korisnik
-                "odgovorna_osoba",          # 5. Odgovorna osoba
-                "sifra_proizvoda",          # 6. Šifra proizvoda
-                "naziv_proizvoda",          # 7. Naziv proizvoda
-                "kolicina",                 # 8. Količina
-                "dobavljac",                # 9. Dobavljač
-                "Skladište",                # 10. Skladište
-                "oznaci_za_narudzbu",       # 11. Označi za narudžbu
-                "broj_narudzbe",            # 12. Broj narudžbe
-                "napomena_dobavljac",       # 13. Napomena dobavljaču
-                "unio_korisnik",            # 14. Unio korisnik
-                "napomena_za_nas",          # 15. Napomena za nas
-                "datum_vrijeme_narudzbe",   # 16. Datum narudžbe
-                "datum_vrijeme_zaprimanja", # 17. Datum zaprimanja
-                "created_at",               # 18. created_at
-                "updated_at",               # 19. updated_at
-                "cijena",                   # 20. Cijena
-                "id",                       # 21. ID
-                "user_id",                  # 22. user_id
-                "Obriši"                    # 23. Obriši
-            ]
-
-            # Zadrži samo stupce koji stvarno postoje u DataFrame-u
-            dostupni_stupci = [col for col in zeljeni_redoslijed if col in df_display.columns]
-            df_display = df_display[dostupni_stupci]
-
-
 
             df_display["Obriši"] = False
 
@@ -381,14 +343,7 @@ else:
         else:
             st.info("Još nema narudžbi.")
 
- 
-
-
-
-
-
-
-      # ────────────────────────────────────────────────
+    # ────────────────────────────────────────────────
     # NOVA NARUDŽBA
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "nova":
@@ -400,147 +355,63 @@ else:
                 st.session_state.narudzbe_proizvodi = []
                 st.session_state.stranica = "narudžbe"
                 st.rerun()
-
-        # Dohvati sve proizvode za pametne izbornike
-        try:
-            proizvodi_response = supabase.table("proizvodi").select("sifra,naziv,cijena,dobavljac").execute()
-            df_proizvodi = pd.DataFrame(proizvodi_response.data or [])
-        except Exception as e:
-            st.error(f"Greška pri dohvaćanju proizvoda: {str(e)}")
-            df_proizvodi = pd.DataFrame()
-
-        # Unique vrijednosti
-        sve_sifre = [""] + df_proizvodi["sifra"].dropna().unique().tolist()
-        svi_nazivi = [""] + df_proizvodi["naziv"].dropna().unique().tolist()
-        svi_dobavljaci = [""] + df_proizvodi["dobavljac"].dropna().unique().tolist()
-
         col_lijevo, col_desno = st.columns([1, 2])
         with col_lijevo:
-            st.markdown("**Korisnik (unio korisnik)**")
+            st.markdown("**Korisnik**")
             korisnik = st.selectbox("", ["Danijel Putar"], key="nova_korisnik", label_visibility="collapsed")
             st.success(f"✓ {korisnik}")
-
             st.markdown("**Skladište**")
             skladiste = st.selectbox("", ["Osijek - Glavno skladište"], key="nova_skladiste", label_visibility="collapsed")
             st.success(f"✓ {skladiste}")
-
             st.markdown("**Tip klijenta**")
             tip_klijenta = st.selectbox("", ["Doznaka", "Narudžba", "Uzorak", "Reprezentacija"], key="nova_tip_klijenta", label_visibility="collapsed")
             if tip_klijenta:
                 st.success(f"✓ {tip_klijenta}")
             else:
                 st.error("× Tip klijenta")
-
-            st.markdown("**Klijent / Partner / Kupac**")
-            klijent = st.text_input("", placeholder="Upiši ime klijenta", key="nova_klijent", label_visibility="collapsed")
+            st.markdown("**Klijent**")
+            klijent = st.text_input("", placeholder="Upiši ime", key="nova_klijent", label_visibility="collapsed")
             if klijent:
                 st.success(f"✓ {klijent}")
             else:
-                st.error("× Klijent / Partner")
-
+                st.error("× Klijent")
             st.markdown("**Odgovorna osoba**")
             odgovorna_lista = ["Nema", "Danijel Putar", "Druga osoba"]
             odgovorna = st.selectbox("", odgovorna_lista, key="nova_odgovorna_select", label_visibility="collapsed")
             if odgovorna == "Nema":
                 odgovorna = st.text_input("Slobodan unos odgovorne osobe", key="nova_odgovorna_slobodno")
             st.success(f"✓ {odgovorna}")
-
             st.markdown("**Datum**")
             datum = st.date_input("", datetime.today(), key="nova_datum", label_visibility="collapsed")
-
             st.markdown("**Napomena**")
             napomena = st.text_area("", height=100, key="nova_napomena", label_visibility="collapsed")
-
         with col_desno:
             st.markdown("**Proizvodi**")
             if st.session_state.narudzbe_proizvodi:
-                # Reverse da zadnji dodani budu na vrhu
-                df = pd.DataFrame(reversed(st.session_state.narudzbe_proizvodi))
+                df = pd.DataFrame(st.session_state.narudzbe_proizvodi)
                 df["Ukupno"] = df["Kol."] * df["Cijena"]
                 st.dataframe(df, use_container_width=True, height=400)
                 ukupno = df["Ukupno"].sum()
                 st.markdown(f"**UKUPNO: {ukupno:,.2f} EUR + PDV**")
-
-                if st.button("💾 Spremi narudžbu i prebaci na pregled", type="primary"):
-                    if not klijent or not tip_klijenta:
-                        st.error("Klijent / Partner i Tip klijenta su obavezni!")
-                    else:
-                        uspjesno_spremljeno = True
-                        for proizvod in st.session_state.narudzbe_proizvodi:
-                            novi_red = {
-                                "datum": datum.isoformat(),
-                                "korisnik": klijent,
-                                "Skladište": skladiste,
-                                "odgovorna_osoba": odgovorna,
-                                "tip_klijenta": tip_klijenta,
-                                "sifra_proizvoda": proizvod["Šifra"],
-                                "naziv_proizvoda": proizvod["Naziv"],
-                                "kolicina": proizvod["Kol."],
-                                "cijena": proizvod["Cijena"],
-                                "dobavljac": proizvod["Dobavljač"],
-                                "napomena_za_nas": napomena,
-                                "unio_korisnik": korisnik,
-                                "datum_vrijeme_narudzbe": datetime.now(TZ).isoformat(),
-                                "oznaci_za_narudzbu": False,
-                                "oznaci_zaprimljeno": False,
-                                "napomena_dobavljac": ""
-                            }
-                            try:
-                                supabase.table("main_orders").insert(novi_red).execute()
-                            except Exception as e:
-                                st.error(f"Greška pri spremanju proizvoda '{proizvod['Naziv']}': {str(e)}")
-                                uspjesno_spremljeno = False
-                                break
-
-                        if uspjesno_spremljeno:
-                            st.success("Narudžba uspješno spremljena!")
-                            st.session_state.narudzbe_proizvodi = []
-                            st.session_state.stranica = "narudžbe"
-                            st.rerun()
             else:
-                st.info("Još nema proizvoda u narudžbi.")
-
+                st.info("Još nema proizvoda.")
             if st.button("➕ Dodaj proizvod", key="nova_dodaj_gumb", type="primary"):
                 st.session_state.show_dodaj_proizvod = True
-
             if st.session_state.get("show_dodaj_proizvod", False):
                 with st.form("dodaj_proizvod_form", clear_on_submit=True):
-                    st.markdown("**Upiši ili odaberi proizvod**")
                     col1, col2 = st.columns(2)
-                    sifra_input = col1.text_input("Šifra", key="dodaj_sifra_input")
-                    naziv_input = col2.text_input("Naziv proizvoda *", key="dodaj_naziv_input")
-
-                    # Padajući izbornik za brzi odabir šifre (pored slobodnog unosa)
-                    sifra_select = st.selectbox("Brzi odabir po šifri", [""] + sve_sifre, key="dodaj_sifra_select")
-                    naziv_select = st.selectbox("Brzi odabir po nazivu", [""] + svi_nazivi, key="dodaj_naziv_select")
-
-                    col3, col4, col5 = st.columns(3)
-                    kol = col3.number_input("Količina *", min_value=0.0, step=0.01, format="%.2f", value=0.0, key="dodaj_kol")
-                    cijena = col4.number_input("Cijena po komadu", min_value=0.0, step=0.01, format="%.2f", value=0.0, key="dodaj_cijena")
-                    dobavljac = col5.text_input("Dobavljač", key="dodaj_dobavljac")
-
-                    # Automatsko popunjavanje
-                    if sifra_select:
-                        match = df_proizvodi[df_proizvodi["sifra"] == sifra_select]
-                        if not match.empty:
-                            row = match.iloc[0]
-                            naziv_input = row["naziv"] if pd.notna(row["naziv"]) else naziv_input
-                            cijena = row["cijena"] if pd.notna(row["cijena"]) else cijena
-                            dobavljac = row["dobavljac"] if pd.notna(row["dobavljac"]) else dobavljac
-                    elif naziv_select:
-                        match = df_proizvodi[df_proizvodi["naziv"] == naziv_select]
-                        if not match.empty:
-                            row = match.iloc[0]
-                            sifra_input = row["sifra"] if pd.notna(row["sifra"]) else sifra_input
-                            cijena = row["cijena"] if pd.notna(row["cijena"]) else cijena
-                            dobavljac = row["dobavljac"] if pd.notna(row["dobavljac"]) else dobavljac
-
+                    sifra = col1.text_input("Šifra", key="dodaj_sifra")
+                    naziv = col2.text_input("Naziv proizvoda *", key="dodaj_naziv")
+                    col3, col4 = st.columns(2)
+                    kol = col3.number_input("Količina *", min_value=0.01, step=0.01, format="%.2f", key="dodaj_kol")
+                    cijena = col4.number_input("Cijena po komadu", min_value=0.0, step=0.01, format="%.2f", key="dodaj_cijena")
+                    dobavljac = st.text_input("Dobavljač", key="dodaj_dobavljac")
                     submitted = st.form_submit_button("Dodaj u narudžbu", key="dodaj_spremi")
                     if submitted:
-                        if naziv_input and kol > 0:
+                        if naziv and kol > 0:
                             novi = {
-                                "Šifra": sifra_input or sifra_select,
-                                "Naziv": naziv_input or naziv_select,
+                                "Šifra": sifra,
+                                "Naziv": naziv,
                                 "Kol.": kol,
                                 "Cijena": cijena,
                                 "Ukupno": kol * cijena,
@@ -548,26 +419,14 @@ else:
                             }
                             st.session_state.narudzbe_proizvodi.append(novi)
                             st.success("Proizvod dodan!")
-                            st.session_state.show_dodaj_proizvod = False
                             st.rerun()
                         else:
-                            st.error("Naziv proizvoda i količina su obavezni!")
+                            st.error("Naziv i količina su obavezni!")
                     if st.form_submit_button("Odustani", key="dodaj_odustani"):
                         st.session_state.show_dodaj_proizvod = False
                         st.rerun()
-   
 
-
-
-
-
-
-
-
-
-
-
- # ────────────────────────────────────────────────
+    # ────────────────────────────────────────────────
     # ADMINISTRACIJA → DOBAVLJAČI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_dobavljaci":
@@ -872,28 +731,13 @@ else:
                     st.error("Ako ima RLS, privremeno ga isključi u Supabaseu.")
             st.info("Ako se predomisliš, poništi checkbox iznad.")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      # ────────────────────────────────────────────────
+    # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
         st.title("Administracija - Korisnici")
 
-        # Reset uređivanja pri svakom učitavanju stranice (da se ne "zalijepi")
+        # Stanje za uređivanje korisnika
         if "edit_korisnik_id" not in st.session_state:
             st.session_state.edit_korisnik_id = None
 
@@ -930,32 +774,10 @@ else:
                 st.info("Još nema korisnika u bazi.")
 
             df_display["Obriši"] = False
-            df_display["Uredi"] = False  # checkbox za odabir uređivanja
+            df_display["Uredi"] = False  # checkbox za uređivanje
 
-            # Sakrij lozinku u prikazu tablice
+            # Sakrij lozinku u prikazu tablice (prikazuje ******)
             df_display["lozinka"] = df_display["lozinka"].apply(lambda x: "******" if x else "")
-
-
-            # Željeni redoslijed stupaca – točno kao na slici
-            zeljeni_redoslijed = [
-                "ime_prezime",
-                "korisničko_ime",
-                "lozinka",
-                "tip_korisnika",
-                "skladišta",
-                "prava",
-                "id",
-                "created_at",
-                "updated_at",
-                "aktivan",
-                "Obriši",
-                "Uredi"
-            ]
-
-            # Primijeni redoslijed
-            dostupni_stupci = [col for col in zeljeni_redoslijed if col in df_display.columns]
-            df_display = df_display[dostupni_stupci]
-
 
             edited_df = st.data_editor(
                 df_display,
@@ -974,17 +796,10 @@ else:
                 }
             )
 
-            # Provjeri je li označen barem jedan "Uredi"
-            uredi_oznacen = any(row["Uredi"] for row in edited_df.to_dict("records"))
-
-            # Ako je označen "Uredi" – prikaži gumb za otvaranje forme
-            if uredi_oznacen:
-                if st.button("✏️ Uredi označenog korisnika", type="primary"):
-                    # Pronađi prvi označeni za uređivanje (možeš proširiti za više)
-                    for row in edited_df.to_dict("records"):
-                        if row["Uredi"]:
-                            st.session_state.edit_korisnik_id = row["id"]
-                            break
+            # Detekcija označenog "Uredi" checkboxa
+            for row in edited_df.to_dict("records"):
+                if row["Uredi"]:
+                    st.session_state.edit_korisnik_id = row["id"]
                     st.rerun()
 
             # Spremi promjene (brisanje označenih)
@@ -997,21 +812,21 @@ else:
                 st.rerun()
 
             # Izvoz u Excel
-            # if st.button("Izvezi sve korisnike u Excel"):
-            #    output = io.BytesIO()
-            #    df_korisnici.to_excel(output, index=False, sheet_name="Korisnici")
-            #    output.seek(0)
-            #    st.download_button(
-            #        label="Preuzmi .xlsx",
-            #        data=output,
-            #        file_name=f"korisnici_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
-            #        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            #    )
+            if st.button("Izvezi sve korisnike u Excel"):
+                output = io.BytesIO()
+                df_korisnici.to_excel(output, index=False, sheet_name="Korisnici")
+                output.seek(0)
+                st.download_button(
+                    label="Preuzmi .xlsx",
+                    data=output,
+                    file_name=f"korisnici_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
             # Osvježi
             st.button("🔄 Osvježi", on_click=st.rerun)
 
-            # Forma za uređivanje (otvara se SAMO kad stisneš gumb "Uredi označenog korisnika")
+            # Uređivanje korisnika (otvara se kada označiš "Uredi" checkbox)
             if st.session_state.edit_korisnik_id:
                 edit_row = df_korisnici[df_korisnici["id"] == st.session_state.edit_korisnik_id].iloc[0]
                 with st.expander(f"Uređivanje korisnika: {edit_row['korisničko_ime']} ({edit_row['ime_prezime']})", expanded=True):
@@ -1072,7 +887,6 @@ else:
                                 supabase.table("korisnici").update(update_data).eq("id", st.session_state.edit_korisnik_id).execute()
                                 st.success("Korisnik ažuriran!")
                                 st.session_state.edit_korisnik_id = None
-                                st.session_state.novi_korisnik_form_shown = False
                                 st.rerun()
 
                         with col_cancel:
@@ -1159,3 +973,94 @@ else:
                     if st.form_submit_button("Odustani", key="odustani_form"):
                         st.session_state.novi_korisnik_form_shown = False
                         st.rerun()
+
+
+
+
+
+
+
+
+
+
+
+
+    # ────────────────────────────────────────────────
+    # GODIŠNJI / SLOBODNI (kalendar odmora)
+    # ────────────────────────────────────────────────
+    elif st.session_state.stranica == "dokumenti":
+        st.title("🏖️ Godišnji odmor i slobodni dani")
+
+        # Dohvati korisnike za padajući izbornik
+        try:
+            korisnici_response = supabase.table("korisnici").select("id,ime_prezime").eq("aktivan", True).execute()
+            korisnici = korisnici_response.data or []
+            korisnik_options = {k["ime_prezime"]: k["id"] for k in korisnici}
+        except Exception as e:
+            st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
+            korisnik_options = {}
+
+        # Forma za dodavanje odmora
+        with st.form("dodaj_odmor_form"):
+            st.subheader("Dodaj novi unos godišnjeg / slobodnog dana")
+
+            if korisnik_options:
+                korisnik_ime = st.selectbox("Korisnik", list(korisnik_options.keys()), key="odmor_korisnik")
+                korisnik_id = korisnik_options.get(korisnik_ime)
+            else:
+                st.warning("Nema aktivnih korisnika u bazi.")
+                korisnik_id = None
+
+            col1, col2 = st.columns(2)
+            datum_od = col1.date_input("Datum od", value=datetime.today(), key="odmor_datum_od")
+            datum_do = col2.date_input("Datum do", value=datetime.today(), key="odmor_datum_do")
+
+            tip_odmora = st.selectbox("Tip", ["Godišnji odmor", "Slobodni dan", "Bolovanje", "Ostalo"], key="odmor_tip")
+            napomena = st.text_area("Napomena (opcionalno)", key="odmor_napomena")
+
+            submitted = st.form_submit_button("Dodaj unos", type="primary")
+            if submitted:
+                if not korisnik_id:
+                    st.error("Odaberi korisnika!")
+                elif datum_do < datum_od:
+                    st.error("Datum 'do' ne može biti prije 'od'!")
+                else:
+                    novi = {
+                        "korisnik_id": korisnik_id,
+                        "datum_od": datum_od.isoformat(),
+                        "datum_do": datum_do.isoformat(),
+                        "tip": tip_odmora,
+                        "napomena": napomena.strip() or None,
+                        "unio_korisnik": st.session_state.user["korisničko_ime"] if "user" in st.session_state else "Nepoznato",
+                        "created_at": datetime.now(TZ).isoformat()
+                    }
+                    try:
+                        supabase.table("odmori").insert(novi).execute()
+                        st.success("Unos dodan!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Greška pri spremanju: {str(e)}")
+
+        # Prikaz svih unosa
+        st.subheader("Svi unosi godišnjeg / slobodnih dana")
+        try:
+            odmori_response = supabase.table("odmori").select("*, korisnici!inner(ime_prezime)").order("datum_od", desc=True).execute()
+            df_odmori = pd.DataFrame(odmori_response.data or [])
+            if not df_odmori.empty:
+                df_odmori = df_odmori.rename(columns={"korisnici": "korisnik_ime"})
+                st.dataframe(df_odmori[["korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at"]],
+                             use_container_width=True, hide_index=True)
+            else:
+                st.info("Još nema unosa.")
+        except Exception as e:
+            st.error(f"Greška pri dohvaćanju unosa: {str(e)}")
+
+        # Summary po korisniku (pretpostavka 20 dana godišnjeg godišnje)
+        st.subheader("Pregled po korisniku")
+        try:
+            # Ukupno planiranih dana po korisniku za slijedeću godinu
+            summary = df_odmori.groupby("korisnik_ime").size().reset_index(name="Broj unosa")
+            st.dataframe(summary, use_container_width=True, hide_index=True)
+            st.info("Napomena: Ovo je samo broj unosa. Za točan broj dana godišnjeg odmora treba dodatna logika (računanje dana između datuma).")
+        except Exception as e:
+            st.error(f"Greška pri sumiranju: {str(e)}")
