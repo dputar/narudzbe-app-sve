@@ -1195,7 +1195,7 @@ else:
 
                 fig = plt.figure(figsize=(12, 8))
                 ax = fig.add_subplot(111)
-                ax.set_title(f"Kalendar za {calendar.month_name[month]} {year}", fontsize=16, pad=20)
+                ax.set_title(f"Kalendar za {calendar.month_name[month]} {year}", fontsize=16, pad=30)  # veći pad za naslov
                 ax.axis('off')
 
                 # Prikaz kalendara sa imenima ispod datuma
@@ -1242,7 +1242,7 @@ else:
 
                 plt.xlim(0, 7)
                 plt.ylim(-5, 0)
-                plt.tight_layout(rect=[0, 0.1, 1, 0.95])  # dodatni prostor na vrhu za naslov i dane
+                plt.tight_layout(rect=[0, 0.15, 1, 0.95])  # još više prostora na vrhu za naslov i dane
 
                 buf = io.BytesIO()
                 fig.savefig(buf, format="png", bbox_inches='tight')
