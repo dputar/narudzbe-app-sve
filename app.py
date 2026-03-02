@@ -1096,6 +1096,11 @@ else:
         # Kalendar sa bojama po korisniku i imenima ispod datuma
         st.subheader("Kalendar preklapanja")
         try:
+            # Odabir godine i mjeseca
+            col_year, col_month = st.columns(2)
+            year = col_year.selectbox("Godina", range(2025, 2041), index=datetime.now().year - 2025, key="kalendar_godina")
+            month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1, format_func=lambda m: calendar.month_name[m], key="kalendar_mjesec")
+
             # Dohvati sve unose sa imenom korisnika
             odmori_response = supabase.table("odmori")\
                 .select("*, korisnici!inner(ime_prezime)")\
@@ -1110,11 +1115,6 @@ else:
                 # Boje po korisniku
                 unique_users = df_odmori["korisnik_ime"].unique()
                 color_map = {user: plt.cm.tab10(i / len(unique_users)) for i, user in enumerate(unique_users)}
-
-                # Trenutni mjesec
-                today = datetime.now()
-                year = today.year
-                month = today.month
 
                 # Kreiraj kalendar
                 cal = calendar.monthcalendar(year, month)
@@ -1202,3 +1202,20 @@ else:
                 st.info("Nema podataka za pregled.")
         except Exception as e:
             st.error(f"Greška pri sumiranju: {str(e)}")
+
+        # Gumb za punjenje baze praznika (klikni jednom)
+        st.subheader("Puni bazu praznika")
+        if st.button("Dodaj praznike za 2026-2040 (klikni jednom)"):
+            praznici_data = []
+            for year in range(2026, 2041):
+                praznici = holidays_dict.get(year, set())
+                for datum in praznici:
+                    praznici_data.append({
+                        "datum": datum.isoformat(),
+                        "naziv": "Hrvatski praznik/blagdan"
+                    })
+            try:
+                supabase.table("praznici").insert(praznici_data).execute()
+                st.success("Praznici uspješno dodani u bazu!")
+            except Exception as e:
+                st.error(f"Greška pri dodavanju praznika: {str(e)}")
