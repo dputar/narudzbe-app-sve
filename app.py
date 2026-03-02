@@ -1094,7 +1094,7 @@ else:
         except Exception as e:
             st.error(f"Greška pri dohvaćanju unosa: {str(e)}")
 
-        # Kalendar sa bojama po korisniku i crvenim preklapanjem
+        # Kalendar sa bojama po korisniku i imenima ispod datuma
         st.subheader("Kalendar preklapanja")
         try:
             # Dohvati sve unose sa imenom korisnika
@@ -1125,7 +1125,7 @@ else:
                 ax.set_title(f"Kalendar za {calendar.month_name[month]} {year}", fontsize=16)
                 ax.axis('off')
 
-                # Prikaz kalendara
+                # Prikaz kalendara sa imenima ispod datuma
                 for week_num, week in enumerate(cal):
                     for day_num, day in enumerate(week):
                         if day == 0:
@@ -1134,19 +1134,27 @@ else:
                         y = -week_num
                         rect = plt.Rectangle((x, y), 1, -1, fill=False)
                         ax.add_patch(rect)
-                        ax.text(x + 0.5, y - 0.5, day, ha='center', va='center')
+                        ax.text(x + 0.5, y - 0.5, day, ha='center', va='center', fontsize=12)
 
-                        # Bojaj prema unosi
+                        # Pronađi korisnike na ovaj dan
                         current_date = datetime(year, month, day).date()
-                        overlapping_users = [unos["korisnik_ime"] for _, unos in df_odmori.iterrows() if datetime.fromisoformat(unos["datum_od"]).date() <= current_date <= datetime.fromisoformat(unos["datum_do"]).date()]
+                        overlapping_users = []
+                        for _, unos in df_odmori.iterrows():
+                            start = datetime.fromisoformat(unos["datum_od"]).date()
+                            end = datetime.fromisoformat(unos["datum_do"]).date()
+                            if start <= current_date <= end:
+                                overlapping_users.append(unos["korisnik_ime"])
 
+                        # Ako više korisnika → crveno + imena
                         if len(overlapping_users) > 1:
-                            # Crveno za preklapanja
                             ax.add_patch(plt.Rectangle((x, y), 1, -1, color='red', alpha=0.5))
+                            text = "\n".join(overlapping_users)
+                            ax.text(x + 0.5, y - 0.8, text, ha='center', va='center', fontsize=8, color='white')
                         elif len(overlapping_users) == 1:
-                            # Boja po korisniku
-                            user_color = color_map.get(overlapping_users[0], 'gray')
+                            user = overlapping_users[0]
+                            user_color = color_map.get(user, 'gray')
                             ax.add_patch(plt.Rectangle((x, y), 1, -1, color=user_color, alpha=0.5))
+                            ax.text(x + 0.5, y - 0.8, user, ha='center', va='center', fontsize=8, color='white')
 
                 plt.xlim(0, 7)
                 plt.ylim(-5, 0)
@@ -1156,7 +1164,7 @@ else:
                 buf = io.BytesIO()
                 fig.savefig(buf, format="png")
                 buf.seek(0)
-                st.image(buf, caption="Kalendar odsustava (crveno za preklapanja, boje po korisniku)")
+                st.image(buf, caption="Kalendar odsustava (crveno za preklapanja, boje po korisniku, imena ispod datuma)")
             else:
                 st.info("Nema unosa za prikaz kalendara.")
         except Exception as e:
