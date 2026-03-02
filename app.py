@@ -992,6 +992,25 @@ else:
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
+        # Ručno definiran holidays_dict za 2026-2040
+        holidays_dict = {
+            2026: [datetime.date(2026, 1, 1), datetime.date(2026, 1, 6), datetime.date(2026, 4, 5), datetime.date(2026, 4, 6), datetime.date(2026, 5, 1), datetime.date(2026, 5, 30), datetime.date(2026, 6, 22), datetime.date(2026, 8, 15), datetime.date(2026, 11, 1), datetime.date(2026, 11, 18), datetime.date(2026, 12, 25), datetime.date(2026, 12, 26)],
+            2027: [datetime.date(2027, 1, 1), datetime.date(2027, 1, 6), datetime.date(2027, 3, 28), datetime.date(2027, 3, 29), datetime.date(2027, 5, 1), datetime.date(2027, 5, 27), datetime.date(2027, 6, 22), datetime.date(2027, 8, 15), datetime.date(2027, 11, 1), datetime.date(2027, 11, 18), datetime.date(2027, 12, 25), datetime.date(2027, 12, 26)],
+            2028: [datetime.date(2028, 1, 1), datetime.date(2028, 1, 6), datetime.date(2028, 4, 16), datetime.date(2028, 4, 17), datetime.date(2028, 5, 1), datetime.date(2028, 5, 30), datetime.date(2028, 6, 22), datetime.date(2028, 8, 15), datetime.date(2028, 11, 1), datetime.date(2028, 11, 18), datetime.date(2028, 12, 25), datetime.date(2028, 12, 26)],
+            2029: [datetime.date(2029, 1, 1), datetime.date(2029, 1, 6), datetime.date(2029, 4, 1), datetime.date(2029, 4, 2), datetime.date(2029, 5, 1), datetime.date(2029, 5, 30), datetime.date(2029, 6, 22), datetime.date(2029, 8, 15), datetime.date(2029, 11, 1), datetime.date(2029, 11, 18), datetime.date(2029, 12, 25), datetime.date(2029, 12, 26)],
+            2030: [datetime.date(2030, 1, 1), datetime.date(2030, 1, 6), datetime.date(2030, 4, 21), datetime.date(2030, 4, 22), datetime.date(2030, 5, 1), datetime.date(2030, 5, 30), datetime.date(2030, 6, 22), datetime.date(2030, 8, 15), datetime.date(2030, 11, 1), datetime.date(2030, 11, 18), datetime.date(2030, 12, 25), datetime.date(2030, 12, 26)],
+            2031: [datetime.date(2031, 1, 1), datetime.date(2031, 1, 6), datetime.date(2031, 4, 13), datetime.date(2031, 4, 14), datetime.date(2031, 5, 1), datetime.date(2031, 5, 30), datetime.date(2031, 6, 22), datetime.date(2031, 8, 15), datetime.date(2031, 11, 1), datetime.date(2031, 11, 18), datetime.date(2031, 12, 25), datetime.date(2031, 12, 26)],
+            2032: [datetime.date(2032, 1, 1), datetime.date(2032, 1, 6), datetime.date(2032, 3, 28), datetime.date(2032, 3, 29), datetime.date(2032, 5, 1), datetime.date(2032, 5, 30), datetime.date(2032, 6, 22), datetime.date(2032, 8, 15), datetime.date(2032, 11, 1), datetime.date(2032, 11, 18), datetime.date(2032, 12, 25), datetime.date(2032, 12, 26)],
+            2033: [datetime.date(2033, 1, 1), datetime.date(2033, 1, 6), datetime.date(2033, 4, 17), datetime.date(2033, 4, 18), datetime.date(2033, 5, 1), datetime.date(2033, 5, 30), datetime.date(2033, 6, 22), datetime.date(2033, 8, 15), datetime.date(2033, 11, 1), datetime.date(2033, 11, 18), datetime.date(2033, 12, 25), datetime.date(2033, 12, 26)],
+            2034: [datetime.date(2034, 1, 1), datetime.date(2034, 1, 6), datetime.date(2034, 4, 9), datetime.date(2034, 4, 10), datetime.date(2034, 5, 1), datetime.date(2034, 5, 30), datetime.date(2034, 6, 22), datetime.date(2034, 8, 15), datetime.date(2034, 11, 1), datetime.date(2034, 11, 18), datetime.date(2034, 12, 25), datetime.date(2034, 12, 26)],
+            2035: [datetime.date(2035, 1, 1), datetime.date(2035, 1, 6), datetime.date(2035, 3, 25), datetime.date(2035, 3, 26), datetime.date(2035, 5, 1), datetime.date(2035, 5, 30), datetime.date(2035, 6, 22), datetime.date(2035, 8, 15), datetime.date(2035, 11, 1), datetime.date(2035, 11, 18), datetime.date(2035, 12, 25), datetime.date(2035, 12, 26)],
+            2036: [datetime.date(2036, 1, 1), datetime.date(2036, 1, 6), datetime.date(2036, 4, 13), datetime.date(2036, 4, 14), datetime.date(2036, 5, 1), datetime.date(2036, 5, 30), datetime.date(2036, 6, 22), datetime.date(2036, 8, 15), datetime.date(2036, 11, 1), datetime.date(2036, 11, 18), datetime.date(2036, 12, 25), datetime.date(2036, 12, 26)],
+            2037: [datetime.date(2037, 1, 1), datetime.date(2037, 1, 6), datetime.date(2037, 4, 5), datetime.date(2037, 4, 6), datetime.date(2037, 5, 1), datetime.date(2037, 5, 30), datetime.date(2037, 6, 22), datetime.date(2037, 8, 15), datetime.date(2037, 11, 1), datetime.date(2037, 11, 18), datetime.date(2037, 12, 25), datetime.date(2037, 12, 26)],
+            2038: [datetime.date(2038, 1, 1), datetime.date(2038, 1, 6), datetime.date(2038, 4, 25), datetime.date(2038, 4, 26), datetime.date(2038, 5, 1), datetime.date(2038, 5, 30), datetime.date(2038, 6, 22), datetime.date(2038, 8, 15), datetime.date(2038, 11, 1), datetime.date(2038, 11, 18), datetime.date(2038, 12, 25), datetime.date(2038, 12, 26)],
+            2039: [datetime.date(2039, 1, 1), datetime.date(2039, 1, 6), datetime.date(2039, 4, 10), datetime.date(2039, 4, 11), datetime.date(2039, 5, 1), datetime.date(2039, 5, 30), datetime.date(2039, 6, 22), datetime.date(2039, 8, 15), datetime.date(2039, 11, 1), datetime.date(2039, 11, 18), datetime.date(2039, 12, 25), datetime.date(2039, 12, 26)],
+            2040: [datetime.date(2040, 1, 1), datetime.date(2040, 1, 6), datetime.date(2040, 4, 1), datetime.date(2040, 4, 2), datetime.date(2040, 5, 1), datetime.date(2040, 5, 30), datetime.date(2040, 6, 22), datetime.date(2040, 8, 15), datetime.date(2040, 11, 1), datetime.date(2040, 11, 18), datetime.date(2040, 12, 25), datetime.date(2040, 12, 26)],
+        }
+
         # Dohvati korisnike za padajući izbornik
         try:
             korisnici_response = supabase.table("korisnici").select("id,ime_prezime").eq("aktivan", True).execute()
@@ -1013,40 +1032,47 @@ else:
                 korisnik_id = None
 
             col1, col2 = st.columns(2)
-            datum_od_input = col1.date_input("Datum od", value=datetime.today(), key="odmor_datum_od")
-            datum_do_input = col2.date_input("Datum do", value=datetime.today(), key="odmor_datum_do")
+            datum_od = col1.date_input("Datum od", value=datetime.today(), key="odmor_datum_od")
+            datum_do = col2.date_input("Datum do", value=datetime.today(), key="odmor_datum_do")
 
             tip_odmora = st.selectbox("Tip odsustva", ["Godišnji odmor", "Slobodni dan", "Bolovanje", "Ostalo"], key="odmor_tip")
             napomena = st.text_area("Napomena (opcionalno)", key="odmor_napomena")
 
             submitted = st.form_submit_button("Dodaj unos", type="primary")
+            if submitted:
+                if not korisnik_id:
+                    st.error("Odaberi korisnika!")
+                elif datum_do < datum_od:
+                    st.error("Datum 'do' ne može biti prije 'od'!")
+                else:
+                    # Provjera preklapanja
+                    try:
+                        odmori_response = supabase.table("odmori").select("*").execute()
+                        df_odmori = pd.DataFrame(odmori_response.data or [])
+                        preklapanja = 0
+                        for _, row in df_odmori.iterrows():
+                            start = max(datum_od, row["datum_od"])
+                            end = min(datum_do, row["datum_do"])
+                            if start <= end:
+                                preklapanja += (end - start).days + 1
 
-        if submitted:
-            if not korisnik_id:
-                st.error("Odaberi korisnika!")
-            elif datum_do_input < datum_od_input:
-                st.error("Datum 'do' ne može biti prije 'od'!")
-            else:
-                # Pretvori u date za usporedbu
-                datum_od = datum_od_input
-                datum_do = datum_do_input
-
-                # Provjera preklapanja
-                try:
-                    odmori_response = supabase.table("odmori").select("*").execute()
-                    df_odmori = pd.DataFrame(odmori_response.data or [])
-                    preklapanja = 0
-                    for _, row in df_odmori.iterrows():
-                        # Pretvori string iz baze u date
-                        start_db = datetime.fromisoformat(row["datum_od"]).date()
-                        end_db = datetime.fromisoformat(row["datum_do"]).date()
-                        start = max(datum_od, start_db)
-                        end = min(datum_do, end_db)
-                        if start <= end:
-                            preklapanja += (end - start).days + 1
-
-                    if preklapanja > 0:
-                        if st.button(f"Preklapanje u {preklapanja} dana sa drugim korisnicima. Potvrdi?"):
+                        if preklapanja > 0:
+                            if st.button(f"Preklapanje u {preklapanja} dana sa drugim korisnicima. Potvrdi?"):
+                                novi = {
+                                    "korisnik_id": korisnik_id,
+                                    "datum_od": datum_od.isoformat(),
+                                    "datum_do": datum_do.isoformat(),
+                                    "tip": tip_odmora,
+                                    "napomena": napomena.strip() or None,
+                                    "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
+                                    "created_at": datetime.now(TZ).isoformat()
+                                }
+                                supabase.table("odmori").insert(novi).execute()
+                                st.success("Unos dodan sa preklapanjem!")
+                                st.rerun()
+                            else:
+                                st.warning("Odustano od dodavanja zbog preklapanja.")
+                        else:
                             novi = {
                                 "korisnik_id": korisnik_id,
                                 "datum_od": datum_od.isoformat(),
@@ -1057,25 +1083,10 @@ else:
                                 "created_at": datetime.now(TZ).isoformat()
                             }
                             supabase.table("odmori").insert(novi).execute()
-                            st.success("Unos dodan sa preklapanjem!")
+                            st.success("Unos dodan bez preklapanja!")
                             st.rerun()
-                        else:
-                            st.warning("Odustano od dodavanja zbog preklapanja.")
-                    else:
-                        novi = {
-                            "korisnik_id": korisnik_id,
-                            "datum_od": datum_od.isoformat(),
-                            "datum_do": datum_do.isoformat(),
-                            "tip": tip_odmora,
-                            "napomena": napomena.strip() or None,
-                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
-                            "created_at": datetime.now(TZ).isoformat()
-                        }
-                        supabase.table("odmori").insert(novi).execute()
-                        st.success("Unos dodan bez preklapanja!")
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"Greška pri provjeri/spremanju: {str(e)}")
+                    except Exception as e:
+                        st.error(f"Greška pri provjeri/spremanju: {str(e)}")
 
         # Prikaz svih unosa sa imenom korisnika
         st.subheader("Svi unosi godišnjeg / slobodnih dana")
