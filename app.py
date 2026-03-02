@@ -986,7 +986,6 @@ else:
 
 
 
-
     # ────────────────────────────────────────────────
     # GODIŠNJI ODMOR / SLOBODNI DANI
     # ────────────────────────────────────────────────
@@ -1175,7 +1174,9 @@ else:
         try:
             if not df_odmori.empty:
                 # Računanje broja radnih dana
-                def calculate_working_days(start, end, holidays):
+                def calculate_working_days(start_str, end_str, holidays):
+                    start = datetime.fromisoformat(start_str).date()
+                    end = datetime.fromisoformat(end_str).date()
                     count = 0
                     current = start
                     while current <= end:
@@ -1186,7 +1187,7 @@ else:
 
                 # Dohvati praznike iz baze
                 praznici_response = supabase.table("praznici").select("datum").execute()
-                holidays = {p["datum"] for p in praznici_response.data or []}
+                holidays = {datetime.fromisoformat(p["datum"]).date() for p in praznici_response.data or []}
 
                 df_odmori["broj_dana"] = df_odmori.apply(lambda row: calculate_working_days(row["datum_od"], row["datum_do"], holidays), axis=1)
 
