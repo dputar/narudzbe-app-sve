@@ -1055,16 +1055,6 @@ else:
                 datum_od = datum_od_input
                 datum_do = datum_do_input
 
-                # Spremi privremeno u session_state
-                st.session_state.temp_odmor = {
-                    "korisnik_id": korisnik_id,
-                    "datum_od": datum_od,
-                    "datum_do": datum_do,
-                    "tip": tip_odmora,
-                    "napomena": napomena.strip() or None,
-                    "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
-                }
-
                 # Provjera preklapanja
                 try:
                     odmori_response = supabase.table("odmori").select("*").execute()
@@ -1079,7 +1069,15 @@ else:
                             preklapanja += (end - start).days + 1
 
                     if preklapanja > 0:
-                        st.rerun()  # rerun da se prikaže gumb za potvrdu
+                        st.session_state.temp_odmor = {
+                            "korisnik_id": korisnik_id,
+                            "datum_od": datum_od,
+                            "datum_do": datum_do,
+                            "tip": tip_odmora,
+                            "napomena": napomena.strip() or None,
+                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
+                        }
+                        st.rerun()
                     else:
                         # Ako nema preklapanja, odmah spremi
                         novi = {
@@ -1173,7 +1171,7 @@ else:
             # Odabir godine i mjeseca
             col_year, col_month = st.columns(2)
             year = col_year.selectbox("Godina", range(2025, 2041), index=datetime.now().year - 2025, key="kal_god")
-            month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1, 
+            month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1,
                                         format_func=lambda m: calendar.month_name[m], key="kal_mj")
 
             # Dohvati sve unose sa imenom korisnika
@@ -1195,10 +1193,10 @@ else:
                 cal = calendar.monthcalendar(year, month)
 
                 fig, ax = plt.subplots(figsize=(12, 8))
-                ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)  # veći pad za naslov
+                ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)
                 ax.axis('off')
 
-                # --- OVO JE KLJUČNO: DAN U TJEDNU NA VRHU ---
+                # --- DAN U TJEDNU NA VRHU ---
                 days = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
                 for i, day in enumerate(days):
                     ax.text(i + 0.5, 0.3, day, ha='center', va='bottom', fontsize=14, fontweight='bold', color='black')
@@ -1208,7 +1206,7 @@ else:
                         if day == 0:
                             continue
                         x = day_num
-                        y = -week_num - 0.8  # pomaknuto niže da imamo mjesta za dane u tjednu
+                        y = -week_num - 0.8  # pomaknuto niže
                         rect = plt.Rectangle((x, y), 1, -1, fill=False, edgecolor='black', linewidth=1)
                         ax.add_patch(rect)
                         ax.text(x + 0.5, y - 0.5, day, ha='center', va='center', fontsize=12)
@@ -1237,10 +1235,10 @@ else:
                             ax.text(x + 0.5, y - 0.8, user, ha='center', va='center', fontsize=8, color='white')
 
                 ax.set_xlim(0, 7)
-                ax.set_ylim(-6.5, 0.8)  # još više prostora gore za dane u tjednu
+                ax.set_ylim(-7.0, 0.8)  # ← OVO POPRAVLJA MARGINE – zadnji red je vidljiv
                 ax.set_aspect('equal')
 
-                fig.tight_layout(pad=4.0)  # još više paddinga
+                fig.tight_layout(pad=4.5)  # još više paddinga
 
                 buf = io.BytesIO()
                 fig.savefig(buf, format="png", bbox_inches='tight', dpi=120)
