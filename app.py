@@ -6,6 +6,9 @@ from zoneinfo import ZoneInfo
 import time
 import io
 import numpy as np
+import calendar
+import matplotlib.pyplot as plt
+from datetime import timedelta
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
@@ -984,16 +987,11 @@ else:
 
 
 
-    # ────────────────────────────────────────────────
+     # ────────────────────────────────────────────────
     # GODIŠNJI ODMOR / SLOBODNI DANI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
-
-        # Import za kalendar i boje
-        import calendar
-        import matplotlib.pyplot as plt
-        from datetime import timedelta
 
         # Dohvati korisnike za padajući izbornik
         try:
