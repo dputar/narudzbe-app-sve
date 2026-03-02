@@ -984,7 +984,6 @@ else:
 
 
 
-
     # ────────────────────────────────────────────────
     # GODIŠNJI ODMOR / SLOBODNI DANI
     # ────────────────────────────────────────────────
@@ -1071,7 +1070,6 @@ else:
         # 3. Prikaz svih unosa sa imenom korisnika
         st.subheader("Svi unosi godišnjeg / slobodnih dana")
         try:
-            # Dohvati sa join-om na ime korisnika (pretpostavka da postoji foreign key)
             odmori_response = supabase.table("odmori")\
                 .select("*, korisnici!inner(ime_prezime)")\
                 .order("datum_od", desc=True)\
