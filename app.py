@@ -1051,24 +1051,30 @@ else:
             elif datum_do_input < datum_od_input:
                 st.error("Datum 'do' ne može biti prije 'od'!")
             else:
-                # Pretvori u date za usporedbu
                 datum_od = datum_od_input
                 datum_do = datum_do_input
 
-                # Provjera preklapanja
+                # Dohvati sve odmori
                 try:
                     odmori_response = supabase.table("odmori").select("*").execute()
                     df_odmori = pd.DataFrame(odmori_response.data or [])
-                    preklapanja = 0
+                    self_overlap = 0
+                    other_overlap = 0
                     for _, row in df_odmori.iterrows():
                         start_db = datetime.fromisoformat(row["datum_od"]).date()
                         end_db = datetime.fromisoformat(row["datum_do"]).date()
                         start = max(datum_od, start_db)
                         end = min(datum_do, end_db)
                         if start <= end:
-                            preklapanja += (end - start).days + 1
+                            overlap_days = (end - start).days + 1
+                            if row["korisnik_id"] == korisnik_id:
+                                self_overlap += overlap_days
+                            else:
+                                other_overlap += overlap_days
 
-                    if preklapanja > 0:
+                    if self_overlap > 0:
+                        st.error("Preklapanje sa vašim postojećim unosima! Odaberite druge datume.")
+                    else:
                         st.session_state.temp_odmor = {
                             "korisnik_id": korisnik_id,
                             "datum_od": datum_od,
@@ -1077,71 +1083,97 @@ else:
                             "napomena": napomena.strip() or None,
                             "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
                         }
-                        st.rerun()
-                    else:
-                        # Ako nema preklapanja, odmah spremi
-                        novi = {
-                            "korisnik_id": korisnik_id,
-                            "datum_od": datum_od.isoformat(),
-                            "datum_do": datum_do.isoformat(),
-                            "tip": tip_odmora,
-                            "napomena": napomena.strip() or None,
-                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
-                            "created_at": datetime.now(TZ).isoformat()
-                        }
-                        supabase.table("odmori").insert(novi).execute()
-                        st.success("Unos dodan bez preklapanja!")
-                        st.session_state.form_reset = True
-                        st.rerun()
+                        if other_overlap > 0:
+                            # Potvrda će se prikazati izvan forme
+                            pass
+                        else:
+                            # Odmah spremi ako nema preklapanja
+                            novi = {
+                                "korisnik_id": st.session_state.temp_odmor["korisnik_id"],
+                                "datum_od": st.session_state.temp_odmor["datum_od"].isoformat(),
+                                "datum_do": st.session_state.temp_odmor["datum_do"].isoformat(),
+                                "tip": st.session_state.temp_odmor["tip"],
+                                "napomena": st.session_state.temp_odmor["napomena"],
+                                "unio_korisnik": st.session_state.temp_odmor["unio_korisnik"],
+                                "created_at": datetime.now(TZ).isoformat()
+                            }
+                            supabase.table("odmori").insert(novi).execute()
+                            # Log insert
+                            log = {
+                                "action": "insert",
+                                "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
+                                "created_at": datetime.now(TZ).isoformat(),
+                                "old_data": None,
+                                "new_data": json.dumps(novi),
+                                "details": None
+                            }
+                            supabase.table("log_odmori").insert(log).execute()
+                            st.success("Unos dodan bez preklapanja!")
+                            st.session_state.temp_odmor = None
+                            st.session_state.form_reset = True
+                            st.rerun()
                 except Exception as e:
                     st.error(f"Greška pri provjeri/spremanju: {str(e)}")
 
-        # Potvrda preklapanja (izvan forme)
+        # Potvrda preklapanja sa drugim korisnicima (izvan forme)
         if st.session_state.temp_odmor:
-            # Ponovno dohvati podatke i izračunaj preklapanja
+            # Ponovno dohvati podatke i izračunaj other_overlap
             try:
                 odmori_response = supabase.table("odmori").select("*").execute()
                 df_odmori = pd.DataFrame(odmori_response.data or [])
-                preklapanja = 0
+                other_overlap = 0
                 for _, row in df_odmori.iterrows():
-                    start_db = datetime.fromisoformat(row["datum_od"]).date()
-                    end_db = datetime.fromisoformat(row["datum_do"]).date()
-                    start = max(st.session_state.temp_odmor["datum_od"], start_db)
-                    end = min(st.session_state.temp_odmor["datum_do"], end_db)
-                    if start <= end:
-                        preklapanja += (end - start).days + 1
+                    if row["korisnik_id"] != st.session_state.temp_odmor["korisnik_id"]:
+                        start_db = datetime.fromisoformat(row["datum_od"]).date()
+                        end_db = datetime.fromisoformat(row["datum_do"]).date()
+                        start = max(st.session_state.temp_odmor["datum_od"], start_db)
+                        end = min(st.session_state.temp_odmor["datum_do"], end_db)
+                        if start <= end:
+                            other_overlap += (end - start).days + 1
             except Exception as e:
-                preklapanja = 0  # fallback ako dohvaćanje ne uspije
+                other_overlap = 0
                 st.error(f"Greška pri ponovnom dohvaćanju: {str(e)}")
 
-            st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
+            st.warning(f"Preklapanje u {other_overlap} dana sa drugim korisnicima.")
             col1, col2 = st.columns(2)
-            if col1.button("Potvrdi dodavanje sa preklapanjem"):
-                novi = {
-                    "korisnik_id": st.session_state.temp_odmor["korisnik_id"],
-                    "datum_od": st.session_state.temp_odmor["datum_od"].isoformat(),
-                    "datum_do": st.session_state.temp_odmor["datum_do"].isoformat(),
-                    "tip": st.session_state.temp_odmor["tip"],
-                    "napomena": st.session_state.temp_odmor["napomena"],
-                    "unio_korisnik": st.session_state.temp_odmor["unio_korisnik"],
-                    "created_at": datetime.now(TZ).isoformat()
-                }
-                supabase.table("odmori").insert(novi).execute()
-                st.success("Unos dodan sa preklapanjem!")
-                st.session_state.temp_odmor = None
-                st.session_state.form_reset = True
-                st.rerun()
-            if col2.button("Odustani"):
-                st.session_state.temp_odmor = None
-                st.session_state.form_reset = True
-                st.rerun()
+            with col1:
+                if st.button("Potvrdi dodavanje sa preklapanjem"):
+                    novi = {
+                        "korisnik_id": st.session_state.temp_odmor["korisnik_id"],
+                        "datum_od": st.session_state.temp_odmor["datum_od"].isoformat(),
+                        "datum_do": st.session_state.temp_odmor["datum_do"].isoformat(),
+                        "tip": st.session_state.temp_odmor["tip"],
+                        "napomena": st.session_state.temp_odmor["napomena"],
+                        "unio_korisnik": st.session_state.temp_odmor["unio_korisnik"],
+                        "created_at": datetime.now(TZ).isoformat()
+                    }
+                    supabase.table("odmori").insert(novi).execute()
+                    # Log insert
+                    log = {
+                        "action": "insert",
+                        "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
+                        "created_at": datetime.now(TZ).isoformat(),
+                        "old_data": None,
+                        "new_data": json.dumps(novi),
+                        "details": None
+                    }
+                    supabase.table("log_odmori").insert(log).execute()
+                    st.success("Unos dodan sa preklapanjem!")
+                    st.session_state.temp_odmor = None
+                    st.session_state.form_reset = True
+                    st.rerun()
+            with col2:
+                if st.button("Odustani"):
+                    st.session_state.temp_odmor = None
+                    st.session_state.form_reset = True
+                    st.rerun()
 
         # Reset forme nakon dodavanja
         if st.session_state.form_reset:
             st.session_state.form_reset = False
             st.rerun()
 
-        # Prikaz svih unosa sa imenom korisnika
+        # Prikaz svih unosa sa data_editor
         st.subheader("Svi unosi godišnjeg / slobodnih dana")
         try:
             odmori_response = supabase.table("odmori")\
@@ -1155,11 +1187,94 @@ else:
                 df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
                 df_odmori = df_odmori.drop(columns=["korisnici"])
 
-                st.dataframe(
-                    df_odmori[["korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at"]],
+                df_odmori["Obriši"] = False
+
+                # Pretvori datume u date za editor
+                df_odmori["datum_od"] = pd.to_datetime(df_odmori["datum_od"]).dt.date
+                df_odmori["datum_do"] = pd.to_datetime(df_odmori["datum_do"]).dt.date
+
+                edited_df = st.data_editor(
+                    df_odmori[["id", "korisnik_ime", "korisnik_id", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at", "Obriši"]],
+                    num_rows="dynamic",
                     use_container_width=True,
-                    hide_index=True
+                    hide_index=True,
+                    column_config={
+                        "id": st.column_config.NumberColumn("ID", disabled=True),
+                        "korisnik_id": None,  # Sakrij
+                        "korisnik_ime": st.column_config.TextColumn("Korisnik", disabled=True),
+                        "datum_od": st.column_config.DateColumn("Datum od"),
+                        "datum_do": st.column_config.DateColumn("Datum do"),
+                        "tip": st.column_config.SelectboxColumn("Tip", options=["Godišnji odmor", "Slobodni dan", "Bolovanje", "Ostalo"]),
+                        "napomena": st.column_config.TextColumn("Napomena"),
+                        "unio_korisnik": st.column_config.TextColumn("Unio", disabled=True),
+                        "created_at": st.column_config.TextColumn("Kreirano", disabled=True),
+                        "Obriši": st.column_config.CheckboxColumn("Obriši")
+                    }
                 )
+
+                if st.button("💾 Spremi izmjene", type="primary"):
+                    obrisano = 0
+                    azurirano = 0
+                    for idx, row in edited_df.iterrows():
+                        row_id = row["id"]
+                        original_row = df_odmori[df_odmori["id"] == row_id].iloc[0]
+                        if row["Obriši"]:
+                            old_data = original_row.to_dict()
+                            supabase.table("odmori").delete().eq("id", row_id).execute()
+                            log = {
+                                "action": "delete",
+                                "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
+                                "created_at": datetime.now(TZ).isoformat(),
+                                "old_data": json.dumps(old_data),
+                                "new_data": None,
+                                "details": None
+                            }
+                            supabase.table("log_odmori").insert(log).execute()
+                            obrisano += 1
+                        else:
+                            update_data = {}
+                            if row["datum_od"] != original_row["datum_od"]:
+                                update_data["datum_od"] = row["datum_od"].isoformat()
+                            if row["datum_do"] != original_row["datum_do"]:
+                                update_data["datum_do"] = row["datum_do"].isoformat()
+                            if row["tip"] != original_row["tip"]:
+                                update_data["tip"] = row["tip"]
+                            if row["napomena"] != (original_row["napomena"] or ""):
+                                update_data["napomena"] = row["napomena"]
+                            if update_data:
+                                # Provjeri self_overlap za nove datume, skip svoj red
+                                temp_df = df_odmori[df_odmori["id"] != row_id]
+                                self_overlap = 0
+                                datum_od_new = row["datum_od"]
+                                datum_do_new = row["datum_do"]
+                                for _, r in temp_df.iterrows():
+                                    if r["korisnik_id"] == original_row["korisnik_id"]:
+                                        start_db = r["datum_od"]
+                                        end_db = r["datum_do"]
+                                        start = max(datum_od_new, start_db)
+                                        end = min(datum_do_new, end_db)
+                                        if start <= end:
+                                            self_overlap += (end - start).days + 1
+                                if self_overlap > 0:
+                                    st.error(f"Preklapanje sa vlastitim unosima za ID {row_id}! Izmjene nisu spremljene za ovaj red.")
+                                    continue
+                                # Spremi update
+                                supabase.table("odmori").update(update_data).eq("id", row_id).execute()
+                                log = {
+                                    "action": "update",
+                                    "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
+                                    "created_at": datetime.now(TZ).isoformat(),
+                                    "old_data": json.dumps(original_row.to_dict()),
+                                    "new_data": json.dumps(update_data),
+                                    "details": None
+                                }
+                                supabase.table("log_odmori").insert(log).execute()
+                                azurirano += 1
+                    if obrisano > 0 or azurirano > 0:
+                        st.success(f"Obrisano {obrisano} unosa. Ažurirano {azurirano} unosa.")
+                    else:
+                        st.info("Nema promjena za spremanje.")
+                    st.rerun()
             else:
                 st.info("Još nema unosa.")
         except Exception as e:
@@ -1299,3 +1414,15 @@ else:
                 st.success("Praznici uspješno dodani u bazu!")
             except Exception as e:
                 st.error(f"Greška pri dodavanju praznika: {str(e)}")
+
+        # Prikaz log tablice na dnu
+        st.subheader("Log promjena odmora")
+        try:
+            log_response = supabase.table("log_odmori").select("*").order("created_at", desc=True).execute()
+            df_log = pd.DataFrame(log_response.data or [])
+            if not df_log.empty:
+                st.dataframe(df_log, use_container_width=True, hide_index=True)
+            else:
+                st.info("Još nema log unosa.")
+        except Exception as e:
+            st.error(f"Greška pri dohvaćanju loga: {str(e)}")
