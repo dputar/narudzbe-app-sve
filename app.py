@@ -1026,7 +1026,7 @@ else:
         # Dohvati podatke prijavljenog korisnika
         prijavljeni_korisnik_ime = st.session_state.user.get("ime_prezime", "Nepoznato")
         prijavljeni_korisnik_id = st.session_state.user.get("id", None)
-        tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik")  # pretpostavljam da je "administrator" ili drugi
+        tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik")  # 'administrator' ili drugi
 
         # Forma za dodavanje odmora
         with st.form("dodaj_odmor_form", clear_on_submit=True):
@@ -1034,12 +1034,12 @@ else:
 
             # Korisnik - logika ovisno o tipu
             if tip_korisnika == "administrator":
-                # Admin može odabrati bilo koga, ali default je njegovo ime
+                # Admin vidi padajući izbornik sa svim korisnicima, default njegovo ime
                 default_korisnik_ime = prijavljeni_korisnik_ime
                 korisnik_ime = st.selectbox("Korisnik *", list(korisnik_options.keys()), index=list(korisnik_options.keys()).index(default_korisnik_ime) if default_korisnik_ime in korisnik_options else 0, key="odmor_korisnik_select")
                 korisnik_id = korisnik_options.get(korisnik_ime)
             else:
-                # Ostali vide samo svoje ime, bez mogućnosti promjene
+                # Ostali vide samo svoje ime, disabled
                 st.text_input("Korisnik *", value=prijavljeni_korisnik_ime, disabled=True, key="odmor_korisnik_disabled")
                 korisnik_id = prijavljeni_korisnik_id
 
@@ -1105,7 +1105,7 @@ else:
                 except Exception as e:
                     st.error(f"Greška pri provjeri/spremanju: {str(e)}")
 
-        # Potvrda preklapanja (izvan forme)
+        # Potvrda preklapanja
         if st.session_state.temp_odmor:
             try:
                 odmori_response = supabase.table("odmori").select("*").execute()
@@ -1149,7 +1149,7 @@ else:
             st.session_state.form_reset = False
             st.rerun()
 
-        # Prikaz i uređivanje/brisanje unosa
+        # Prikaz i uređivanje/brisanje unosa – ograničeno po tipu korisnika
         st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje i brisanje)")
         try:
             odmori_response = supabase.table("odmori")\
@@ -1163,8 +1163,14 @@ else:
                 df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
                 df_odmori = df_odmori.drop(columns=["korisnici"])
 
+                # Dodaj checkbox za brisanje
                 df_odmori["Obriši"] = False
 
+                # Ako nije admin – prikazuj samo svoje retke
+                if tip_korisnika != "administrator":
+                    df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
+
+                # Prikaz editable tablice
                 edited_df = st.data_editor(
                     df_odmori[["id", "korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at", "Obriši"]],
                     column_config={
@@ -1180,13 +1186,18 @@ else:
                     key="odmori_editor"
                 )
 
+                # Gumb za spremanje izmjena i brisanje + logiranje
                 if st.button("Spremi izmjene i obriši označene"):
+                    changes_made = False
                     to_delete = []
                     for idx, row in edited_df.iterrows():
                         original_row = df_odmori.loc[idx]
+                        row_id = row["id"]
 
-                        if row["Obriši"]:
-                            to_delete.append(row["id"])
+                        # Brisanje (samo ako je admin ili svoj unos)
+                        if row["Obriši"] and (tip_korisnika == "administrator" or original_row["korisnik_id"] == prijavljeni_korisnik_id):
+                            to_delete.append(row_id)
+                            changes_made = True
                             log = {
                                 "action": "delete",
                                 "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
@@ -1196,6 +1207,7 @@ else:
                             supabase.table("log_odmori").insert(log).execute()
                             continue
 
+                        # Update (samo ako je admin ili svoj unos)
                         changed_fields = {}
                         for field in ["datum_od", "datum_do", "tip", "napomena"]:
                             if row[field] != original_row[field]:
@@ -1204,9 +1216,10 @@ else:
                                     "new": row[field]
                                 }
 
-                        if changed_fields:
+                        if changed_fields and (tip_korisnika == "administrator" or original_row["korisnik_id"] == prijavljeni_korisnik_id):
+                            changes_made = True
                             update_data = {k: row[k] for k in changed_fields}
-                            supabase.table("odmori").update(update_data).eq("id", row["id"]).execute()
+                            supabase.table("odmori").update(update_data).eq("id", row_id).execute()
                             log = {
                                 "action": "update",
                                 "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
@@ -1220,14 +1233,18 @@ else:
                         for rec_id in to_delete:
                             supabase.table("odmori").delete().eq("id", rec_id).execute()
 
-                    st.success("Izmjene i brisanja spremljeni!")
+                    if changes_made:
+                        st.success("Izmjene i brisanja spremljeni!")
+                    else:
+                        st.info("Nema promjena za spremiti.")
+
                     st.rerun()
             else:
                 st.info("Još nema unosa.")
         except Exception as e:
             st.error(f"Greška pri dohvaćanju/uređivanju unosa: {str(e)}")
 
-        # Kalendar
+        # Kalendar sa bojama po korisniku i imenima ispod datuma
         st.subheader("Kalendar preklapanja")
         try:
             col_year, col_month = st.columns(2)
