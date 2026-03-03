@@ -1092,7 +1092,7 @@ else:
                 except Exception as e:
                     st.error(f"Greška pri provjeri/spremanju: {str(e)}")
 
-        # Potvrda preklapanja (izvan forme)
+        # Potvrda preklapanja
         if st.session_state.temp_odmor:
             try:
                 odmori_response = supabase.table("odmori").select("*").execute()
@@ -1136,7 +1136,7 @@ else:
             st.session_state.form_reset = False
             st.rerun()
 
-        # Prikaz i uređivanje/brisanje unosa
+        # Prikaz i uređivanje/brisanje unosa + logiranje
         st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje i brisanje)")
         try:
             odmori_response = supabase.table("odmori")\
@@ -1171,47 +1171,59 @@ else:
 
                 # Gumb za spremanje izmjena i brisanje + logiranje
                 if st.button("Spremi izmjene i obriši označene"):
+                    changes_made = False
                     to_delete = []
                     for idx, row in edited_df.iterrows():
                         original_row = df_odmori.loc[idx]
+                        row_id = row["id"]
 
                         # Brisanje
                         if row["Obriši"]:
-                            to_delete.append(row["id"])
+                            to_delete.append(row_id)
+                            changes_made = True
                             # Logiranje brisanja
                             log = {
                                 "action": "delete",
                                 "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
-                                "old_data": original_row.to_json(),
+                                "old_data": original_row[["datum_od", "datum_do", "tip", "napomena"]].to_json(),
                                 "created_at": datetime.now(TZ).isoformat()
                             }
                             supabase.table("log_odmori").insert(log).execute()
+                            continue
 
-                        # Update ako je izmijenjeno
-                        elif not row.equals(original_row):
-                            update_data = {
-                                "datum_od": row["datum_od"],
-                                "datum_do": row["datum_do"],
-                                "tip": row["tip"],
-                                "napomena": row["napomena"]
-                            }
-                            supabase.table("odmori").update(update_data).eq("id", row["id"]).execute()
-                            # Logiranje update-a
+                        # Update samo ako je nešto stvarno promijenjeno
+                        changed_fields = {}
+                        for field in ["datum_od", "datum_do", "tip", "napomena"]:
+                            if row[field] != original_row[field]:
+                                changed_fields[field] = {
+                                    "old": original_row[field],
+                                    "new": row[field]
+                                }
+
+                        if changed_fields:
+                            changes_made = True
+                            update_data = {k: row[k] for k in changed_fields}
+                            supabase.table("odmori").update(update_data).eq("id", row_id).execute()
+                            # Logiranje samo promijenjenih polja
                             log = {
                                 "action": "update",
                                 "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
-                                "old_data": original_row.to_json(),
-                                "new_data": row.to_json(),
+                                "old_data": {k: v["old"] for k, v in changed_fields.items()},
+                                "new_data": {k: v["new"] for k, v in changed_fields.items()},
                                 "created_at": datetime.now(TZ).isoformat()
                             }
                             supabase.table("log_odmori").insert(log).execute()
 
-                    # Izvrši brisanje
+                    # Izvrši brisanje nakon petlje
                     if to_delete:
                         for rec_id in to_delete:
                             supabase.table("odmori").delete().eq("id", rec_id).execute()
 
-                    st.success("Izmjene spremljene i brisanja izvršena!")
+                    if changes_made:
+                        st.success("Izmjene i brisanja spremljeni!")
+                    else:
+                        st.info("Nema promjena za spremiti.")
+
                     st.rerun()
             else:
                 st.info("Još nema unosa.")
