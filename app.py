@@ -1023,16 +1023,25 @@ else:
             st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
             korisnik_options = {}
 
-        # Dohvati ime prijavljenog korisnika (pretpostavljam da je u session_state.user)
-        prijavljeni_korisnik = st.session_state.user.get("ime_prezime", "Nepoznato")
+        # Dohvati podatke prijavljenog korisnika
+        prijavljeni_korisnik_ime = st.session_state.user.get("ime_prezime", "Nepoznato")
         prijavljeni_korisnik_id = st.session_state.user.get("id", None)
+        tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik")  # pretpostavljam da je "administrator" ili drugi
 
         # Forma za dodavanje odmora
         with st.form("dodaj_odmor_form", clear_on_submit=True):
             st.subheader("Dodaj novi unos godišnjeg / slobodnog dana")
 
-            # Korisnik je automatski popunjen s prijavljenom osobom i disabled
-            st.text_input("Korisnik *", value=prijavljeni_korisnik, disabled=True, key="odmor_korisnik_auto")
+            # Korisnik - logika ovisno o tipu
+            if tip_korisnika == "administrator":
+                # Admin može odabrati bilo koga, ali default je njegovo ime
+                default_korisnik_ime = prijavljeni_korisnik_ime
+                korisnik_ime = st.selectbox("Korisnik *", list(korisnik_options.keys()), index=list(korisnik_options.keys()).index(default_korisnik_ime) if default_korisnik_ime in korisnik_options else 0, key="odmor_korisnik_select")
+                korisnik_id = korisnik_options.get(korisnik_ime)
+            else:
+                # Ostali vide samo svoje ime, bez mogućnosti promjene
+                st.text_input("Korisnik *", value=prijavljeni_korisnik_ime, disabled=True, key="odmor_korisnik_disabled")
+                korisnik_id = prijavljeni_korisnik_id
 
             col1, col2 = st.columns(2)
             datum_od_input = col1.date_input("Datum od *", value=None, key="odmor_datum_od")
@@ -1044,8 +1053,8 @@ else:
             submitted = st.form_submit_button("Dodaj unos", type="primary")
 
         if submitted:
-            if not prijavljeni_korisnik_id:
-                st.error("Nema prijavljenog korisnika!")
+            if not korisnik_id:
+                st.error("Korisnik je obavezan!")
             elif not datum_od_input or not datum_do_input:
                 st.error("Datum od i Datum do su obavezni!")
             elif datum_do_input < datum_od_input:
@@ -1071,7 +1080,7 @@ else:
 
                     if preklapanja > 0:
                         st.session_state.temp_odmor = {
-                            "korisnik_id": prijavljeni_korisnik_id,
+                            "korisnik_id": korisnik_id,
                             "datum_od": datum_od,
                             "datum_do": datum_do,
                             "tip": tip_odmora,
@@ -1081,7 +1090,7 @@ else:
                         st.rerun()
                     else:
                         novi = {
-                            "korisnik_id": prijavljeni_korisnik_id,
+                            "korisnik_id": korisnik_id,
                             "datum_od": datum_od.isoformat(),
                             "datum_do": datum_do.isoformat(),
                             "tip": tip_odmora,
