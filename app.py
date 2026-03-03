@@ -1056,8 +1056,9 @@ else:
                     odmori_response = supabase.table("odmori").select("*").execute()
                     df_odmori = pd.DataFrame(odmori_response.data or [])
 
-                    # Provjera preklapanja
+                    # Provjera preklapanja (sve unose, ali posebno isti korisnik)
                     preklapanja = 0
+                    preklapanja_sa_sobom = False
                     for _, row in df_odmori.iterrows():
                         start_db = datetime.fromisoformat(row["datum_od"]).date()
                         end_db = datetime.fromisoformat(row["datum_do"]).date()
@@ -1065,28 +1066,24 @@ else:
                         end = min(datum_do, end_db)
                         if start <= end:
                             preklapanja += (end - start).days + 1
+                            if row["korisnik_id"] == korisnik_id:
+                                preklapanja_sa_sobom = True
 
-                    if preklapanja > 0:
-                        # Provjeri je li preklapanje samo sa samim sobom ili i sa drugima
-                        samo_sa_sobom = True
-                        for _, row in df_odmori.iterrows():
-                            if row["korisnik_id"] != korisnik_id:
-                                samo_sa_sobom = False
-                                break
-
-                        if samo_sa_sobom:
-                            st.error("Ne možeš upisati iste ili preklapajuće datume za istu osobu – ti datumi su već zauzeti za tebe!")
-                        else:
-                            st.session_state.temp_odmor = {
-                                "korisnik_id": korisnik_id,
-                                "datum_od": datum_od,
-                                "datum_do": datum_do,
-                                "tip": tip_odmora,
-                                "napomena": napomena.strip() or None,
-                                "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
-                            }
-                            st.rerun()
+                    if preklapanja_sa_sobom:
+                        st.error("Ne možeš upisati preklapajuće datume za istu osobu – ti datumi su već zauzeti za tebe!")
+                    elif preklapanja > 0:
+                        # Preklapanje samo s drugim korisnicima → potvrda
+                        st.session_state.temp_odmor = {
+                            "korisnik_id": korisnik_id,
+                            "datum_od": datum_od,
+                            "datum_do": datum_do,
+                            "tip": tip_odmora,
+                            "napomena": napomena.strip() or None,
+                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
+                        }
+                        st.rerun()
                     else:
+                        # Nema preklapanja – spremanje
                         novi = {
                             "korisnik_id": korisnik_id,
                             "datum_od": datum_od.isoformat(),
