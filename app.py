@@ -1038,9 +1038,9 @@ else:
             2040: [date(2040, 1, 1), date(2040, 1, 6), date(2040, 4, 1), date(2040, 4, 2), date(2040, 5, 1), date(2040, 5, 30), date(2040, 6, 22), date(2040, 8, 15), date(2040, 11, 1), date(2040, 11, 18), date(2040, 12, 25), date(2040, 12, 26)],
         }
 
-        # Dohvati korisnike za padajući izbornik
+        # Dohvati korisnike za padajući izbornik (dodajemo i godisnji_dani, slobodni_dani)
         try:
-            korisnici_response = supabase.table("korisnici").select("id,ime_prezime").eq("aktivan", True).execute()
+            korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,slobodni_dani").eq("aktivan", True).execute()
             korisnici = korisnici_response.data or []
             korisnik_options = {k["ime_prezime"]: k["id"] for k in korisnici}
         except Exception as e:
@@ -1051,6 +1051,28 @@ else:
         prijavljeni_korisnik_ime = st.session_state.user.get("ime_prezime", "Nepoznato")
         prijavljeni_korisnik_id = st.session_state.user.get("id", None)
         tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik")
+
+        # Tekuća godina
+        tekuca_godina = datetime.now().year
+
+        # Dohvati balans za prijavljenog korisnika (za tekuću godinu)
+        try:
+            balans_response = supabase.table("godisnji_balans")\
+                .select("iskoristeno_dana, neiskoristeno_dana")\
+                .eq("korisnik_id", prijavljeni_korisnik_id)\
+                .eq("godina", tekuca_godina)\
+                .execute()
+            balans = pd.DataFrame(balans_response.data or []).iloc[0] if balans_response.data else None
+        except Exception as e:
+            balans = None
+            st.error(f"Greška pri dohvaćanju balansa: {str(e)}")
+
+        # Preostali dani (fallback na 20 ako nema balansa)
+        preostalo_godisnje = balans["neiskoristeno_dana"] if balans is not None else 20
+        preostalo_slobodnih = st.session_state.user.get("slobodni_dani", 0)
+
+        st.markdown(f"**Preostalo godišnjih dana za {tekuca_godina}: {preostalo_godisnje}**")
+        st.markdown(f"**Preostalo slobodnih dana: {preostalo_slobodnih}**")
 
         # Forma za dodavanje odmora
         with st.form("dodaj_odmor_form", clear_on_submit=True):
@@ -1087,6 +1109,19 @@ else:
                 datum_od = datum_od_input
                 datum_do = datum_do_input
 
+                # Izračunaj broj radnih dana u unosu (preskoči vikende i praznike)
+                broj_dana = calculate_working_days(datum_od.isoformat(), datum_do.isoformat(), holidays_dict.get(tekuca_godina, []))
+
+                # Provjera ograničenja
+                if tip_odmora == "Godišnji odmor":
+                    if broj_dana > preostalo_godisnje:
+                        st.error(f"Premašuješ preostale godišnje dane! Preostalo: {preostalo_godisnje}, tražiš: {broj_dana}")
+                        st.stop()
+                elif tip_odmora == "Slobodni dan":
+                    if broj_dana > preostalo_slobodnih:
+                        st.error(f"Premašuješ preostale slobodne dane! Preostalo: {preostalo_slobodnih}, tražiš: {broj_dana}")
+                        st.stop()
+
                 try:
                     odmori_response = supabase.table("odmori").select("*").execute()
                     df_odmori = pd.DataFrame(odmori_response.data or [])
@@ -1107,7 +1142,8 @@ else:
                             "datum_do": datum_do,
                             "tip": tip_odmora,
                             "napomena": napomena.strip() or None,
-                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
+                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
+                            "broj_dana": broj_dana
                         }
                         st.rerun()
                     else:
@@ -1121,13 +1157,24 @@ else:
                             "created_at": datetime.now(TZ).isoformat()
                         }
                         supabase.table("odmori").insert(novi).execute()
+
+                        # Ažuriraj balans
+                        if tip_odmora == "Godišnji odmor":
+                            supabase.table("godisnji_balans").update({
+                                "iskoristeno_dana": balans["iskoristeno_dana"] + broj_dana if balans is not None else broj_dana,
+                                "neiskoristeno_dana": balans["neiskoristeno_dana"] - broj_dana if balans is not None else 20 - broj_dana
+                            }).eq("korisnik_id", korisnik_id).eq("godina", tekuca_godina).execute()
+                        elif tip_odmora == "Slobodni dan":
+                            novi_slobodni = preostalo_slobodnih - broj_dana
+                            supabase.table("korisnici").update({"slobodni_dani": novi_slobodni}).eq("id", korisnik_id).execute()
+
                         st.success("Unos dodan bez preklapanja!")
                         st.session_state.form_reset = True
                         st.rerun()
                 except Exception as e:
                     st.error(f"Greška pri provjeri/spremanju: {str(e)}")
 
-        # Potvrda preklapanja
+        # Potvrda preklapanja (samo za druge korisnike)
         if st.session_state.temp_odmor:
             try:
                 odmori_response = supabase.table("odmori").select("*").execute()
@@ -1157,6 +1204,18 @@ else:
                     "created_at": datetime.now(TZ).isoformat()
                 }
                 supabase.table("odmori").insert(novi).execute()
+
+                # Ažuriraj balans
+                broj_dana = st.session_state.temp_odmor["broj_dana"]
+                if st.session_state.temp_odmor["tip"] == "Godišnji odmor":
+                    supabase.table("godisnji_balans").update({
+                        "iskoristeno_dana": balans["iskoristeno_dana"] + broj_dana if balans is not None else broj_dana,
+                        "neiskoristeno_dana": balans["neiskoristeno_dana"] - broj_dana if balans is not None else 20 - broj_dana
+                    }).eq("korisnik_id", korisnik_id).eq("godina", tekuca_godina).execute()
+                elif st.session_state.temp_odmor["tip"] == "Slobodni dan":
+                    novi_slobodni = preostalo_slobodnih - broj_dana
+                    supabase.table("korisnici").update({"slobodni_dani": novi_slobodni}).eq("id", korisnik_id).execute()
+
                 st.success("Unos dodan sa preklapanjem!")
                 st.session_state.temp_odmor = None
                 st.session_state.form_reset = True
@@ -1170,6 +1229,35 @@ else:
         if st.session_state.form_reset:
             st.session_state.form_reset = False
             st.rerun()
+
+        # Gumb za konverziju neiskorištenih dana (samo za admina)
+        if tip_korisnika == "administrator":
+            st.subheader("Konverzija neiskorištenih godišnjih dana")
+            if st.button("Konvertiraj neiskorištene dane u slobodne (klikni jednom)"):
+                try:
+                    # Dohvati sve korisnike
+                    korisnici_response = supabase.table("korisnici").select("id,ime_prezime,slobodni_dani").execute()
+                    korisnici_df = pd.DataFrame(korisnici_response.data or [])
+
+                    for _, kor in korisnici_df.iterrows():
+                        kor_id = kor["id"]
+                        balans_response = supabase.table("godisnji_balans").select("iskoristeno_dana, neiskoristeno_dana").eq("korisnik_id", kor_id).eq("godina", tekuca_godina - 1).execute()
+                        if balans_response.data:
+                            neiskoristeno = balans_response.data[0]["neiskoristeno_dana"]
+                            if neiskoristeno > 0:
+                                novi_slobodni = kor["slobodni_dani"] + neiskoristeno
+                                supabase.table("korisnici").update({"slobodni_dani": novi_slobodni}).eq("id", kor_id).execute()
+                                # Resetiraj balans za novu godinu
+                                supabase.table("godisnji_balans").upsert({
+                                    "korisnik_id": kor_id,
+                                    "godina": tekuca_godina,
+                                    "iskoristeno_dana": 0,
+                                    "neiskoristeno_dana": kor.get("godisnji_dani", 20)
+                                }).execute()
+
+                    st.success("Neiskorišteni godišnji dani konvertirani u slobodne dane za sve korisnike!")
+                except Exception as e:
+                    st.error(f"Greška pri konverziji: {str(e)}")
 
         # Prikaz i uređivanje/brisanje unosa
         st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje i brisanje)")
@@ -1187,7 +1275,6 @@ else:
 
                 df_odmori["Obriši"] = False
 
-                # Ako nije admin – prikazuj samo svoje retke
                 if tip_korisnika != "administrator":
                     df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
 
