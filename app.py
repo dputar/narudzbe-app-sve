@@ -1078,19 +1078,38 @@ else:
         # Tekuća godina
         tekuca_godina = datetime.now().year
 
-        # Dohvati balans za prijavljenog korisnika (za tekuću godinu)
+        # Dohvati ili kreiraj balans za prijavljenog korisnika (za tekuću godinu)
         try:
             balans_response = supabase.table("godisnji_balans")\
-                .select("iskoristeno_dana, neiskoristeno_dana")\
+                .select("id, iskoristeno_dana, neiskoristeno_dana")\
                 .eq("korisnik_id", prijavljeni_korisnik_id)\
                 .eq("godina", tekuca_godina)\
                 .execute()
-            balans = pd.DataFrame(balans_response.data or []).iloc[0] if balans_response.data else None
+
+            if balans_response.data:
+                balans = pd.DataFrame(balans_response.data).iloc[0]
+            else:
+                # Ako nema zapisa za ovu godinu, kreiraj ga sa default vrijednostima
+                default_godisnji = user_data.get("godisnji_dani", 20)
+                novi_balans = {
+                    "korisnik_id": prijavljeni_korisnik_id,
+                    "godina": tekuca_godina,
+                    "iskoristeno_dana": 0,
+                    "neiskoristeno_dana": default_godisnji
+                }
+                supabase.table("godisnji_balans").insert(novi_balans).execute()
+                # Ponovno dohvati svježi balans
+                balans_response = supabase.table("godisnji_balans")\
+                    .select("id, iskoristeno_dana, neiskoristeno_dana")\
+                    .eq("korisnik_id", prijavljeni_korisnik_id)\
+                    .eq("godina", tekuca_godina)\
+                    .execute()
+                balans = pd.DataFrame(balans_response.data).iloc[0] if balans_response.data else None
         except Exception as e:
             balans = None
-            st.error(f"Greška pri dohvaćanju balansa: {str(e)}")
+            st.error(f"Greška pri dohvaćanju/kreiranju balansa: {str(e)}")
 
-        # Preostali dani (fallback na 20 ako nema balansa)
+        # Preostali dani
         preostalo_godisnje = balans["neiskoristeno_dana"] if balans is not None else user_data.get("godisnji_dani", 20)
         preostalo_slobodnih = user_data.get("slobodni_dani", 0)
 
@@ -1181,7 +1200,15 @@ else:
                         }
                         supabase.table("odmori").insert(novi).execute()
 
-                        # Ažuriraj balans
+                        # Ažuriraj balans (svježe dohvaćamo balans nakon inserta)
+                        # Ponovno dohvati balans nakon inserta
+                        balans_response = supabase.table("godisnji_balans")\
+                            .select("iskoristeno_dana, neiskoristeno_dana")\
+                            .eq("korisnik_id", korisnik_id)\
+                            .eq("godina", tekuca_godina)\
+                            .execute()
+                        balans = pd.DataFrame(balans_response.data or []).iloc[0] if balans_response.data else None
+
                         if tip_odmora == "Godišnji odmor":
                             supabase.table("godisnji_balans").update({
                                 "iskoristeno_dana": balans["iskoristeno_dana"] + broj_dana if balans is not None else broj_dana,
@@ -1227,6 +1254,14 @@ else:
                     "created_at": datetime.now(TZ).isoformat()
                 }
                 supabase.table("odmori").insert(novi).execute()
+
+                # Ponovno dohvati balans nakon inserta
+                balans_response = supabase.table("godisnji_balans")\
+                    .select("iskoristeno_dana, neiskoristeno_dana")\
+                    .eq("korisnik_id", korisnik_id)\
+                    .eq("godina", tekuca_godina)\
+                    .execute()
+                balans = pd.DataFrame(balans_response.data or []).iloc[0] if balans_response.data else None
 
                 # Ažuriraj balans
                 broj_dana = st.session_state.temp_odmor["broj_dana"]
