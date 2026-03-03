@@ -561,7 +561,21 @@ else:
         else:
             st.info("Još nema dobavljača u bazi.")
 
-    # ────────────────────────────────────────────────
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+   # ────────────────────────────────────────────────
     # ADMINISTRACIJA → PROIZVODI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_proizvodi":
@@ -735,6 +749,19 @@ else:
                     st.error("Ako ima RLS, privremeno ga isključi u Supabaseu.")
             st.info("Ako se predomisliš, poništi checkbox iznad.")
 
+
+
+
+
+
+
+
+
+
+
+
+  
+
     # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
@@ -765,24 +792,19 @@ else:
                     placeholder="upiši korisničko ime, ime i prezime, tip...",
                     on_change=on_korisnici_search_change
                 )
-
             df_display = df_korisnici.copy()
             if st.session_state.korisnici_search:
                 search_term = str(st.session_state.korisnici_search).strip().lower()
                 mask = df_display.astype(str).apply(lambda x: x.str.lower().str.contains(search_term), axis=1).any(axis=1)
                 df_display = df_display[mask]
-
             if df_display.empty and st.session_state.korisnici_search:
                 st.info("Ništa nije pronađeno.")
             elif df_display.empty:
                 st.info("Još nema korisnika u bazi.")
-
             df_display["Obriši"] = False
-            df_display["Uredi"] = False  # checkbox za uređivanje
-
+            df_display["Uredi"] = False # checkbox za uređivanje
             # Sakrij lozinku u prikazu tablice (prikazuje ******)
             df_display["lozinka"] = df_display["lozinka"].apply(lambda x: "******" if x else "")
-
             edited_df = st.data_editor(
                 df_display,
                 num_rows="dynamic",
@@ -799,13 +821,11 @@ else:
                     "Uredi": st.column_config.CheckboxColumn("Uredi"),
                 }
             )
-
             # Detekcija označenog "Uredi" checkboxa
             for row in edited_df.to_dict("records"):
                 if row["Uredi"]:
                     st.session_state.edit_korisnik_id = row["id"]
                     st.rerun()
-
             # Spremi promjene (brisanje označenih)
             if st.button("💾 Spremi promjene", type="primary"):
                 for row in edited_df.to_dict("records"):
@@ -814,7 +834,6 @@ else:
                         supabase.table("korisnici").delete().eq("id", row_id).execute()
                 st.success("Promjene spremljene! Označeni korisnici obrisani.")
                 st.rerun()
-
             # Izvoz u Excel
             if st.button("Izvezi sve korisnike u Excel"):
                 output = io.BytesIO()
@@ -826,10 +845,8 @@ else:
                     file_name=f"korisnici_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
-
             # Osvježi
             st.button("🔄 Osvježi", on_click=st.rerun)
-
             # Uređivanje korisnika (otvara se kada označiš "Uredi" checkbox)
             if st.session_state.edit_korisnik_id:
                 edit_row = df_korisnici[df_korisnici["id"] == st.session_state.edit_korisnik_id].iloc[0]
@@ -843,7 +860,9 @@ else:
                             edit_tip_korisnika = st.selectbox("Tip korisnika", [
                                 "administrator", "ured", "skladištar", "terenac", "gost"
                             ], index=["administrator", "ured", "skladištar", "terenac", "gost"].index(edit_row["tip_korisnika"]))
-
+                            # Dodaj edit godisnji_dani i slobodni_dani
+                            edit_godisnji_dani = st.number_input("Godišnji dani (po godini)", value=edit_row.get("godisnji_dani", 20), min_value=0)
+                            edit_slobodni_dani = st.number_input("Slobodni dani", value=edit_row.get("slobodni_dani", 0), min_value=0)
                         with col2:
                             st.markdown("**Prava**")
                             edit_prava = st.multiselect(
@@ -859,7 +878,6 @@ else:
                                 ],
                                 default=edit_row["prava"] if isinstance(edit_row["prava"], list) else []
                             )
-
                             st.markdown("**Odaberi koje skladište može vidjeti:**")
                             edit_skladišta = st.multiselect(
                                 "Skladišta",
@@ -872,9 +890,7 @@ else:
                                 ],
                                 default=edit_row["skladišta"] if isinstance(edit_row["skladišta"], list) else []
                             )
-
                             edit_aktivan = st.checkbox("Aktivan", value=edit_row["aktivan"])
-
                         col_submit, col_cancel = st.columns(2)
                         with col_submit:
                             if st.form_submit_button("Spremi promjene"):
@@ -884,7 +900,9 @@ else:
                                     "tip_korisnika": edit_tip_korisnika,
                                     "aktivan": edit_aktivan,
                                     "prava": edit_prava,
-                                    "skladišta": edit_skladišta
+                                    "skladišta": edit_skladišta,
+                                    "godisnji_dani": edit_godisnji_dani,
+                                    "slobodni_dani": edit_slobodni_dani
                                 }
                                 if edit_lozinka:
                                     update_data["lozinka"] = edit_lozinka
@@ -892,23 +910,18 @@ else:
                                 st.success("Korisnik ažuriran!")
                                 st.session_state.edit_korisnik_id = None
                                 st.rerun()
-
                         with col_cancel:
                             if st.form_submit_button("Odustani"):
                                 st.session_state.edit_korisnik_id = None
                                 st.rerun()
-
         else:
             st.info("Još nema korisnika u bazi.")
-
         # Jedini gumb za novog korisnika
         if st.button("➕ Novi korisnik", type="primary", key="novi_korisnik_gumb"):
             st.session_state.novi_korisnik_form_shown = True
             st.rerun()
-
         if "novi_korisnik_form_shown" not in st.session_state:
             st.session_state.novi_korisnik_form_shown = False
-
         if st.session_state.novi_korisnik_form_shown:
             with st.form("novi_korisnik_form", clear_on_submit=False):
                 st.markdown("**Novi korisnik**")
@@ -920,7 +933,9 @@ else:
                     tip_korisnika = st.selectbox("Tip korisnika", [
                         "administrator", "ured", "skladištar", "terenac", "gost"
                     ], key="tip_korisnika_input")
-
+                    # Dodaj godisnji_dani i slobodni_dani
+                    godisnji_dani = st.number_input("Godišnji dani (po godini)", value=20, min_value=0, key="godisnji_dani_input")
+                    slobodni_dani = st.number_input("Slobodni dani", value=0, min_value=0, key="slobodni_dani_input")
                 with col2:
                     st.markdown("**Prava**")
                     prava = st.multiselect(
@@ -936,7 +951,6 @@ else:
                         ],
                         key="prava_input"
                     )
-
                     st.markdown("**Odaberi koje skladište može vidjeti:**")
                     skladišta = st.multiselect(
                         "Skladišta",
@@ -949,7 +963,6 @@ else:
                         ],
                         key="skladišta_input"
                     )
-
                 col_submit, col_cancel = st.columns(2)
                 with col_submit:
                     if st.form_submit_button("Spremi", key="spremi_form"):
@@ -961,7 +974,9 @@ else:
                                 "tip_korisnika": tip_korisnika,
                                 "aktivan": True,
                                 "prava": prava,
-                                "skladišta": skladišta
+                                "skladišta": skladišta,
+                                "godisnji_dani": godisnji_dani,
+                                "slobodni_dani": slobodni_dani
                             }
                             try:
                                 response = supabase.table("korisnici").insert(novi).execute()
@@ -972,7 +987,6 @@ else:
                                 st.error(f"Greška pri dodavanju: {str(e)}")
                         else:
                             st.error("Korisničko ime, ime i prezime te lozinka su obavezni!")
-
                 with col_cancel:
                     if st.form_submit_button("Odustani", key="odustani_form"):
                         st.session_state.novi_korisnik_form_shown = False
@@ -983,7 +997,17 @@ else:
 
 
 
-    # ────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+       # ────────────────────────────────────────────────
     # GODIŠNJI ODMOR / SLOBODNI DANI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
@@ -1026,7 +1050,7 @@ else:
         # Dohvati podatke prijavljenog korisnika
         prijavljeni_korisnik_ime = st.session_state.user.get("ime_prezime", "Nepoznato")
         prijavljeni_korisnik_id = st.session_state.user.get("id", None)
-        tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik")  # 'administrator' ili drugi
+        tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik")
 
         # Forma za dodavanje odmora
         with st.form("dodaj_odmor_form", clear_on_submit=True):
@@ -1163,14 +1187,12 @@ else:
                 df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
                 df_odmori = df_odmori.drop(columns=["korisnici"])
 
-                # Dodaj checkbox za brisanje
                 df_odmori["Obriši"] = False
 
                 # Ako nije admin – prikazuj samo svoje retke
                 if tip_korisnika != "administrator":
                     df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
 
-                # Prikaz editable tablice
                 edited_df = st.data_editor(
                     df_odmori[["id", "korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at", "Obriši"]],
                     column_config={
@@ -1186,18 +1208,13 @@ else:
                     key="odmori_editor"
                 )
 
-                # Gumb za spremanje izmjena i brisanje + logiranje
                 if st.button("Spremi izmjene i obriši označene"):
-                    changes_made = False
                     to_delete = []
                     for idx, row in edited_df.iterrows():
                         original_row = df_odmori.loc[idx]
-                        row_id = row["id"]
 
-                        # Brisanje (samo ako je admin ili svoj unos)
-                        if row["Obriši"] and (tip_korisnika == "administrator" or original_row["korisnik_id"] == prijavljeni_korisnik_id):
-                            to_delete.append(row_id)
-                            changes_made = True
+                        if row["Obriši"]:
+                            to_delete.append(row["id"])
                             log = {
                                 "action": "delete",
                                 "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
@@ -1207,7 +1224,6 @@ else:
                             supabase.table("log_odmori").insert(log).execute()
                             continue
 
-                        # Update (samo ako je admin ili svoj unos)
                         changed_fields = {}
                         for field in ["datum_od", "datum_do", "tip", "napomena"]:
                             if row[field] != original_row[field]:
@@ -1216,10 +1232,9 @@ else:
                                     "new": row[field]
                                 }
 
-                        if changed_fields and (tip_korisnika == "administrator" or original_row["korisnik_id"] == prijavljeni_korisnik_id):
-                            changes_made = True
+                        if changed_fields:
                             update_data = {k: row[k] for k in changed_fields}
-                            supabase.table("odmori").update(update_data).eq("id", row_id).execute()
+                            supabase.table("odmori").update(update_data).eq("id", row["id"]).execute()
                             log = {
                                 "action": "update",
                                 "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
@@ -1233,11 +1248,7 @@ else:
                         for rec_id in to_delete:
                             supabase.table("odmori").delete().eq("id", rec_id).execute()
 
-                    if changes_made:
-                        st.success("Izmjene i brisanja spremljeni!")
-                    else:
-                        st.info("Nema promjena za spremiti.")
-
+                    st.success("Izmjene i brisanja spremljeni!")
                     st.rerun()
             else:
                 st.info("Još nema unosa.")
@@ -1327,7 +1338,7 @@ else:
         st.subheader("Pregled po korisniku")
         try:
             if not df_odmori.empty:
-                # Ako nije admin – prikazuj samo svoje podatke
+                # Ako nije admin – filtriraj na svoje retke
                 if tip_korisnika != "administrator":
                     df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
 
