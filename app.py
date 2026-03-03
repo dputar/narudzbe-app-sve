@@ -1066,16 +1066,25 @@ else:
                             preklapanja += (end - start).days + 1
 
                     if preklapanja > 0:
-                        st.session_state.temp_odmor = {
-                            "korisnik_id": korisnik_id,
-                            "datum_od": datum_od,
-                            "datum_do": datum_do,
-                            "tip": tip_odmora,
-                            "napomena": napomena.strip() or None,
-                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
-                        }
-                        st.warning(f"Preklapanje u {preklapanja} dana sa postojećim unosima (uključujući tvoje prethodne).")
-                        st.rerun()
+                        # Provjeri je li preklapanje samo sa samim sobom ili i sa drugima
+                        samo_sa_sobom = True
+                        for _, row in df_odmori.iterrows():
+                            if row["korisnik_id"] != korisnik_id:
+                                samo_sa_sobom = False
+                                break
+
+                        if samo_sa_sobom:
+                            st.error("Ne možeš imati dva preklapajuća unosa za istu osobu!")
+                        else:
+                            st.session_state.temp_odmor = {
+                                "korisnik_id": korisnik_id,
+                                "datum_od": datum_od,
+                                "datum_do": datum_do,
+                                "tip": tip_odmora,
+                                "napomena": napomena.strip() or None,
+                                "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
+                            }
+                            st.rerun()
                     else:
                         novi = {
                             "korisnik_id": korisnik_id,
@@ -1093,7 +1102,7 @@ else:
                 except Exception as e:
                     st.error(f"Greška pri provjeri/spremanju: {str(e)}")
 
-        # Potvrda preklapanja (izvan forme)
+        # Potvrda preklapanja (samo za preklapanja s drugim korisnicima)
         if st.session_state.temp_odmor:
             try:
                 odmori_response = supabase.table("odmori").select("*").execute()
@@ -1110,7 +1119,7 @@ else:
                 preklapanja = 0
                 st.error(f"Greška pri ponovnom dohvaćanju: {str(e)}")
 
-            st.warning(f"Preklapanje u {preklapanja} dana sa postojećim unosima (uključujući tvoje prethodne).")
+            st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima (ne sa tvojim prethodnim unosima).")
             col1, col2 = st.columns(2)
             if col1.button("Potvrdi dodavanje sa preklapanjem"):
                 novi = {
