@@ -1059,9 +1059,20 @@ else:
             st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
             korisnik_options = {}
 
-        # Dohvati podatke prijavljenog korisnika
-        prijavljeni_korisnik_ime = st.session_state.user.get("ime_prezime", "Nepoznato")
-        prijavljeni_korisnik_id = st.session_state.user.get("id", None)
+        # Dohvati svježe podatke prijavljenog korisnika iz baze (ne iz session_state)
+        try:
+            user_response = supabase.table("korisnici")\
+                .select("id,ime_prezime,godisnji_dani,slobodni_dani")\
+                .eq("id", st.session_state.user.get("id"))\
+                .single()\
+                .execute()
+            user_data = user_response.data
+        except Exception as e:
+            user_data = None
+            st.error(f"Greška pri dohvaćanju podataka korisnika: {str(e)}")
+
+        prijavljeni_korisnik_ime = user_data["ime_prezime"] if user_data else "Nepoznato"
+        prijavljeni_korisnik_id = user_data["id"] if user_data else None
         tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik")
 
         # Tekuća godina
@@ -1080,8 +1091,8 @@ else:
             st.error(f"Greška pri dohvaćanju balansa: {str(e)}")
 
         # Preostali dani (fallback na 20 ako nema balansa)
-        preostalo_godisnje = balans["neiskoristeno_dana"] if balans is not None else 20
-        preostalo_slobodnih = st.session_state.user.get("slobodni_dani", 0)
+        preostalo_godisnje = balans["neiskoristeno_dana"] if balans is not None else user_data.get("godisnji_dani", 20)
+        preostalo_slobodnih = user_data.get("slobodni_dani", 0)
 
         st.markdown(f"**Preostalo godišnjih dana za {tekuca_godina}: {preostalo_godisnje}**")
         st.markdown(f"**Preostalo slobodnih dana: {preostalo_slobodnih}**")
