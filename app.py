@@ -1050,20 +1050,37 @@ else:
             2040: [date(2040, 1, 1), date(2040, 1, 6), date(2040, 4, 1), date(2040, 4, 2), date(2040, 5, 1), date(2040, 5, 30), date(2040, 6, 22), date(2040, 8, 15), date(2040, 11, 1), date(2040, 11, 18), date(2040, 12, 25), date(2040, 12, 26)],
         }
 
-        # Dohvati korisnike za padajući izbornik (dodajemo i godisnji_dani, slobodni_dani)
+        # Dohvati korisnike za padajući izbornik
         try:
             korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,slobodni_dani").eq("aktivan", True).execute()
             korisnici = korisnici_response.data or []
-            korisnik_options = {k["ime_prezime"]: k["id"] for k in korisnici}
+            korisnik_options = {k["ime_prezime"]: k for k in korisnici}
         except Exception as e:
             st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
             korisnik_options = {}
 
-        # Dohvati svježe podatke prijavljenog korisnika iz baze
+        # Dohvati podatke prijavljenog korisnika
+        prijavljeni_korisnik_id = st.session_state.user.get("id", None)
+        tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik")
+
+        # Tekuća godina
+        tekuca_godina = datetime.now().year
+
+        # Odabir korisnika (samo za admina)
+        if tip_korisnika == "administrator":
+            korisnik_ime = st.selectbox("Odaberi korisnika za unos", list(korisnik_options.keys()), key="odmor_selected_korisnik")
+            selected_korisnik = korisnik_options.get(korisnik_ime, {})
+            korisnik_id = selected_korisnik.get("id", prijavljeni_korisnik_id)
+        else:
+            korisnik_id = prijavljeni_korisnik_id
+            korisnik_ime = st.session_state.user.get("ime_prezime", "Nepoznato")
+            st.text_input("Korisnik *", value=korisnik_ime, disabled=True, key="odmor_korisnik_disabled")
+
+        # Dohvati svježe podatke odabranog korisnika iz baze
         try:
             user_response = supabase.table("korisnici")\
                 .select("id,ime_prezime,godisnji_dani,slobodni_dani")\
-                .eq("id", st.session_state.user.get("id"))\
+                .eq("id", korisnik_id)\
                 .single()\
                 .execute()
             user_data = user_response.data
@@ -1071,28 +1088,20 @@ else:
             user_data = None
             st.error(f"Greška pri dohvaćanju podataka korisnika: {str(e)}")
 
-        prijavljeni_korisnik_ime = user_data["ime_prezime"] if user_data else "Nepoznato"
-        prijavljeni_korisnik_id = user_data["id"] if user_data else None
-        tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik")
-
-        # Tekuća godina
-        tekuca_godina = datetime.now().year
-
-        # Dohvati ili kreiraj balans za prijavljenog korisnika (za tekuću godinu)
+        # Dohvati ili kreiraj balans za odabranog korisnika
         try:
             balans_response = supabase.table("godisnji_balans")\
                 .select("iskoristeno_dana, neiskoristeno_dana")\
-                .eq("korisnik_id", prijavljeni_korisnik_id)\
+                .eq("korisnik_id", korisnik_id)\
                 .eq("godina", tekuca_godina)\
                 .execute()
 
             if balans_response.data:
                 balans = balans_response.data[0]
             else:
-                # Ako nema zapisa, kreiraj ga
-                default_godisnji = user_data.get("godisnji_dani", 20)
+                default_godisnji = user_data.get("godisnji_dani", 20) if user_data else 20
                 novi_balans = {
-                    "korisnik_id": prijavljeni_korisnik_id,
+                    "korisnik_id": korisnik_id,
                     "godina": tekuca_godina,
                     "iskoristeno_dana": 0,
                     "neiskoristeno_dana": default_godisnji
@@ -1101,7 +1110,7 @@ else:
                 # Ponovno dohvati
                 balans_response = supabase.table("godisnji_balans")\
                     .select("iskoristeno_dana, neiskoristeno_dana")\
-                    .eq("korisnik_id", prijavljeni_korisnik_id)\
+                    .eq("korisnik_id", korisnik_id)\
                     .eq("godina", tekuca_godina)\
                     .execute()
                 balans = balans_response.data[0] if balans_response.data else None
@@ -1112,20 +1121,12 @@ else:
         preostalo_godisnje = balans["neiskoristeno_dana"] if balans is not None else (user_data.get("godisnji_dani", 20) if user_data else 20)
         preostalo_slobodnih = user_data.get("slobodni_dani", 0) if user_data else 0
 
-        st.markdown(f"**Preostalo godišnjih dana za {tekuca_godina}: {preostalo_godisnje}**")
-        st.markdown(f"**Preostalo slobodnih dana: {preostalo_slobodnih}**")
+        st.markdown(f"**Preostalo godišnjih dana za {tekuca_godina} ({korisnik_ime}): {preostalo_godisnje}**")
+        st.markdown(f"**Preostalo slobodnih dana ({korisnik_ime}): {preostalo_slobodnih}**")
 
         # Forma za dodavanje odmora
         with st.form("dodaj_odmor_form", clear_on_submit=True):
             st.subheader("Dodaj novi unos godišnjeg / slobodnog dana")
-
-            if tip_korisnika == "administrator":
-                default_korisnik_ime = prijavljeni_korisnik_ime
-                korisnik_ime = st.selectbox("Korisnik *", list(korisnik_options.keys()), index=list(korisnik_options.keys()).index(default_korisnik_ime) if default_korisnik_ime in korisnik_options else 0, key="odmor_korisnik_select")
-                korisnik_id = korisnik_options.get(korisnik_ime)
-            else:
-                st.text_input("Korisnik *", value=prijavljeni_korisnik_ime, disabled=True, key="odmor_korisnik_disabled")
-                korisnik_id = prijavljeni_korisnik_id
 
             col1, col2 = st.columns(2)
             datum_od_input = col1.date_input("Datum od *", value=None, key="odmor_datum_od")
@@ -1151,6 +1152,7 @@ else:
 
                 broj_dana = calculate_working_days(datum_od.isoformat(), datum_do.isoformat(), holidays_dict.get(tekuca_godina, []))
 
+                # Provjera ograničenja
                 if tip_odmora == "Godišnji odmor":
                     if broj_dana > preostalo_godisnje:
                         st.error(f"Premašuješ preostale godišnje dane! Preostalo: {preostalo_godisnje}, tražiš: {broj_dana}")
@@ -1198,7 +1200,6 @@ else:
 
                         # Ažuriraj balans
                         if tip_odmora == "Godišnji odmor":
-                            # Svježe dohvati balans nakon inserta
                             balans_response = supabase.table("godisnji_balans")\
                                 .select("iskoristeno_dana, neiskoristeno_dana")\
                                 .eq("korisnik_id", korisnik_id)\
@@ -1312,6 +1313,7 @@ else:
                                 }).execute()
 
                     st.success("Neiskorišteni godišnji dani konvertirani u slobodne dane za sve korisnike!")
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Greška pri konverziji: {str(e)}")
 
