@@ -1055,6 +1055,7 @@ else:
                 try:
                     odmori_response = supabase.table("odmori").select("*").execute()
                     df_odmori = pd.DataFrame(odmori_response.data or [])
+
                     preklapanja = 0
                     for _, row in df_odmori.iterrows():
                         start_db = datetime.fromisoformat(row["datum_od"]).date()
@@ -1073,6 +1074,7 @@ else:
                             "napomena": napomena.strip() or None,
                             "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato")
                         }
+                        st.warning(f"Preklapanje u {preklapanja} dana sa postojećim unosima (uključujući tvoje prethodne).")
                         st.rerun()
                     else:
                         novi = {
@@ -1108,7 +1110,7 @@ else:
                 preklapanja = 0
                 st.error(f"Greška pri ponovnom dohvaćanju: {str(e)}")
 
-            st.warning(f"Preklapanje u {preklapanja} dana sa postojećim unosima.")
+            st.warning(f"Preklapanje u {preklapanja} dana sa postojećim unosima (uključujući tvoje prethodne).")
             col1, col2 = st.columns(2)
             if col1.button("Potvrdi dodavanje sa preklapanjem"):
                 novi = {
@@ -1152,7 +1154,7 @@ else:
                 # Dodaj checkbox za brisanje
                 df_odmori["Obriši"] = False
 
-                # Editable tablica
+                # Prikaz editable tablice
                 edited_df = st.data_editor(
                     df_odmori[["id", "korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at", "Obriši"]],
                     column_config={
