@@ -1008,7 +1008,7 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -1080,7 +1080,9 @@ else:
 
         # Odabir korisnika (samo za admina)
         if tip_korisnika == "administrator":
-            korisnik_ime = st.selectbox("Odaberi korisnika za unos", list(korisnik_options.keys()), index=list(korisnik_options.keys()).index(prijavljeni_korisnik_ime) if prijavljeni_korisnik_ime in korisnik_options else 0, key="odmor_selected_korisnik")
+            korisnik_ime = st.selectbox("Odaberi korisnika za unos", list(korisnik_options.keys()),
+                                        index=list(korisnik_options.keys()).index(prijavljeni_korisnik_ime) if prijavljeni_korisnik_ime in korisnik_options else 0,
+                                        key="odmor_selected_korisnik")
             selected_korisnik = korisnik_options.get(korisnik_ime, {})
             korisnik_id = selected_korisnik.get("id", prijavljeni_korisnik_id)
         else:
@@ -1096,27 +1098,24 @@ else:
                 .eq("godina", tekuca_godina)\
                 .execute()
 
-            if balans_response.data:
-                balans = balans_response.data[0]
-            else:
-                default_godisnji = korisnik_options.get(korisnik_ime, {}).get("odobreni_dani_po_godini", 20) if tip_korisnika == "administrator" else user_data.get("odobreni_dani_po_godini", 20)
-                novi_balans = {
+            if not balans_response.data:
+                default = korisnik_options.get(korisnik_ime, {}).get("odobreni_dani_po_godini", 20) if tip_korisnika == "administrator" else user_data.get("odobreni_dani_po_godini", 20)
+                supabase.table("godisnji_balans").upsert({
                     "korisnik_id": korisnik_id,
                     "godina": tekuca_godina,
                     "iskoristeno_dana": 0,
-                    "neiskoristeno_dana": default_godisnji
-                }
-                supabase.table("godisnji_balans").insert(novi_balans).execute()
-                # Ponovno dohvati
-                balans_response = supabase.table("godisnji_balans")\
-                    .select("iskoristeno_dana, neiskoristeno_dana")\
-                    .eq("korisnik_id", korisnik_id)\
-                    .eq("godina", tekuca_godina)\
-                    .execute()
-                balans = balans_response.data[0] if balans_response.data else None
+                    "neiskoristeno_dana": default
+                }).execute()
+
+            balans_response = supabase.table("godisnji_balans")\
+                .select("iskoristeno_dana, neiskoristeno_dana")\
+                .eq("korisnik_id", korisnik_id)\
+                .eq("godina", tekuca_godina)\
+                .execute()
+            balans = balans_response.data[0] if balans_response.data else None
         except Exception as e:
             balans = None
-            st.error(f"Greška pri dohvaćanju/kreiranju balansa: {str(e)}")
+            st.error(f"Greška pri balansu: {str(e)}")
 
         preostalo_godisnje = balans["neiskoristeno_dana"] if balans is not None else (korisnik_options.get(korisnik_ime, {}).get("odobreni_dani_po_godini", 20) if tip_korisnika == "administrator" else user_data.get("odobreni_dani_po_godini", 20))
         preostalo_slobodnih = korisnik_options.get(korisnik_ime, {}).get("slobodni_dani", 0) if tip_korisnika == "administrator" else user_data.get("slobodni_dani", 0)
@@ -1163,6 +1162,7 @@ else:
                         st.stop()
 
                 try:
+                    # Provjera preklapanja
                     odmori_response = supabase.table("odmori").select("*").execute()
                     df_odmori = pd.DataFrame(odmori_response.data or [])
 
@@ -1288,7 +1288,7 @@ else:
             st.session_state.form_reset = False
             st.rerun()
 
-        # Administrativni gumbovi (samo za admina)
+        # Administrativne radnje – samo za admina
         if tip_korisnika == "administrator":
             st.subheader("Administrativne radnje")
 
@@ -1297,17 +1297,15 @@ else:
                 if st.button(f"Dodijeli nove godišnje dane za {tekuca_godina} svima"):
                     try:
                         korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,odobreni_dani_po_godini").execute()
-                        korisnici_df = pd.DataFrame(korisnici_response.data or [])
-
-                        for _, kor in korisnici_df.iterrows():
+                        for kor in korisnici_response.data or []:
                             kor_id = kor["id"]
-                            dodjeljeni = kor["odobreni_dani_po_godini"] or 20
-                            trenutni = kor["godisnji_dani"] or 0
+                            dodjeljeni = kor.get("odobreni_dani_po_godini") or 20
+                            trenutni = kor.get("godisnji_dani") or 0
                             novi_saldo = trenutni + dodjeljeni
 
                             supabase.table("korisnici").update({"godisnji_dani": novi_saldo}).eq("id", kor_id).execute()
 
-                            # Kreiraj ili ažuriraj balans za tekuću godinu
+                            # Koristimo upsert da izbjegnemo duplicate key error
                             supabase.table("godisnji_balans").upsert({
                                 "korisnik_id": kor_id,
                                 "godina": tekuca_godina,
@@ -1328,9 +1326,9 @@ else:
 
                         for _, kor in korisnici_df.iterrows():
                             kor_id = kor["id"]
-                            trenutni_saldo = kor["godisnji_dani"] or 0
-                            odobreni = kor["odobreni_dani_po_godini"] or 20
-                            slobodni = kor["slobodni_dani"] or 0
+                            trenutni_saldo = kor.get("godisnji_dani") or 0
+                            odobreni = kor.get("odobreni_dani_po_godini") or 20
+                            slobodni = kor.get("slobodni_dani") or 0
 
                             if trenutni_saldo > odobreni:
                                 razlika = trenutni_saldo - odobreni
