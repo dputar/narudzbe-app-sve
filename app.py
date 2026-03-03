@@ -96,9 +96,8 @@ with st.sidebar:
         st.session_state.stranica = "dokumenti"
         st.rerun()
 
-    # Admin vidi dodatne opcije
+    # Samo admin vidi dodatne opcije
     if st.session_state.user.get("tip_korisnika") == "administrator":
-
         if st.button("🛒 Narudžbe", key="menu_narudzbe"):
             st.session_state.stranica = "narudžbe"
             st.rerun()
@@ -114,12 +113,15 @@ with st.sidebar:
             if st.button("📦 Proizvodi", key="admin_proizvodi"):
                 st.session_state.stranica = "admin_proizvodi"
                 st.rerun()
+
             if st.button("🚚 Dobavljači", key="admin_dobavljaci"):
                 st.session_state.stranica = "admin_dobavljaci"
                 st.rerun()
+
             if st.button("👥 Korisnici", key="admin_korisnici"):
                 st.session_state.stranica = "admin_korisnici"
                 st.rerun()
+
             if st.button("📋 Šifarnici", key="admin_sifarnici"):
                 st.session_state.stranica = "admin_sifarnici"
                 st.rerun()
