@@ -1052,7 +1052,7 @@ else:
 
         # Dohvati korisnike za padajući izbornik
         try:
-            korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,slobodni_dani").eq("aktivan", True).execute()
+            korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini").eq("aktivan", True).execute()
             korisnici = korisnici_response.data or []
             korisnik_options = {k["ime_prezime"]: k for k in korisnici}
         except Exception as e:
@@ -1062,7 +1062,7 @@ else:
         # Dohvati svježe podatke prijavljenog korisnika iz baze
         try:
             user_response = supabase.table("korisnici")\
-                .select("id,ime_prezime,godisnji_dani,slobodni_dani")\
+                .select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini")\
                 .eq("id", st.session_state.user.get("id"))\
                 .single()\
                 .execute()
@@ -1099,7 +1099,7 @@ else:
             if balans_response.data:
                 balans = balans_response.data[0]
             else:
-                default_godisnji = korisnik_options.get(korisnik_ime, {}).get("godisnji_dani", 20) if tip_korisnika == "administrator" else user_data.get("godisnji_dani", 20)
+                default_godisnji = korisnik_options.get(korisnik_ime, {}).get("odobreni_dani_po_godini", 20) if tip_korisnika == "administrator" else user_data.get("odobreni_dani_po_godini", 20)
                 novi_balans = {
                     "korisnik_id": korisnik_id,
                     "godina": tekuca_godina,
@@ -1118,7 +1118,7 @@ else:
             balans = None
             st.error(f"Greška pri dohvaćanju/kreiranju balansa: {str(e)}")
 
-        preostalo_godisnje = balans["neiskoristeno_dana"] if balans is not None else (korisnik_options.get(korisnik_ime, {}).get("godisnji_dani", 20) if tip_korisnika == "administrator" else user_data.get("godisnji_dani", 20))
+        preostalo_godisnje = balans["neiskoristeno_dana"] if balans is not None else (korisnik_options.get(korisnik_ime, {}).get("odobreni_dani_po_godini", 20) if tip_korisnika == "administrator" else user_data.get("odobreni_dani_po_godini", 20))
         preostalo_slobodnih = korisnik_options.get(korisnik_ime, {}).get("slobodni_dani", 0) if tip_korisnika == "administrator" else user_data.get("slobodni_dani", 0)
 
         st.markdown(f"**Preostalo godišnjih dana za {tekuca_godina} ({korisnik_ime}): {preostalo_godisnje}**")
@@ -1288,33 +1288,64 @@ else:
             st.session_state.form_reset = False
             st.rerun()
 
-        # Gumb za konverziju neiskorištenih dana (samo za admina)
+        # Administrativni gumbovi (samo za admina)
         if tip_korisnika == "administrator":
-            st.subheader("Konverzija neiskorištenih godišnjih dana")
-            if st.button("Konvertiraj neiskorištene dane u slobodne (klikni jednom)"):
-                try:
-                    korisnici_response = supabase.table("korisnici").select("id,ime_prezime,slobodni_dani").execute()
-                    korisnici_df = pd.DataFrame(korisnici_response.data or [])
+            st.subheader("Administrativne radnje")
 
-                    for _, kor in korisnici_df.iterrows():
-                        kor_id = kor["id"]
-                        balans_response = supabase.table("godisnji_balans").select("iskoristeno_dana, neiskoristeno_dana").eq("korisnik_id", kor_id).eq("godina", tekuca_godina - 1).execute()
-                        if balans_response.data:
-                            neiskoristeno = balans_response.data[0]["neiskoristeno_dana"]
-                            if neiskoristeno > 0:
-                                novi_slobodni = kor["slobodni_dani"] + neiskoristeno
-                                supabase.table("korisnici").update({"slobodni_dani": int(novi_slobodni)}).eq("id", kor_id).execute()
-                                supabase.table("godisnji_balans").upsert({
-                                    "korisnik_id": kor_id,
-                                    "godina": tekuca_godina,
-                                    "iskoristeno_dana": 0,
-                                    "neiskoristeno_dana": kor.get("godisnji_dani", 20)
-                                }).execute()
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Dodijeli nove godišnje dane za tekuću godinu svima"):
+                    try:
+                        korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,odobreni_dani_po_godini").execute()
+                        korisnici_df = pd.DataFrame(korisnici_response.data or [])
 
-                    st.success("Neiskorišteni godišnji dani konvertirani u slobodne dane za sve korisnike!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Greška pri konverziji: {str(e)}")
+                        for _, kor in korisnici_df.iterrows():
+                            kor_id = kor["id"]
+                            dodjeljeni = kor["odobreni_dani_po_godini"] or 20
+                            trenutni = kor["godisnji_dani"] or 0
+                            novi_saldo = trenutni + dodjeljeni
+
+                            supabase.table("korisnici").update({"godisnji_dani": novi_saldo}).eq("id", kor_id).execute()
+
+                            # Kreiraj ili ažuriraj balans za novu godinu
+                            supabase.table("godisnji_balans").upsert({
+                                "korisnik_id": kor_id,
+                                "godina": tekuca_godina,
+                                "iskoristeno_dana": 0,
+                                "neiskoristeno_dana": dodjeljeni
+                            }).execute()
+
+                        st.success(f"Novi godišnji dani dodijeljeni svima za {tekuca_godina}. godinu!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Greška pri dodjeljivanju: {str(e)}")
+
+            with col2:
+                if st.button("Izvrši konverziju 30.06. (neiskorišteni → slobodni dani)"):
+                    try:
+                        korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,odobreni_dani_po_godini,slobodni_dani").execute()
+                        korisnici_df = pd.DataFrame(korisnici_response.data or [])
+
+                        for _, kor in korisnici_df.iterrows():
+                            kor_id = kor["id"]
+                            trenutni_saldo = kor["godisnji_dani"] or 0
+                            odobreni = kor["odobreni_dani_po_godini"] or 20
+                            slobodni = kor["slobodni_dani"] or 0
+
+                            if trenutni_saldo > odobreni:
+                                razlika = trenutni_saldo - odobreni
+                                novi_slobodni = slobodni + razlika
+                                supabase.table("korisnici").update({
+                                    "godisnji_dani": odobreni,
+                                    "slobodni_dani": novi_slobodni
+                                }).eq("id", kor_id).execute()
+
+                                st.write(f"{kor['ime_prezime']}: prebačeno {razlika} dana u slobodne (novi saldo: {novi_slobodni})")
+
+                        st.success("Konverzija 30.06. izvršena za sve korisnike!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Greška pri konverziji: {str(e)}")
 
         # Prikaz i uređivanje/brisanje unosa
         st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje i brisanje)")
