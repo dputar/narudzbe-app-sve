@@ -1135,8 +1135,8 @@ else:
             st.session_state.form_reset = False
             st.rerun()
 
-        # Prikaz svih unosa sa imenom korisnika
-        st.subheader("Svi unosi godišnjeg / slobodnih dana")
+        # Prikaz i uređivanje/brisanje unosa
+        st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje i brisanje)")
         try:
             odmori_response = supabase.table("odmori")\
                 .select("*, korisnici!inner(ime_prezime)")\
@@ -1149,15 +1149,58 @@ else:
                 df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
                 df_odmori = df_odmori.drop(columns=["korisnici"])
 
-                st.dataframe(
-                    df_odmori[["korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at"]],
+                # Dodaj checkbox za brisanje
+                df_odmori["Obriši"] = False
+
+                # Editable tablica
+                edited_df = st.data_editor(
+                    df_odmori[["id", "korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at", "Obriši"]],
+                    column_config={
+                        "id": st.column_config.NumberColumn("ID", disabled=True),
+                        "korisnik_ime": st.column_config.TextColumn("Korisnik", disabled=True),
+                        "created_at": st.column_config.TextColumn("Kreirano", disabled=True),
+                        "unio_korisnik": st.column_config.TextColumn("Unio", disabled=True),
+                        "Obriši": st.column_config.CheckboxColumn("Obriši", default=False)
+                    },
+                    hide_index=True,
                     use_container_width=True,
-                    hide_index=True
+                    num_rows="fixed",
+                    key="odmori_editor"
                 )
+
+                # Gumb za spremanje izmjena i brisanje
+                if st.button("Spremi izmjene i obriši označene"):
+                    to_delete = []
+                    for idx, row in edited_df.iterrows():
+                        original_row = df_odmori.loc[idx]
+
+                        # Brisanje
+                        if row["Obriši"]:
+                            to_delete.append(row["id"])
+
+                        # Update ako je izmijenjeno
+                        elif not row.equals(original_row):
+                            update_data = {
+                                "datum_od": row["datum_od"],
+                                "datum_do": row["datum_do"],
+                                "tip": row["tip"],
+                                "napomena": row["napomena"]
+                            }
+                            supabase.table("odmori").update(update_data).eq("id", row["id"]).execute()
+
+                    # Izvrši brisanje
+                    if to_delete:
+                        for rec_id in to_delete:
+                            supabase.table("odmori").delete().eq("id", rec_id).execute()
+                        st.success(f"Izmjene spremljene i {len(to_delete)} unosa obrisano!")
+                    else:
+                        st.success("Izmjene spremljene!")
+
+                    st.rerun()
             else:
                 st.info("Još nema unosa.")
         except Exception as e:
-            st.error(f"Greška pri dohvaćanju unosa: {str(e)}")
+            st.error(f"Greška pri dohvaćanju/uređivanju unosa: {str(e)}")
 
         # Kalendar sa bojama po korisniku i imenima ispod datuma
         st.subheader("Kalendar preklapanja")
@@ -1238,7 +1281,7 @@ else:
         except Exception as e:
             st.error(f"Greška pri prikazu kalendara: {str(e)}")
 
-        # Pregled po korisniku (broj dana, isključujući vikende i praznike)
+        # Pregled po korisniku
         st.subheader("Pregled po korisniku")
         try:
             if not df_odmori.empty:
@@ -1264,7 +1307,7 @@ else:
                 ).reset_index()
 
                 st.dataframe(summary, use_container_width=True, hide_index=True)
-                st.info("Napomena: Broj dana isključuje vikende i praznike/blagdane. Ovo je informativno.")
+                st.info("Napomena: Broj dana isključuje vikende i praznike/blagdane.")
             else:
                 st.info("Nema podataka za pregled.")
         except Exception as e:
