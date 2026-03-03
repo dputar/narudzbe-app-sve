@@ -1056,6 +1056,7 @@ else:
                     odmori_response = supabase.table("odmori").select("*").execute()
                     df_odmori = pd.DataFrame(odmori_response.data or [])
 
+                    # Provjera preklapanja
                     preklapanja = 0
                     for _, row in df_odmori.iterrows():
                         start_db = datetime.fromisoformat(row["datum_od"]).date()
@@ -1074,7 +1075,7 @@ else:
                                 break
 
                         if samo_sa_sobom:
-                            st.error("Ne možeš imati dva preklapajuća unosa za istu osobu!")
+                            st.error("Ne možeš upisati iste ili preklapajuće datume za istu osobu – ti datumi su već zauzeti za tebe!")
                         else:
                             st.session_state.temp_odmor = {
                                 "korisnik_id": korisnik_id,
