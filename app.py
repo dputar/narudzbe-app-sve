@@ -1008,12 +1008,12 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA ISpravljenim UPSERT-om
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # Definiraj funkciju za izračun radnih dana (preskače vikende i praznike)
+        # Definiraj funkciju za izračun radnih dana
         def calculate_working_days(start_str, end_str, holidays):
             start = datetime.fromisoformat(start_str).date()
             end = datetime.fromisoformat(end_str).date()
@@ -1162,7 +1162,6 @@ else:
                         st.stop()
 
                 try:
-                    # Provjera preklapanja
                     odmori_response = supabase.table("odmori").select("*").execute()
                     df_odmori = pd.DataFrame(odmori_response.data or [])
 
