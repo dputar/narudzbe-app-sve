@@ -1008,7 +1008,7 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA ISpravljenim UPSERT-om
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA POPRAVLJENIM UPSERT-om
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
