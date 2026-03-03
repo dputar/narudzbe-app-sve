@@ -1008,12 +1008,12 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA POPRAVLJENIM UPSERT-om
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA ISPRAVLJENIM DODJELJIVANJEM
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # Definiraj funkciju za izračun radnih dana
+        # Definiraj funkciju za izračun radnih dana (preskače vikende i praznike)
         def calculate_working_days(start_str, end_str, holidays):
             start = datetime.fromisoformat(start_str).date()
             end = datetime.fromisoformat(end_str).date()
@@ -1100,7 +1100,7 @@ else:
 
             if not balans_response.data:
                 default = korisnik_options.get(korisnik_ime, {}).get("odobreni_dani_po_godini", 20) if tip_korisnika == "administrator" else user_data.get("odobreni_dani_po_godini", 20)
-                supabase.table("godisnji_balans").upsert({
+                supabase.table("godisnji_balans").insert({
                     "korisnik_id": korisnik_id,
                     "godina": tekuca_godina,
                     "iskoristeno_dana": 0,
@@ -1304,13 +1304,25 @@ else:
 
                             supabase.table("korisnici").update({"godisnji_dani": novi_saldo}).eq("id", kor_id).execute()
 
-                            # Koristimo upsert da izbjegnemo duplicate key error
-                            supabase.table("godisnji_balans").upsert({
-                                "korisnik_id": kor_id,
-                                "godina": tekuca_godina,
-                                "iskoristeno_dana": 0,
-                                "neiskoristeno_dana": dodjeljeni
-                            }).execute()
+                            # Provjeri postoji li balans
+                            balans_check = supabase.table("godisnji_balans")\
+                                .select("count", count="exact")\
+                                .eq("korisnik_id", kor_id)\
+                                .eq("godina", tekuca_godina)\
+                                .execute()
+
+                            if balans_check.count > 0:
+                                supabase.table("godisnji_balans").update({
+                                    "iskoristeno_dana": 0,
+                                    "neiskoristeno_dana": dodjeljeni
+                                }).eq("korisnik_id", kor_id).eq("godina", tekuca_godina).execute()
+                            else:
+                                supabase.table("godisnji_balans").insert({
+                                    "korisnik_id": kor_id,
+                                    "godina": tekuca_godina,
+                                    "iskoristeno_dana": 0,
+                                    "neiskoristeno_dana": dodjeljeni
+                                }).execute()
 
                         st.success(f"Novi godišnji dani dodijeljeni svima za {tekuca_godina}. godinu!")
                         st.rerun()
