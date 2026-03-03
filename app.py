@@ -79,58 +79,59 @@ if st.session_state.stranica == "login":
                 st.error("Korisničko ime ne postoji.")
         except Exception as e:
             st.error(f"Greška pri prijavi: {str(e)}")
+
 else:
-# ────────────────────────────────────────────────
-# SIDEBAR – FINALNA VERZIJA SA OGRANIČENJIMA PO TIPU KORISNIKA
-# ────────────────────────────────────────────────
-with st.sidebar:
-    st.title("Sustav narudžbi")
+    # ────────────────────────────────────────────────
+    # SIDEBAR – FINALNA VERZIJA SA OGRANIČENJIMA PO TIPU KORISNIKA
+    # ────────────────────────────────────────────────
+    with st.sidebar:
+        st.title("Sustav narudžbi")
 
-    # Početna – vidi svi
-    if st.button("🏠 Početna", key="menu_pocetna"):
-        st.session_state.stranica = "početna"
-        st.rerun()
-
-    # Godišnji/Slobodni – vidi svi
-    if st.button("🏖️ Godišnji/Slobodni", key="menu_dokumenti"):
-        st.session_state.stranica = "dokumenti"
-        st.rerun()
-
-    # Samo admin vidi dodatne opcije
-    if st.session_state.user.get("tip_korisnika") == "administrator":
-        if st.button("🛒 Narudžbe", key="menu_narudzbe"):
-            st.session_state.stranica = "narudžbe"
+        # Početna – vidi svi
+        if st.button("🏠 Početna", key="menu_pocetna"):
+            st.session_state.stranica = "početna"
             st.rerun()
 
-        if st.button("🔍 Pretraga narudžbi", key="menu_pretraga"):
-            st.session_state.stranica = "pretraga"
+        # Godišnji/Slobodni – vidi svi
+        if st.button("🏖️ Godišnji/Slobodni", key="menu_dokumenti"):
+            st.session_state.stranica = "dokumenti"
             st.rerun()
 
-        with st.expander("📊 Izvještaji", expanded=False):
-            st.info("Izvještaji dolaze kasnije...")
-
-        with st.expander("⚙️ Administracija", expanded=False):
-            if st.button("📦 Proizvodi", key="admin_proizvodi"):
-                st.session_state.stranica = "admin_proizvodi"
+        # Samo admin vidi dodatne opcije
+        if st.session_state.user.get("tip_korisnika") == "administrator":
+            if st.button("🛒 Narudžbe", key="menu_narudzbe"):
+                st.session_state.stranica = "narudžbe"
                 st.rerun()
 
-            if st.button("🚚 Dobavljači", key="admin_dobavljaci"):
-                st.session_state.stranica = "admin_dobavljaci"
+            if st.button("🔍 Pretraga narudžbi", key="menu_pretraga"):
+                st.session_state.stranica = "pretraga"
                 st.rerun()
 
-            if st.button("👥 Korisnici", key="admin_korisnici"):
-                st.session_state.stranica = "admin_korisnici"
-                st.rerun()
+            with st.expander("📊 Izvještaji", expanded=False):
+                st.info("Izvještaji dolaze kasnije...")
 
-            if st.button("📋 Šifarnici", key="admin_sifarnici"):
-                st.session_state.stranica = "admin_sifarnici"
-                st.rerun()
+            with st.expander("⚙️ Administracija", expanded=False):
+                if st.button("📦 Proizvodi", key="admin_proizvodi"):
+                    st.session_state.stranica = "admin_proizvodi"
+                    st.rerun()
 
-    # Odjava – vidi svi (na dnu)
-    if st.button("➡️ Odjava", key="menu_odjava"):
-        st.session_state.user = None
-        st.session_state.stranica = "login"
-        st.rerun()
+                if st.button("🚚 Dobavljači", key="admin_dobavljaci"):
+                    st.session_state.stranica = "admin_dobavljaci"
+                    st.rerun()
+
+                if st.button("👥 Korisnici", key="admin_korisnici"):
+                    st.session_state.stranica = "admin_korisnici"
+                    st.rerun()
+
+                if st.button("📋 Šifarnici", key="admin_sifarnici"):
+                    st.session_state.stranica = "admin_sifarnici"
+                    st.rerun()
+
+        # Odjava – vidi svi (na dnu)
+        if st.button("➡️ Odjava", key="menu_odjava"):
+            st.session_state.user = None
+            st.session_state.stranica = "login"
+            st.rerun()
 
     # ────────────────────────────────────────────────
     # POČETNA
