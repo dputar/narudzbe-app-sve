@@ -991,13 +991,13 @@ else:
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # Inicijaliziraj session_state za privremeni unos i reset forme
+        # Inicijaliziraj session_state
         if "temp_odmor" not in st.session_state:
             st.session_state.temp_odmor = None
         if "form_reset" not in st.session_state:
             st.session_state.form_reset = False
 
-        # Ručno definirani hrvatski praznici i blagdani za 2026-2040 (koristi date objekat)
+        # Ručno definirani hrvatski praznici i blagdani za 2026-2040
         holidays_dict = {
             2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
             2027: [date(2027, 1, 1), date(2027, 1, 6), date(2027, 3, 28), date(2027, 3, 29), date(2027, 5, 1), date(2027, 5, 27), date(2027, 6, 22), date(2027, 8, 15), date(2027, 11, 1), date(2027, 11, 18), date(2027, 12, 25), date(2027, 12, 26)],
@@ -1051,11 +1051,9 @@ else:
             elif datum_do_input < datum_od_input:
                 st.error("Datum 'do' ne može biti prije 'od'!")
             else:
-                # Pretvori u date za usporedbu
                 datum_od = datum_od_input
                 datum_do = datum_do_input
 
-                # Provjera preklapanja
                 try:
                     odmori_response = supabase.table("odmori").select("*").execute()
                     df_odmori = pd.DataFrame(odmori_response.data or [])
@@ -1079,7 +1077,6 @@ else:
                         }
                         st.rerun()
                     else:
-                        # Ako nema preklapanja, odmah spremi
                         novi = {
                             "korisnik_id": korisnik_id,
                             "datum_od": datum_od.isoformat(),
@@ -1098,7 +1095,6 @@ else:
 
         # Potvrda preklapanja (izvan forme)
         if st.session_state.temp_odmor:
-            # Ponovno dohvati podatke i izračunaj preklapanja
             try:
                 odmori_response = supabase.table("odmori").select("*").execute()
                 df_odmori = pd.DataFrame(odmori_response.data or [])
@@ -1111,7 +1107,7 @@ else:
                     if start <= end:
                         preklapanja += (end - start).days + 1
             except Exception as e:
-                preklapanja = 0  # fallback ako dohvaćanje ne uspije
+                preklapanja = 0
                 st.error(f"Greška pri ponovnom dohvaćanju: {str(e)}")
 
             st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
@@ -1168,13 +1164,11 @@ else:
         # Kalendar sa bojama po korisniku i imenima ispod datuma
         st.subheader("Kalendar preklapanja")
         try:
-            # Odabir godine i mjeseca
             col_year, col_month = st.columns(2)
             year = col_year.selectbox("Godina", range(2025, 2041), index=datetime.now().year - 2025, key="kal_god")
             month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1,
                                         format_func=lambda m: calendar.month_name[m], key="kal_mj")
 
-            # Dohvati sve unose sa imenom korisnika
             odmori_response = supabase.table("odmori")\
                 .select("*, korisnici!inner(ime_prezime)")\
                 .execute()
@@ -1185,18 +1179,16 @@ else:
                 df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
                 df_odmori = df_odmori.drop(columns=["korisnici"])
 
-                # Boje po korisniku
                 unique_users = df_odmori["korisnik_ime"].unique()
                 color_map = {user: plt.cm.tab10(i / len(unique_users)) for i, user in enumerate(unique_users)}
 
-                # Kreiraj kalendar
                 cal = calendar.monthcalendar(year, month)
 
                 fig, ax = plt.subplots(figsize=(12, 8))
                 ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)
                 ax.axis('off')
 
-                # --- DAN U TJEDNU NA VRHU ---
+                # Dani u tjednu na vrhu
                 days = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
                 for i, day in enumerate(days):
                     ax.text(i + 0.5, 0.3, day, ha='center', va='bottom', fontsize=14, fontweight='bold', color='black')
@@ -1206,7 +1198,7 @@ else:
                         if day == 0:
                             continue
                         x = day_num
-                        y = -week_num - 0.8  # pomaknuto niže
+                        y = -week_num - 0.8
                         rect = plt.Rectangle((x, y), 1, -1, fill=False, edgecolor='black', linewidth=1)
                         ax.add_patch(rect)
                         ax.text(x + 0.5, y - 0.5, day, ha='center', va='center', fontsize=12)
@@ -1235,10 +1227,10 @@ else:
                             ax.text(x + 0.5, y - 0.8, user, ha='center', va='center', fontsize=8, color='white')
 
                 ax.set_xlim(0, 7)
-                ax.set_ylim(-7.0, 0.8)  # POPRAVLJENO – zadnji red je vidljiv
+                ax.set_ylim(-7.0, 0.8)  # margina za zadnji red
                 ax.set_aspect('equal')
 
-                fig.tight_layout(pad=4.5)  # veći padding
+                fig.tight_layout(pad=4.5)
 
                 buf = io.BytesIO()
                 fig.savefig(buf, format="png", bbox_inches='tight', dpi=120)
@@ -1253,7 +1245,6 @@ else:
         st.subheader("Pregled po korisniku")
         try:
             if not df_odmori.empty:
-                # Računanje broja radnih dana
                 def calculate_working_days(start_str, end_str, holidays):
                     start = datetime.fromisoformat(start_str).date()
                     end = datetime.fromisoformat(end_str).date()
@@ -1265,7 +1256,6 @@ else:
                         current += timedelta(days=1)
                     return count
 
-                # Dohvati praznike iz baze
                 praznici_response = supabase.table("praznici").select("datum").execute()
                 holidays = {datetime.fromisoformat(p["datum"]).date() for p in praznici_response.data or []}
 
@@ -1283,7 +1273,7 @@ else:
         except Exception as e:
             st.error(f"Greška pri sumiranju: {str(e)}")
 
-        # Gumb za punjenje baze praznika (klikni jednom)
+        # Gumb za punjenje baze praznika
         st.subheader("Puni bazu praznika")
         if st.button("Dodaj praznike za 2026-2040 (klikni jednom)"):
             praznici_data = []
