@@ -1023,31 +1023,35 @@ else:
             st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
             korisnik_options = {}
 
+        # Dohvati ime prijavljenog korisnika (pretpostavljam da je u session_state.user)
+        prijavljeni_korisnik = st.session_state.user.get("ime_prezime", "Nepoznato")
+        prijavljeni_korisnik_id = st.session_state.user.get("id", None)
+
         # Forma za dodavanje odmora
         with st.form("dodaj_odmor_form", clear_on_submit=True):
             st.subheader("Dodaj novi unos godišnjeg / slobodnog dana")
 
-            if korisnik_options:
-                korisnik_ime = st.selectbox("Korisnik", list(korisnik_options.keys()), key="odmor_korisnik")
-                korisnik_id = korisnik_options.get(korisnik_ime)
-            else:
-                st.warning("Nema aktivnih korisnika u bazi.")
-                korisnik_id = None
+            # Korisnik je automatski popunjen s prijavljenom osobom i disabled
+            st.text_input("Korisnik *", value=prijavljeni_korisnik, disabled=True, key="odmor_korisnik_auto")
 
             col1, col2 = st.columns(2)
-            datum_od_input = col1.date_input("Datum od", value=datetime.today(), key="odmor_datum_od")
-            datum_do_input = col2.date_input("Datum do", value=datetime.today(), key="odmor_datum_do")
+            datum_od_input = col1.date_input("Datum od *", value=None, key="odmor_datum_od")
+            datum_do_input = col2.date_input("Datum do *", value=None, key="odmor_datum_do")
 
-            tip_odmora = st.selectbox("Tip odsustva", ["Godišnji odmor", "Slobodni dan", "Bolovanje", "Ostalo"], key="odmor_tip")
+            tip_odmora = st.selectbox("Tip odsustva *", [""] + ["Godišnji odmor", "Slobodni dan", "Bolovanje", "Ostalo"], index=0, key="odmor_tip")
             napomena = st.text_area("Napomena (opcionalno)", key="odmor_napomena")
 
             submitted = st.form_submit_button("Dodaj unos", type="primary")
 
         if submitted:
-            if not korisnik_id:
-                st.error("Odaberi korisnika!")
+            if not prijavljeni_korisnik_id:
+                st.error("Nema prijavljenog korisnika!")
+            elif not datum_od_input or not datum_do_input:
+                st.error("Datum od i Datum do su obavezni!")
             elif datum_do_input < datum_od_input:
                 st.error("Datum 'do' ne može biti prije 'od'!")
+            elif tip_odmora == "":
+                st.error("Tip odsustva je obavezan!")
             else:
                 datum_od = datum_od_input
                 datum_do = datum_do_input
@@ -1067,7 +1071,7 @@ else:
 
                     if preklapanja > 0:
                         st.session_state.temp_odmor = {
-                            "korisnik_id": korisnik_id,
+                            "korisnik_id": prijavljeni_korisnik_id,
                             "datum_od": datum_od,
                             "datum_do": datum_do,
                             "tip": tip_odmora,
@@ -1077,7 +1081,7 @@ else:
                         st.rerun()
                     else:
                         novi = {
-                            "korisnik_id": korisnik_id,
+                            "korisnik_id": prijavljeni_korisnik_id,
                             "datum_od": datum_od.isoformat(),
                             "datum_do": datum_do.isoformat(),
                             "tip": tip_odmora,
@@ -1092,7 +1096,7 @@ else:
                 except Exception as e:
                     st.error(f"Greška pri provjeri/spremanju: {str(e)}")
 
-        # Potvrda preklapanja
+        # Potvrda preklapanja (izvan forme)
         if st.session_state.temp_odmor:
             try:
                 odmori_response = supabase.table("odmori").select("*").execute()
@@ -1136,7 +1140,7 @@ else:
             st.session_state.form_reset = False
             st.rerun()
 
-        # Prikaz i uređivanje/brisanje unosa + logiranje
+        # Prikaz i uređivanje/brisanje unosa
         st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje i brisanje)")
         try:
             odmori_response = supabase.table("odmori")\
@@ -1150,10 +1154,8 @@ else:
                 df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
                 df_odmori = df_odmori.drop(columns=["korisnici"])
 
-                # Dodaj checkbox za brisanje
                 df_odmori["Obriši"] = False
 
-                # Prikaz editable tablice
                 edited_df = st.data_editor(
                     df_odmori[["id", "korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at", "Obriši"]],
                     column_config={
@@ -1169,19 +1171,13 @@ else:
                     key="odmori_editor"
                 )
 
-                # Gumb za spremanje izmjena i brisanje + logiranje
                 if st.button("Spremi izmjene i obriši označene"):
-                    changes_made = False
                     to_delete = []
                     for idx, row in edited_df.iterrows():
                         original_row = df_odmori.loc[idx]
-                        row_id = row["id"]
 
-                        # Brisanje
                         if row["Obriši"]:
-                            to_delete.append(row_id)
-                            changes_made = True
-                            # Logiranje brisanja
+                            to_delete.append(row["id"])
                             log = {
                                 "action": "delete",
                                 "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
@@ -1191,7 +1187,6 @@ else:
                             supabase.table("log_odmori").insert(log).execute()
                             continue
 
-                        # Update samo ako je nešto stvarno promijenjeno
                         changed_fields = {}
                         for field in ["datum_od", "datum_do", "tip", "napomena"]:
                             if row[field] != original_row[field]:
@@ -1201,10 +1196,8 @@ else:
                                 }
 
                         if changed_fields:
-                            changes_made = True
                             update_data = {k: row[k] for k in changed_fields}
-                            supabase.table("odmori").update(update_data).eq("id", row_id).execute()
-                            # Logiranje samo promijenjenih polja
+                            supabase.table("odmori").update(update_data).eq("id", row["id"]).execute()
                             log = {
                                 "action": "update",
                                 "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
@@ -1214,23 +1207,18 @@ else:
                             }
                             supabase.table("log_odmori").insert(log).execute()
 
-                    # Izvrši brisanje nakon petlje
                     if to_delete:
                         for rec_id in to_delete:
                             supabase.table("odmori").delete().eq("id", rec_id).execute()
 
-                    if changes_made:
-                        st.success("Izmjene i brisanja spremljeni!")
-                    else:
-                        st.info("Nema promjena za spremiti.")
-
+                    st.success("Izmjene i brisanja spremljeni!")
                     st.rerun()
             else:
                 st.info("Još nema unosa.")
         except Exception as e:
             st.error(f"Greška pri dohvaćanju/uređivanju unosa: {str(e)}")
 
-        # Kalendar sa bojama po korisniku i imenima ispod datuma
+        # Kalendar
         st.subheader("Kalendar preklapanja")
         try:
             col_year, col_month = st.columns(2)
