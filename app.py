@@ -1323,10 +1323,14 @@ else:
         except Exception as e:
             st.error(f"Greška pri prikazu kalendara: {str(e)}")
 
-        # Pregled po korisniku
+        # Pregled po korisniku – ograničen po tipu korisnika
         st.subheader("Pregled po korisniku")
         try:
             if not df_odmori.empty:
+                # Ako nije admin – prikazuj samo svoje podatke
+                if tip_korisnika != "administrator":
+                    df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
+
                 def calculate_working_days(start_str, end_str, holidays):
                     start = datetime.fromisoformat(start_str).date()
                     end = datetime.fromisoformat(end_str).date()
