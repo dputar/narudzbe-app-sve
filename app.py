@@ -1024,12 +1024,12 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA PRAVILNIM POVRATOM DANA
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # Definiraj funkciju za izračun radnih dana
+        # Definiraj funkciju za izračun radnih dana (preskače vikende i praznike)
         def calculate_working_days(start_str, end_str, holidays):
             start = datetime.fromisoformat(start_str).date()
             end = datetime.fromisoformat(end_str).date()
@@ -1265,7 +1265,7 @@ else:
             st.session_state.form_reset = False
             st.rerun()
 
-        # Administrativne radnje – samo za admina
+        # Administrativne radnje – SAMO ZA ADMINISTRATORA
         if tip_korisnika == "administrator":
             st.subheader("Administrativne radnje")
 
@@ -1282,7 +1282,6 @@ else:
 
                             supabase.table("korisnici").update({"godisnji_dani": novi_saldo}).eq("id", kor_id).execute()
 
-                            # Koristimo upsert da izbjegnemo duplicate key error
                             supabase.table("godisnji_balans").upsert({
                                 "korisnik_id": kor_id,
                                 "godina": tekuca_godina,
@@ -1322,7 +1321,7 @@ else:
                     except Exception as e:
                         st.error(f"Greška pri konverziji: {str(e)}")
 
-        # Prikaz i uređivanje/brisanje unosa – OVDJE JE DODANA LOGIKA POVRATA DANA
+        # Prikaz i uređivanje/brisanje unosa
         st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje i brisanje)")
         try:
             odmori_response = supabase.table("odmori")\
@@ -1361,7 +1360,6 @@ else:
                     for idx, row in edited_df.iterrows():
                         original_row = df_odmori.loc[idx]
 
-                        # Brisanje retka – VRAĆAMO DANE
                         if row["Obriši"]:
                             to_delete.append(row["id"])
                             log = {
@@ -1372,7 +1370,6 @@ else:
                             }
                             supabase.table("log_odmori").insert(log).execute()
 
-                            # Računamo koliko dana treba vratiti
                             broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
 
                             if original_row["tip"] == "Godišnji odmor":
@@ -1384,7 +1381,6 @@ else:
 
                             continue
 
-                        # Uređivanje – provjeravamo promjene i prilagođavamo saldo
                         changed_fields = {}
                         for field in ["datum_od", "datum_do", "tip", "napomena"]:
                             if row[field] != original_row[field]:
@@ -1405,14 +1401,10 @@ else:
                             }
                             supabase.table("log_odmori").insert(log).execute()
 
-                            # Ako je promijenjen tip ili datumi – prilagođavamo saldo
                             if "tip" in changed_fields or "datum_od" in changed_fields or "datum_do" in changed_fields:
-                                # Stari broj dana
                                 stari_broj = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
-                                # Novi broj dana
                                 novi_broj = calculate_working_days(row["datum_od"], row["datum_do"], holidays_dict.get(tekuca_godina, []))
 
-                                # Ako je tip ostao isti
                                 if original_row["tip"] == row["tip"]:
                                     if original_row["tip"] == "Godišnji odmor":
                                         razlika = stari_broj - novi_broj
@@ -1423,7 +1415,6 @@ else:
                                         novi_slobodni = preostalo_slobodnih + razlika
                                         supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
                                 else:
-                                    # Tip se promijenio – vraćamo stare dane i oduzimamo nove
                                     if original_row["tip"] == "Godišnji odmor":
                                         supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
                                     elif original_row["tip"] == "Slobodni dan":
@@ -1550,25 +1541,44 @@ else:
         except Exception as e:
             st.error(f"Greška pri sumiranju: {str(e)}")
 
-        # Gumb za punjenje baze praznika
-        st.subheader("Puni bazu praznika")
-        if st.button("Dodaj praznike za 2026-2040 (klikni jednom)"):
-            praznici_data = []
-            for year in range(2026, 2041):
-                praznici = holidays_dict.get(year, [])
-                for datum in praznici:
-                    praznici_data.append({
-                        "datum": datum.isoformat(),
-                        "naziv": "Hrvatski praznik/blagdan"
-                    })
-            try:
-                supabase.table("praznici").insert(praznici_data).execute()
-                st.success("Praznici uspješno dodani u bazu!")
-            except Exception as e:
-                st.error(f"Greška pri dodavanju praznika: {str(e)}")
+        # Gumb za punjenje baze praznika – SAMO ZA ADMINISTRATORA
+        if tip_korisnika == "administrator":
+            st.subheader("Puni bazu praznika")
+            if st.button("Dodaj praznike za 2026-2040 (klikni jednom)"):
+                praznici_data = []
+                for year in range(2026, 2041):
+                    praznici = holidays_dict.get(year, [])
+                    for datum in praznici:
+                        praznici_data.append({
+                            "datum": datum.isoformat(),
+                            "naziv": "Hrvatski praznik/blagdan"
+                        })
+                try:
+                    supabase.table("praznici").insert(praznici_data).execute()
+                    st.success("Praznici uspješno dodani u bazu!")
+                except Exception as e:
+                    st.error(f"Greška pri dodavanju praznika: {str(e)}")
 
         # Prikaz log tablice (needitabilna)
         st.subheader("Log izmjena i brisanja")
+        try:
+            log_response = supabase.table("log_odmori")\
+                .select("*")\
+                .order("created_at", desc=True)\
+                .execute()
+
+            df_log = pd.DataFrame(log_response.data or [])
+
+            if not df_log.empty:
+                st.dataframe(
+                    df_log[["action", "unio_korisnik", "old_data", "new_data", "created_at"]],
+                    use_container_width=True,
+                    hide_index=True
+                )
+            else:
+                st.info("Još nema log zapisa.")
+        except Exception as e:
+            st.error(f"Greška pri dohvaćanju loga: {str(e)}")
         try:
             log_response = supabase.table("log_odmori")\
                 .select("*")\
