@@ -1478,7 +1478,7 @@ else:
 
                                 # Podešene koordinate za centriranje teksta na točkicama (prilagodio prema slici)
                                 # y je od dna stranice (0 dolje, height gore)
-                                c.drawCentredString(width / 2 - 50*mm, height - 140*mm, ime_prezime)  # ime centrirano
+                                c.drawCentredString(width / 2 - 50*mm, height - 120*mm, ime_prezime)  # ime centrirano
                                 c.drawCentredString(width / 2 + 50*mm, height - 160*mm, broj_dana)  # broj dana centrirano
                                 c.drawCentredString(width / 2 - 50*mm, height - 180*mm, datum_od)  # datum od centrirano
                                 c.drawCentredString(width / 2 + 50*mm, height - 180*mm, datum_do)  # datum do centrirano
