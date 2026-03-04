@@ -1023,7 +1023,7 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA REPORTLAB PDF IZVOZOM + SLIKA
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA REPORTLAB PDF IZVOZOM + LOGO
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -1032,7 +1032,7 @@ else:
         import io
         import json
 
-        # Definiraj funkciju za izračun radnih dana
+        # Funkcija za izračun radnih dana
         def calculate_working_days(start_str, end_str, holidays):
             start = datetime.fromisoformat(start_str).date()
             end = datetime.fromisoformat(end_str).date()
@@ -1456,6 +1456,7 @@ else:
                         from reportlab.pdfbase import pdfmetrics
                         from reportlab.pdfbase.ttfonts import TTFont
                         from reportlab.lib.units import mm
+                        from reportlab.lib.colors import black
 
                         for idx, row in edited_df.iterrows():
                             if row["Izvezi PDF"]:
@@ -1465,30 +1466,37 @@ else:
                                 c = canvas.Canvas(buffer, pagesize=A4)
                                 width, height = A4
 
-                                # Registriraj font za hrvatske znakove (DejaVuSans)
+                                # Registriraj font za hrvatske znakove
                                 try:
                                     pdfmetrics.registerFont(TTFont('DejaVu', 'fonts/DejaVuSans.ttf'))
                                     c.setFont('DejaVu', 12)
                                 except:
-                                    c.setFont('Helvetica', 12)  # fallback
+                                    c.setFont('Helvetica', 12)
 
-                                # Zaglavlje firme
-                                y = height - 40*mm
+                                # Logo na vrhu (lijevo ili centrirano – prilagodi po potrebi)
+                                try:
+                                    c.drawImage("logo.png", 30*mm, height - 50*mm, width=40*mm, height=40*mm)
+                                except Exception as img_error:
+                                    st.warning(f"Logo nije pronađen: {img_error}. Dodaj logo.png u root.")
+
+                                # Header firme
+                                y = height - 55*mm
+                                c.setFont('DejaVu', 10)
                                 c.drawCentredString(width/2, y, "Medicline d.o.o.")
-                                y -= 8*mm
+                                y -= 5*mm
                                 c.drawCentredString(width/2, y, "Vinogradska 217, 31000 Osijek, Hrvatska")
-                                y -= 8*mm
+                                y -= 5*mm
                                 c.drawCentredString(width/2, y, "tel.: +385 (0) 31 625 302   e-mail: info@medicline.hr")
-                                y -= 8*mm
+                                y -= 5*mm
                                 c.drawCentredString(width/2, y, "web: http://www.medicline.hr")
-                                y -= 20*mm
+                                y -= 15*mm
 
-                                # Naslov
+                                # Naslov – bold i centriran
+                                c.setFont('DejaVu', 14)
                                 title = "ZAHTJEV ZA KORIŠTENJE GODIŠNJEG ODMORA" if original_row["tip"] == "Godišnji odmor" else "ZAHTJEV ZA KORIŠTENJE SLOBODNIH DANA"
-                                c.setFont('DejaVu' if 'DejaVu' in pdfmetrics.getRegisteredFontNames() else 'Helvetica', 14)
                                 c.drawCentredString(width/2, y, title)
                                 y -= 20*mm
-                                c.setFont('DejaVu' if 'DejaVu' in pdfmetrics.getRegisteredFontNames() else 'Helvetica', 12)
+                                c.setFont('DejaVu', 12)
 
                                 # Tekst zahtjeva
                                 ime_prezime = original_row["korisnik_ime"]
@@ -1521,14 +1529,18 @@ else:
                                 y -= 60*mm
                                 c.drawString(30*mm, y, "POTPIS DJELATNIKA:")
                                 c.drawString(width/2 + 20*mm, y, "ODOBRIO:")
-                                c.line(30*mm, y - 10*mm, 80*mm, y - 10*mm)
-                                c.line(width/2 + 20*mm, y - 10*mm, width - 30*mm, y - 10*mm)
+                                c.line(30*mm, y - 5*mm, 80*mm, y - 5*mm)
+                                c.line(width/2 + 20*mm, y - 5*mm, width - 30*mm, y - 5*mm)
 
-                                # Dodaj sliku (image1.png) na dnu desno
+                                # Logo na dnu (kao u originalu)
                                 try:
-                                    c.drawImage("image1.png", width - 60*mm, y - 40*mm, width=40*mm, height=40*mm)
-                                except Exception as img_error:
-                                    st.warning(f"Slika image1.png nije pronađena: {img_error}. Dodaj je u root projekta.")
+                                    c.drawImage("logo.png", width - 60*mm, 20*mm, width=30*mm, height=30*mm)
+                                except:
+                                    pass  # ako slika nije tu, preskoči
+
+                                # Broj stranice na dnu
+                                c.setFont('DejaVu', 10)
+                                c.drawString(width - 30*mm, 10*mm, "1")
 
                                 c.showPage()
                                 c.save()
@@ -1679,7 +1691,7 @@ else:
             df_log = pd.DataFrame(log_response.data or [])
 
             if not df_log.empty:
-                # Pretvori dikt u string za old_data i new_data
+                # Pretvori dikt u string za old_data i new_data da izbjegneš Arrow grešku
                 if 'old_data' in df_log.columns:
                     df_log['old_data'] = df_log['old_data'].apply(
                         lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
