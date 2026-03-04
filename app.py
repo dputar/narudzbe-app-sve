@@ -1022,9 +1022,6 @@ else:
 
 
 
-    # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA PDF OVERLAY (go1.pdf + podaci centrirani)
-    # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
@@ -1178,6 +1175,7 @@ else:
                     df_odmori = pd.DataFrame(odmori_response.data or [])
 
                     preklapanja = 0
+                    preklapanja_ista_osoba = 0
                     for _, row in df_odmori.iterrows():
                         start_db = datetime.fromisoformat(row["datum_od"]).date()
                         end_db = datetime.fromisoformat(row["datum_do"]).date()
@@ -1185,6 +1183,12 @@ else:
                         end = min(datum_do, end_db)
                         if start <= end:
                             preklapanja += (end - start).days + 1
+                            if row["korisnik_id"] == korisnik_id:
+                                preklapanja_ista_osoba += (end - start).days + 1
+
+                    if preklapanja_ista_osoba > 0:
+                        st.error("Ista osoba već ima upis na preklapajuće datume! Ne može se dodati dupli unos.")
+                        st.stop()
 
                     if preklapanja > 0:
                         st.session_state.temp_odmor = {
@@ -1229,6 +1233,7 @@ else:
                 odmori_response = supabase.table("odmori").select("*").execute()
                 df_odmori = pd.DataFrame(odmori_response.data or [])
                 preklapanja = 0
+                preklapanja_ista_osoba = 0
                 for _, row in df_odmori.iterrows():
                     start_db = datetime.fromisoformat(row["datum_od"]).date()
                     end_db = datetime.fromisoformat(row["datum_do"]).date()
@@ -1236,40 +1241,47 @@ else:
                     end = min(st.session_state.temp_odmor["datum_do"], end_db)
                     if start <= end:
                         preklapanja += (end - start).days + 1
+                        if row["korisnik_id"] == st.session_state.temp_odmor["korisnik_id"]:
+                            preklapanja_ista_osoba += (end - start).days + 1
+
+                if preklapanja_ista_osoba > 0:
+                    st.error("Ista osoba već ima upis na preklapajuće datume! Ne može se dodati.")
+                    st.session_state.temp_odmor = None
+                    st.rerun()
+                    return
+
+                st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
+                col1, col2 = st.columns(2)
+                if col1.button("Potvrdi dodavanje sa preklapanjem"):
+                    novi = {
+                        "korisnik_id": st.session_state.temp_odmor["korisnik_id"],
+                        "datum_od": st.session_state.temp_odmor["datum_od"].isoformat(),
+                        "datum_do": st.session_state.temp_odmor["datum_do"].isoformat(),
+                        "tip": st.session_state.temp_odmor["tip"],
+                        "napomena": st.session_state.temp_odmor["napomena"],
+                        "unio_korisnik": st.session_state.temp_odmor["unio_korisnik"],
+                        "created_at": datetime.now(TZ).isoformat()
+                    }
+                    supabase.table("odmori").insert(novi).execute()
+
+                    broj_dana = st.session_state.temp_odmor["broj_dana"]
+                    if st.session_state.temp_odmor["tip"] == "Godišnji odmor":
+                        novi_saldo = preostalo_godisnje - broj_dana
+                        supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
+                    elif st.session_state.temp_odmor["tip"] == "Slobodni dan":
+                        novi_slobodni = preostalo_slobodnih - broj_dana
+                        supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
+
+                    st.success("Unos dodan sa preklapanjem!")
+                    st.session_state.temp_odmor = None
+                    st.session_state.form_reset = True
+                    st.rerun()
+                if col2.button("Odustani"):
+                    st.session_state.temp_odmor = None
+                    st.session_state.form_reset = True
+                    st.rerun()
             except Exception as e:
-                preklapanja = 0
                 st.error(f"Greška pri ponovnom dohvaćanju: {str(e)}")
-
-            st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
-            col1, col2 = st.columns(2)
-            if col1.button("Potvrdi dodavanje sa preklapanjem"):
-                novi = {
-                    "korisnik_id": st.session_state.temp_odmor["korisnik_id"],
-                    "datum_od": st.session_state.temp_odmor["datum_od"].isoformat(),
-                    "datum_do": st.session_state.temp_odmor["datum_do"].isoformat(),
-                    "tip": st.session_state.temp_odmor["tip"],
-                    "napomena": st.session_state.temp_odmor["napomena"],
-                    "unio_korisnik": st.session_state.temp_odmor["unio_korisnik"],
-                    "created_at": datetime.now(TZ).isoformat()
-                }
-                supabase.table("odmori").insert(novi).execute()
-
-                broj_dana = st.session_state.temp_odmor["broj_dana"]
-                if st.session_state.temp_odmor["tip"] == "Godišnji odmor":
-                    novi_saldo = preostalo_godisnje - broj_dana
-                    supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
-                elif st.session_state.temp_odmor["tip"] == "Slobodni dan":
-                    novi_slobodni = preostalo_slobodnih - broj_dana
-                    supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
-
-                st.success("Unos dodan sa preklapanjem!")
-                st.session_state.temp_odmor = None
-                st.session_state.form_reset = True
-                st.rerun()
-            if col2.button("Odustani"):
-                st.session_state.temp_odmor = None
-                st.session_state.form_reset = True
-                st.rerun()
 
         # Reset forme nakon dodavanja
         if st.session_state.form_reset:
@@ -1332,44 +1344,26 @@ else:
                     except Exception as e:
                         st.error(f"Greška pri konverziji: {str(e)}")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF (reportlab + pypdf overlay)
+        # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF
         st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
         try:
             odmori_response = supabase.table("odmori")\
                 .select("*, korisnici!inner(ime_prezime)")\
                 .order("datum_od", desc=True)\
                 .execute()
+
             df_odmori = pd.DataFrame(odmori_response.data or [])
+
             if not df_odmori.empty:
                 df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
                 df_odmori = df_odmori.drop(columns=["korisnici"])
+
                 df_odmori["Obriši"] = False
                 df_odmori["Izvezi PDF"] = False
+
                 if tip_korisnika != "administrator":
                     df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
+
                 edited_df = st.data_editor(
                     df_odmori[["id", "korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at", "Obriši", "Izvezi PDF"]],
                     column_config={
@@ -1385,12 +1379,14 @@ else:
                     num_rows="fixed",
                     key="odmori_editor"
                 )
+
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button("Spremi izmjene i obriši označene"):
                         to_delete = []
                         for idx, row in edited_df.iterrows():
                             original_row = df_odmori.loc[idx]
+
                             if row["Obriši"]:
                                 to_delete.append(row["id"])
                                 log = {
@@ -1400,14 +1396,18 @@ else:
                                     "created_at": datetime.now(TZ).isoformat()
                                 }
                                 supabase.table("log_odmori").insert(log).execute()
+
                                 broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
+
                                 if original_row["tip"] == "Godišnji odmor":
                                     novi_saldo = preostalo_godisnje + broj_dana
                                     supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
                                 elif original_row["tip"] == "Slobodni dan":
                                     novi_slobodni = preostalo_slobodnih + broj_dana
                                     supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+
                                 continue
+
                             changed_fields = {}
                             for field in ["datum_od", "datum_do", "tip", "napomena"]:
                                 if row[field] != original_row[field]:
@@ -1415,6 +1415,7 @@ else:
                                         "old": original_row[field],
                                         "new": row[field]
                                     }
+
                             if changed_fields:
                                 update_data = {k: row[k] for k in changed_fields}
                                 supabase.table("odmori").update(update_data).eq("id", row["id"]).execute()
@@ -1426,9 +1427,11 @@ else:
                                     "created_at": datetime.now(TZ).isoformat()
                                 }
                                 supabase.table("log_odmori").insert(log).execute()
+
                                 if "tip" in changed_fields or "datum_od" in changed_fields or "datum_do" in changed_fields:
                                     stari_broj = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                     novi_broj = calculate_working_days(row["datum_od"], row["datum_do"], holidays_dict.get(tekuca_godina, []))
+
                                     if original_row["tip"] == row["tip"]:
                                         if original_row["tip"] == "Godišnji odmor":
                                             razlika = stari_broj - novi_broj
@@ -1443,17 +1446,21 @@ else:
                                             supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
                                         elif original_row["tip"] == "Slobodni dan":
                                             supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
+
                                         if row["tip"] == "Godišnji odmor":
                                             novi_saldo = preostalo_godisnje - novi_broj
                                             supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
                                         elif row["tip"] == "Slobodni dan":
                                             novi_slobodni = preostalo_slobodnih - novi_broj
                                             supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+
                         if to_delete:
                             for rec_id in to_delete:
                                 supabase.table("odmori").delete().eq("id", rec_id).execute()
+
                         st.success("Izmjene i brisanja spremljeni! Saldo ažuriran.")
                         st.rerun()
+
                 with col2:
                     if st.button("Izvezi označene u PDF"):
                         from reportlab.lib.pagesizes import A4
@@ -1464,7 +1471,7 @@ else:
                         for idx, row in edited_df.iterrows():
                             if row["Izvezi PDF"]:
                                 original_row = df_odmori.loc[idx]
-                                # Odaberi pravi template
+                                # Odaberi template ovisno o tipu
                                 if original_row["tip"] == "Godišnji odmor":
                                     template_file = "go1.pdf"
                                 elif original_row["tip"] == "Slobodni dan":
@@ -1580,89 +1587,3 @@ else:
                 st.info("Nema unosa za prikaz kalendara.")
         except Exception as e:
             st.error(f"Greška pri prikazu kalendara: {str(e)}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        # Pregled po korisniku
-        st.subheader("Pregled po korisniku")
-        try:
-            if not df_odmori.empty:
-                if tip_korisnika != "administrator":
-                    df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
-
-                praznici_response = supabase.table("praznici").select("datum").execute()
-                holidays = {datetime.fromisoformat(p["datum"]).date() for p in praznici_response.data or []}
-
-                df_odmori["broj_dana"] = df_odmori.apply(lambda row: calculate_working_days(row["datum_od"], row["datum_do"], holidays), axis=1)
-
-                summary = df_odmori.groupby("korisnik_ime").agg(
-                    ukupno_dana=("broj_dana", "sum"),
-                    broj_unosa=("id", "count")
-                ).reset_index()
-
-                st.dataframe(summary, use_container_width=True, hide_index=True)
-                st.info("Napomena: Broj dana isključuje vikende i praznike/blagdane.")
-            else:
-                st.info("Nema podataka za pregled.")
-        except Exception as e:
-            st.error(f"Greška pri sumiranju: {str(e)}")
-
-        # Puni bazu praznika – SAMO ZA ADMINISTRATORA
-        if tip_korisnika == "administrator":
-            st.subheader("Puni bazu praznika")
-            if st.button("Dodaj praznike za 2026-2040 (klikni jednom)"):
-                praznici_data = []
-                for year in range(2026, 2041):
-                    praznici = holidays_dict.get(year, [])
-                    for datum in praznici:
-                        praznici_data.append({
-                            "datum": datum.isoformat(),
-                            "naziv": "Hrvatski praznik/blagdan"
-                        })
-                try:
-                    supabase.table("praznici").insert(praznici_data).execute()
-                    st.success("Praznici uspješno dodani u bazu!")
-                except Exception as e:
-                    st.error(f"Greška pri dodavanju praznika: {str(e)}")
-
-        # Prikaz log tablice – SAMO JEDAN PUT
-        st.subheader("Log izmjena i brisanja")
-        try:
-            log_response = supabase.table("log_odmori")\
-                .select("*")\
-                .order("created_at", desc=True)\
-                .execute()
-
-            df_log = pd.DataFrame(log_response.data or [])
-
-            if not df_log.empty:
-                # Pretvori dikt u string za old_data i new_data
-                if 'old_data' in df_log.columns:
-                    df_log['old_data'] = df_log['old_data'].apply(
-                        lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
-                    )
-                if 'new_data' in df_log.columns:
-                    df_log['new_data'] = df_log['new_data'].apply(
-                        lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
-                    )
-
-                st.dataframe(
-                    df_log[["action", "unio_korisnik", "old_data", "new_data", "created_at"]],
-                    use_container_width=True,
-                    hide_index=True
-                )
-            else:
-                st.info("Još nema log zapisa.")
-        except Exception as e:
-            st.error(f"Greška pri dohvaćanju loga: {str(e)}")
