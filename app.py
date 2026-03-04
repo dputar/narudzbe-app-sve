@@ -1023,7 +1023,7 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA REPORTLAB PDF IZVOZOM + LOGO
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA REPORTLAB + TOČKICE + LOGO
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -1332,7 +1332,7 @@ else:
                     except Exception as e:
                         st.error(f"Greška pri konverziji: {str(e)}")
 
-        # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF (reportlab sa slikom)
+        # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF (reportlab sa preciznim točkicama)
         st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
         try:
             odmori_response = supabase.table("odmori")\
@@ -1473,13 +1473,13 @@ else:
                                 except:
                                     c.setFont('Helvetica', 12)
 
-                                # Logo na vrhu (lijevo ili centrirano – prilagodi po potrebi)
+                                # Logo na vrhu (centriran ili lijevo – prilagodi po potrebi)
                                 try:
-                                    c.drawImage("logo.png", 30*mm, height - 50*mm, width=40*mm, height=40*mm)
+                                    c.drawImage("logo.png", width/2 - 20*mm, height - 50*mm, width=40*mm, height=40*mm)
                                 except Exception as img_error:
                                     st.warning(f"Logo nije pronađen: {img_error}. Dodaj logo.png u root.")
 
-                                # Header firme
+                                # Header firme ispod loga
                                 y = height - 55*mm
                                 c.setFont('DejaVu', 10)
                                 c.drawCentredString(width/2, y, "Medicline d.o.o.")
@@ -1498,7 +1498,7 @@ else:
                                 y -= 20*mm
                                 c.setFont('DejaVu', 12)
 
-                                # Tekst zahtjeva
+                                # Tekst zahtjeva sa točkicama (centrirano na sredini linija)
                                 ime_prezime = original_row["korisnik_ime"]
                                 broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                 datum_od = datetime.fromisoformat(original_row["datum_od"]).strftime("%d.%m.%Y.")
@@ -1507,26 +1507,21 @@ else:
                                 datum_podnosenja = datetime.fromisoformat(original_row["created_at"]).strftime("%d.%m.%Y.")
 
                                 text_object = c.beginText(30*mm, y)
-                                text_object.textLines(f"Ja, {ime_prezime} molim da mi se odobri korištenje")
-                                if original_row["tip"] == "Godišnji odmor":
-                                    text_object.textLines(f"godišnjeg odmora u trajanju od {broj_dana} dan/a.")
-                                else:
-                                    text_object.textLines(f"slobodnih dana u trajanju od {broj_dana} dan/a.")
+                                text_object.textLine("Ja, ...................................................... molim da mi se odobri korištenje")
+                                text_object.setTextOrigin(30*mm, y - 10*mm)
+                                text_object.textLine(f"{'godišnjeg odmora' if original_row['tip'] == 'Godišnji odmor' else 'slobodnih dana'} u trajanju od {broj_dana} dan/a.")
                                 y -= 40*mm
                                 text_object.setTextOrigin(30*mm, y)
-                                text_object.textLines(f"{'Godišnji odmor' if original_row['tip'] == 'Godišnji odmor' else 'Slobodne dane'} počeo/la bih {datum_od} godine, a završio/la bi {datum_do} godine.")
-                                y -= 20*mm
+                                text_object.textLine(f"{'Godišnji odmor' if original_row['tip'] == 'Godišnji odmor' else 'Slobodne dane'} počeo/la bih {datum_od} godine, a završio/la bi {datum_do} godine.")
+                                y -= 10*mm
                                 text_object.setTextOrigin(30*mm, y)
                                 text_object.textLine(f"Prvi radni dan nakon odsustva: {prvi_radni_dan}.")
-                                y -= 40*mm
-                                text_object.setTextOrigin(30*mm, y)
-                                text_object.textLine(f".......................................")
-                                text_object.setTextOrigin(width/2 - 30*mm, y - 10*mm)
-                                text_object.textLine(f"({datum_podnosenja})")
-                                c.drawText(text_object)
+                                y -= 20*mm
 
-                                # Potpisi
-                                y -= 60*mm
+                                # Centrirani datum i potpis
+                                c.drawCentredString(width/2, y, f"({datum_podnosenja})")
+                                y -= 30*mm
+
                                 c.drawString(30*mm, y, "POTPIS DJELATNIKA:")
                                 c.drawString(width/2 + 20*mm, y, "ODOBRIO:")
                                 c.line(30*mm, y - 5*mm, 80*mm, y - 5*mm)
@@ -1536,9 +1531,9 @@ else:
                                 try:
                                     c.drawImage("logo.png", width - 60*mm, 20*mm, width=30*mm, height=30*mm)
                                 except:
-                                    pass  # ako slika nije tu, preskoči
+                                    pass  # preskoči ako nema slike
 
-                                # Broj stranice na dnu
+                                # Broj stranice
                                 c.setFont('DejaVu', 10)
                                 c.drawString(width - 30*mm, 10*mm, "1")
 
@@ -1691,7 +1686,7 @@ else:
             df_log = pd.DataFrame(log_response.data or [])
 
             if not df_log.empty:
-                # Pretvori dikt u string za old_data i new_data da izbjegneš Arrow grešku
+                # Pretvori dikt u string za old_data i new_data
                 if 'old_data' in df_log.columns:
                     df_log['old_data'] = df_log['old_data'].apply(
                         lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
