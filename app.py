@@ -1023,7 +1023,7 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA REPORTLAB + TEMPLATE SLIKA
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA: PDF = image1.png + podaci centrirani na točkice
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -1332,7 +1332,7 @@ else:
                     except Exception as e:
                         st.error(f"Greška pri konverziji: {str(e)}")
 
-        # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF (reportlab sa template slikom)
+        # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF (reportlab + template image1.png)
         st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
         try:
             odmori_response = supabase.table("odmori")\
@@ -1454,7 +1454,6 @@ else:
                         from reportlab.lib.pagesizes import A4
                         from reportlab.pdfgen import canvas
                         from reportlab.lib.units import mm
-                        from reportlab.lib.colors import black
 
                         for idx, row in edited_df.iterrows():
                             if row["Izvezi PDF"]:
@@ -1471,24 +1470,37 @@ else:
                                     st.error(f"Slika image1.png nije pronađena: {img_error}. Dodaj je u root projekta i redeployaj.")
                                     continue
 
-                                # Piši samo podatke preko template-a (tekst centriran na točkicama)
-                                c.setFont('Helvetica', 12)  # ili 'DejaVu' ako želiš
+                                # Piši samo podatke preko template-a (centrirano na točkicama)
+                                c.setFont('Helvetica', 12)  # ili 'DejaVu' ako imaš font
 
                                 ime_prezime = original_row["korisnik_ime"]
-                                broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
+                                broj_dana = str(calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, [])))
                                 datum_od = datetime.fromisoformat(original_row["datum_od"]).strftime("%d.%m.%Y.")
                                 datum_do = datetime.fromisoformat(original_row["datum_do"]).strftime("%d.%m.%Y.")
                                 prvi_radni_dan = find_next_working_day(original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                 datum_podnosenja = datetime.fromisoformat(original_row["created_at"]).strftime("%d.%m.%Y.")
 
-                                # Točne pozicije za tekst (prilagodi ako treba nakon testa)
-                                # Koordinate su u mm, od donjeg lijevog ugla
-                                c.drawString(80*mm, 220*mm, ime_prezime)  # ime na sredini prve točkice
-                                c.drawString(140*mm, 200*mm, str(broj_dana))  # broj dana na sredini
-                                c.drawString(80*mm, 180*mm, datum_od)  # datum od
-                                c.drawString(140*mm, 180*mm, datum_do)  # datum do
-                                c.drawString(80*mm, 160*mm, prvi_radni_dan)  # prvi radni dan
-                                c.drawString(80*mm, 140*mm, datum_podnosenja)  # datum podnošenja
+                                # Koordinate su precizno postavljene da tekst padne u sredinu točkica (prilagodi ako treba nakon testa)
+                                # x = lijevi rub točkice + pomak da bude centrirano
+                                # y = visina linije (od dna stranice)
+
+                                # Ime
+                                c.drawString(65*mm, 210*mm, ime_prezime)
+
+                                # Broj dana
+                                c.drawString(140*mm, 195*mm, broj_dana)
+
+                                # Datum od
+                                c.drawString(65*mm, 180*mm, datum_od)
+
+                                # Datum do
+                                c.drawString(140*mm, 180*mm, datum_do)
+
+                                # Prvi radni dan
+                                c.drawString(65*mm, 165*mm, prvi_radni_dan)
+
+                                # Datum podnošenja
+                                c.drawString(65*mm, 150*mm, datum_podnosenja)
 
                                 c.showPage()
                                 c.save()
@@ -1509,4 +1521,152 @@ else:
 
         # Kalendar sa bojama po korisniku i imenima ispod datuma
         st.subheader("Kalendar preklapanja")
-        # ... (ostali dio koda ostaje isti, ne mijenjaj ga)
+        try:
+            col_year, col_month = st.columns(2)
+            year = col_year.selectbox("Godina", range(2025, 2041), index=datetime.now().year - 2025, key="kal_god")
+            month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1,
+                                        format_func=lambda m: calendar.month_name[m], key="kal_mj")
+
+            odmori_response = supabase.table("odmori")\
+                .select("*, korisnici!inner(ime_prezime)")\
+                .execute()
+
+            df_odmori = pd.DataFrame(odmori_response.data or [])
+
+            if not df_odmori.empty:
+                df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
+                df_odmori = df_odmori.drop(columns=["korisnici"])
+
+                unique_users = df_odmori["korisnik_ime"].unique()
+                color_map = {user: plt.cm.tab10(i / len(unique_users)) for i, user in enumerate(unique_users)}
+
+                cal = calendar.monthcalendar(year, month)
+
+                fig, ax = plt.subplots(figsize=(12, 8))
+                ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)
+                ax.axis('off')
+
+                days = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
+                for i, day in enumerate(days):
+                    ax.text(i + 0.5, 0.3, day, ha='center', va='bottom', fontsize=14, fontweight='bold', color='black')
+
+                for week_num, week in enumerate(cal):
+                    for day_num, day in enumerate(week):
+                        if day == 0:
+                            continue
+                        x = day_num
+                        y = -week_num - 0.8
+                        rect = plt.Rectangle((x, y), 1, -1, fill=False, edgecolor='black', linewidth=1)
+                        ax.add_patch(rect)
+                        ax.text(x + 0.5, y - 0.5, day, ha='center', va='center', fontsize=12)
+
+                        current_date = datetime(year, month, day).date()
+                        overlapping_users = []
+                        for _, unos in df_odmori.iterrows():
+                            start = datetime.fromisoformat(unos["datum_od"]).date()
+                            end = datetime.fromisoformat(unos["datum_do"]).date()
+                            if start <= current_date <= end:
+                                overlapping_users.append(unos["korisnik_ime"])
+
+                        is_weekend = current_date.weekday() >= 5
+                        is_holiday = current_date in holidays_dict.get(year, [])
+                        if is_weekend or is_holiday:
+                            continue
+
+                        if len(overlapping_users) > 1:
+                            ax.add_patch(plt.Rectangle((x, y), 1, -1, color='red', alpha=0.5))
+                            text = "\n".join(overlapping_users)
+                            ax.text(x + 0.5, y - 0.8, text, ha='center', va='center', fontsize=8, color='white')
+                        elif len(overlapping_users) == 1:
+                            user = overlapping_users[0]
+                            user_color = color_map.get(user, 'gray')
+                            ax.add_patch(plt.Rectangle((x, y), 1, -1, color=user_color, alpha=0.5))
+                            ax.text(x + 0.5, y - 0.8, user, ha='center', va='center', fontsize=8, color='white')
+
+                ax.set_xlim(0, 7)
+                ax.set_ylim(-7.0, 0.8)
+                ax.set_aspect('equal')
+
+                fig.tight_layout(pad=4.5)
+
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png", bbox_inches='tight', dpi=120)
+                buf.seek(0)
+                st.image(buf, caption="Kalendar odsustava (crveno za preklapanja, boje po korisniku, imena ispod datuma)")
+            else:
+                st.info("Nema unosa za prikaz kalendara.")
+        except Exception as e:
+            st.error(f"Greška pri prikazu kalendara: {str(e)}")
+
+        # Pregled po korisniku
+        st.subheader("Pregled po korisniku")
+        try:
+            if not df_odmori.empty:
+                if tip_korisnika != "administrator":
+                    df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
+
+                praznici_response = supabase.table("praznici").select("datum").execute()
+                holidays = {datetime.fromisoformat(p["datum"]).date() for p in praznici_response.data or []}
+
+                df_odmori["broj_dana"] = df_odmori.apply(lambda row: calculate_working_days(row["datum_od"], row["datum_do"], holidays), axis=1)
+
+                summary = df_odmori.groupby("korisnik_ime").agg(
+                    ukupno_dana=("broj_dana", "sum"),
+                    broj_unosa=("id", "count")
+                ).reset_index()
+
+                st.dataframe(summary, use_container_width=True, hide_index=True)
+                st.info("Napomena: Broj dana isključuje vikende i praznike/blagdane.")
+            else:
+                st.info("Nema podataka za pregled.")
+        except Exception as e:
+            st.error(f"Greška pri sumiranju: {str(e)}")
+
+        # Puni bazu praznika – SAMO ZA ADMINISTRATORA
+        if tip_korisnika == "administrator":
+            st.subheader("Puni bazu praznika")
+            if st.button("Dodaj praznike za 2026-2040 (klikni jednom)"):
+                praznici_data = []
+                for year in range(2026, 2041):
+                    praznici = holidays_dict.get(year, [])
+                    for datum in praznici:
+                        praznici_data.append({
+                            "datum": datum.isoformat(),
+                            "naziv": "Hrvatski praznik/blagdan"
+                        })
+                try:
+                    supabase.table("praznici").insert(praznici_data).execute()
+                    st.success("Praznici uspješno dodani u bazu!")
+                except Exception as e:
+                    st.error(f"Greška pri dodavanju praznika: {str(e)}")
+
+        # Prikaz log tablice – SAMO JEDAN PUT
+        st.subheader("Log izmjena i brisanja")
+        try:
+            log_response = supabase.table("log_odmori")\
+                .select("*")\
+                .order("created_at", desc=True)\
+                .execute()
+
+            df_log = pd.DataFrame(log_response.data or [])
+
+            if not df_log.empty:
+                # Pretvori dikt u string za old_data i new_data
+                if 'old_data' in df_log.columns:
+                    df_log['old_data'] = df_log['old_data'].apply(
+                        lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
+                    )
+                if 'new_data' in df_log.columns:
+                    df_log['new_data'] = df_log['new_data'].apply(
+                        lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
+                    )
+
+                st.dataframe(
+                    df_log[["action", "unio_korisnik", "old_data", "new_data", "created_at"]],
+                    use_container_width=True,
+                    hide_index=True
+                )
+            else:
+                st.info("Još nema log zapisa.")
+        except Exception as e:
+            st.error(f"Greška pri dohvaćanju loga: {str(e)}")
