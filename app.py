@@ -1648,7 +1648,7 @@ else:
                 except Exception as e:
                     st.error(f"Greška pri dodavanju praznika: {str(e)}")
 
-        # Prikaz log tablice – SAMO JEDAN PUT
+ # Prikaz log tablice – SAMO JEDAN PUT
         st.subheader("Log izmjena i brisanja")
         try:
             log_response = supabase.table("log_odmori")\
@@ -1659,6 +1659,12 @@ else:
             df_log = pd.DataFrame(log_response.data or [])
 
             if not df_log.empty:
+                # Pretvori dikt u string za old_data i new_data da izbjegneš Arrow grešku
+                if 'old_data' in df_log.columns:
+                    df_log['old_data'] = df_log['old_data'].apply(lambda x: json.dumps(x, ensure_ascii=False) if isinstance(x, dict) else x)
+                if 'new_data' in df_log.columns:
+                    df_log['new_data'] = df_log['new_data'].apply(lambda x: json.dumps(x, ensure_ascii=False) if isinstance(x, dict) else x)
+
                 st.dataframe(
                     df_log[["action", "unio_korisnik", "old_data", "new_data", "created_at"]],
                     use_container_width=True,
