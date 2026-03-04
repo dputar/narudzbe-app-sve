@@ -1523,7 +1523,7 @@ else:
         except Exception as e:
             st.error(f"Greška pri dohvaćanju/uređivanju unosa: {str(e)}")
 
-        # Pregled po korisniku - VRAĆEN KAKO JE RADIO PRIJE
+        # Pregled po korisniku
         st.subheader("Pregled po korisniku")
         try:
             if not df_odmori.empty:
