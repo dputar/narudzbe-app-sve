@@ -1023,12 +1023,12 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA (SVE GREŠKE RIJEŠENE)
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA (PDF + LOG + SVE POPRAVLJENO)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        import json  # ZA LOG TABLICU – ovo rješava 'json' not defined
+        import json
         from fpdf import FPDF
         from datetime import datetime, timedelta
         import io
