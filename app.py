@@ -1481,9 +1481,9 @@ else:
                                 c.drawCentredString(width / 2 - 45*mm, height - 129*mm, ime_prezime)  # ime centrirano
                                 c.drawCentredString(width / 2 - 5*mm, height - 144*mm, broj_dana)  # broj dana centrirano
                                 c.drawCentredString(width / 2 - 7*mm, height - 164*mm, datum_od)  # datum od centrirano
-                                c.drawCentredString(width / 2 - 55*mm, height - 185*mm, datum_do)  # datum do centrirano
-                                c.drawCentredString(width / 2, height - 200*mm, prvi_radni_dan)  # prvi radni dan centrirano
-                                c.drawCentredString(width / 2, height - 220*mm, datum_podnosenja)  # datum podnošenja centrirano
+                                c.drawCentredString(width / 2 - 60*mm, height - 183*mm, datum_do)  # datum do centrirano
+                                c.drawCentredString(width / 2 + 40*mm, height - 183*mm, prvi_radni_dan)  # prvi radni dan centrirano
+                                c.drawCentredString(width / 2 - 60*mm, height - 205*mm, datum_podnosenja)  # datum podnošenja centrirano
 
                                 c.save()
                                 overlay_buffer.seek(0)
