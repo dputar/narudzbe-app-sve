@@ -1023,7 +1023,7 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA PDF IZVOZOM
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA (PDF + LOG + SVE POPRAVLJENO)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -1033,7 +1033,7 @@ else:
         from datetime import datetime, timedelta
         import io
 
-        # Definiraj funkciju za izračun radnih dana
+        # Funkcija za izračun radnih dana (preskače vikende i praznike)
         def calculate_working_days(start_str, end_str, holidays):
             start = datetime.fromisoformat(start_str).date()
             end = datetime.fromisoformat(end_str).date()
@@ -1457,14 +1457,14 @@ else:
                                 original_row = df_odmori.loc[idx]
                                 pdf = FPDF()
                                 pdf.add_page()
-				pdf.set_auto_page_break(auto=True, margin=15)
+                                pdf.set_auto_page_break(auto=True, margin=15)
 
                                 # Font – DejaVuSans iz foldera fonts/
                                 try:
                                     pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
-                                    pdf.set_font("DejaVu", size=10)  # manji font za sigurnost
+                                    pdf.set_font("DejaVu", size=10)  # manji font da stane
                                 except Exception as font_error:
-                                    st.warning(f"Font nije pronađen: {font_error}. Koristim Arial.")
+                                    st.warning(f"Font DejaVuSans nije pronađen: {font_error}. Koristim Arial.")
                                     pdf.set_font("Arial", size=10)
 
                                 # Zaglavlje firme – sve multi_cell
@@ -1474,7 +1474,7 @@ else:
                                 pdf.multi_cell(0, 6, txt="web: http://www.medicline.hr", align='C')
                                 pdf.ln(8)
 
-                                # Naslov – multi_cell
+                                # Naslov
                                 if original_row["tip"] == "Godišnji odmor":
                                     pdf.multi_cell(0, 8, txt="ZAHTJEV ZA KORIŠTENJE GODIŠNJEG ODMORA", align='C')
                                 else:
@@ -1482,7 +1482,7 @@ else:
 
                                 pdf.ln(8)
 
-                                # Tekst zahtjeva – sve multi_cell, sa manjim razmakom
+                                # Tekst zahtjeva – sve multi_cell
                                 ime_prezime = original_row["korisnik_ime"]
                                 broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                 datum_od = datetime.fromisoformat(original_row["datum_od"]).strftime("%d.%m.%Y.")
@@ -1496,7 +1496,7 @@ else:
                                 else:
                                     pdf.multi_cell(0, 7, txt=f"slobodnih dana u trajanju od {broj_dana} dan/a.")
 
-                                pdf.ln(3)
+                                pdf.ln(4)
                                 pdf.multi_cell(0, 7, txt=f"{'Godišnji odmor' if original_row['tip'] == 'Godišnji odmor' else 'Slobodne dane'} počeo/la bih {datum_od} godine, a završio/la bi {datum_do} godine.")
                                 pdf.multi_cell(0, 7, txt=f"Prvi radni dan nakon odsustva: {prvi_radni_dan}.")
                                 pdf.ln(6)
