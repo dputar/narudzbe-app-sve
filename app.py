@@ -1355,211 +1355,231 @@ else:
 
 
 
-# Prikaz i uređivanje/brisanje unosa + IZVOZ PDF (go1.pdf za godišnji, sd.pdf za slobodne dane)
-st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
-try:
-    odmori_response = supabase.table("odmori")\
-        .select("*, korisnici!inner(ime_prezime)")\
-        .order("datum_od", desc=True)\
-        .execute()
-    df_odmori = pd.DataFrame(odmori_response.data or [])
-    if not df_odmori.empty:
-        df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
-        df_odmori = df_odmori.drop(columns=["korisnici"])
-        df_odmori["Obriši"] = False
-        df_odmori["Izvezi PDF"] = False
-        if tip_korisnika != "administrator":
-            df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
-        edited_df = st.data_editor(
-            df_odmori[["id", "korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at", "Obriši", "Izvezi PDF"]],
-            column_config={
-                "id": st.column_config.NumberColumn("ID", disabled=True),
-                "korisnik_ime": st.column_config.TextColumn("Korisnik", disabled=True),
-                "created_at": st.column_config.TextColumn("Kreirano", disabled=True),
-                "unio_korisnik": st.column_config.TextColumn("Unio", disabled=True),
-                "Obriši": st.column_config.CheckboxColumn("Obriši", default=False),
-                "Izvezi PDF": st.column_config.CheckboxColumn("Izvezi PDF", default=False)
-            },
-            hide_index=True,
-            use_container_width=True,
-            num_rows="fixed",
-            key="odmori_editor"
-        )
-
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Spremi izmjene i obriši označene"):
-                to_delete = []
-                for idx, row in edited_df.iterrows():
-                    original_row = df_odmori.loc[idx]
-                    if row["Obriši"]:
-                        to_delete.append(row["id"])
-                        log = {
-                            "action": "delete",
-                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
-                            "old_data": original_row[["datum_od", "datum_do", "tip", "napomena"]].to_json(),
-                            "created_at": datetime.now(TZ).isoformat()
-                        }
-                        supabase.table("log_odmori").insert(log).execute()
-                        broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
-                        if original_row["tip"] == "Godišnji odmor":
-                            novi_saldo = preostalo_godisnje + broj_dana
-                            supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
-                        elif original_row["tip"] == "Slobodni dan":
-                            novi_slobodni = preostalo_slobodnih + broj_dana
-                            supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
-                        continue
-
-                    changed_fields = {}
-                    for field in ["datum_od", "datum_do", "tip", "napomena"]:
-                        if row[field] != original_row[field]:
-                            changed_fields[field] = {
-                                "old": original_row[field],
-                                "new": row[field]
-                            }
-                    if changed_fields:
-                        update_data = {k: row[k] for k in changed_fields}
-                        supabase.table("odmori").update(update_data).eq("id", row["id"]).execute()
-                        log = {
-                            "action": "update",
-                            "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
-                            "old_data": {k: v["old"] for k, v in changed_fields.items()},
-                            "new_data": {k: v["new"] for k, v in changed_fields.items()},
-                            "created_at": datetime.now(TZ).isoformat()
-                        }
-                        supabase.table("log_odmori").insert(log).execute()
-
-                        if "tip" in changed_fields or "datum_od" in changed_fields or "datum_do" in changed_fields:
-                            stari_broj = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
-                            novi_broj = calculate_working_days(row["datum_od"], row["datum_do"], holidays_dict.get(tekuca_godina, []))
-                            if original_row["tip"] == row["tip"]:
+        # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF (reportlab + pypdf overlay)
+        st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
+        try:
+            odmori_response = supabase.table("odmori")\
+                .select("*, korisnici!inner(ime_prezime)")\
+                .order("datum_od", desc=True)\
+                .execute()
+            df_odmori = pd.DataFrame(odmori_response.data or [])
+            if not df_odmori.empty:
+                df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
+                df_odmori = df_odmori.drop(columns=["korisnici"])
+                df_odmori["Obriši"] = False
+                df_odmori["Izvezi PDF"] = False
+                if tip_korisnika != "administrator":
+                    df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
+                edited_df = st.data_editor(
+                    df_odmori[["id", "korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at", "Obriši", "Izvezi PDF"]],
+                    column_config={
+                        "id": st.column_config.NumberColumn("ID", disabled=True),
+                        "korisnik_ime": st.column_config.TextColumn("Korisnik", disabled=True),
+                        "created_at": st.column_config.TextColumn("Kreirano", disabled=True),
+                        "unio_korisnik": st.column_config.TextColumn("Unio", disabled=True),
+                        "Obriši": st.column_config.CheckboxColumn("Obriši", default=False),
+                        "Izvezi PDF": st.column_config.CheckboxColumn("Izvezi PDF", default=False)
+                    },
+                    hide_index=True,
+                    use_container_width=True,
+                    num_rows="fixed",
+                    key="odmori_editor"
+                )
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("Spremi izmjene i obriši označene"):
+                        to_delete = []
+                        for idx, row in edited_df.iterrows():
+                            original_row = df_odmori.loc[idx]
+                            if row["Obriši"]:
+                                to_delete.append(row["id"])
+                                log = {
+                                    "action": "delete",
+                                    "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
+                                    "old_data": original_row[["datum_od", "datum_do", "tip", "napomena"]].to_json(),
+                                    "created_at": datetime.now(TZ).isoformat()
+                                }
+                                supabase.table("log_odmori").insert(log).execute()
+                                broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                 if original_row["tip"] == "Godišnji odmor":
-                                    razlika = stari_broj - novi_broj
-                                    novi_saldo = preostalo_godisnje + razlika
+                                    novi_saldo = preostalo_godisnje + broj_dana
                                     supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
                                 elif original_row["tip"] == "Slobodni dan":
-                                    razlika = stari_broj - novi_broj
-                                    novi_slobodni = preostalo_slobodnih + razlika
+                                    novi_slobodni = preostalo_slobodnih + broj_dana
                                     supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
-                            else:
-                                # vraćamo stare dane
+                                continue
+                            changed_fields = {}
+                            for field in ["datum_od", "datum_do", "tip", "napomena"]:
+                                if row[field] != original_row[field]:
+                                    changed_fields[field] = {
+                                        "old": original_row[field],
+                                        "new": row[field]
+                                    }
+                            if changed_fields:
+                                update_data = {k: row[k] for k in changed_fields}
+                                supabase.table("odmori").update(update_data).eq("id", row["id"]).execute()
+                                log = {
+                                    "action": "update",
+                                    "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
+                                    "old_data": {k: v["old"] for k, v in changed_fields.items()},
+                                    "new_data": {k: v["new"] for k, v in changed_fields.items()},
+                                    "created_at": datetime.now(TZ).isoformat()
+                                }
+                                supabase.table("log_odmori").insert(log).execute()
+                                if "tip" in changed_fields or "datum_od" in changed_fields or "datum_do" in changed_fields:
+                                    stari_broj = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
+                                    novi_broj = calculate_working_days(row["datum_od"], row["datum_do"], holidays_dict.get(tekuca_godina, []))
+                                    if original_row["tip"] == row["tip"]:
+                                        if original_row["tip"] == "Godišnji odmor":
+                                            razlika = stari_broj - novi_broj
+                                            novi_saldo = preostalo_godisnje + razlika
+                                            supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
+                                        elif original_row["tip"] == "Slobodni dan":
+                                            razlika = stari_broj - novi_broj
+                                            novi_slobodni = preostalo_slobodnih + razlika
+                                            supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+                                    else:
+                                        if original_row["tip"] == "Godišnji odmor":
+                                            supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
+                                        elif original_row["tip"] == "Slobodni dan":
+                                            supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
+                                        if row["tip"] == "Godišnji odmor":
+                                            novi_saldo = preostalo_godisnje - novi_broj
+                                            supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
+                                        elif row["tip"] == "Slobodni dan":
+                                            novi_slobodni = preostalo_slobodnih - novi_broj
+                                            supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+                        if to_delete:
+                            for rec_id in to_delete:
+                                supabase.table("odmori").delete().eq("id", rec_id).execute()
+                        st.success("Izmjene i brisanja spremljeni! Saldo ažuriran.")
+                        st.rerun()
+                with col2:
+                    if st.button("Izvezi označene u PDF"):
+                        from reportlab.lib.pagesizes import A4
+                        from reportlab.pdfgen import canvas
+                        from reportlab.lib.units import mm
+                        from reportlab.lib.colors import black
+                        from pypdf import PdfReader, PdfWriter
+                        for idx, row in edited_df.iterrows():
+                            if row["Izvezi PDF"]:
+                                original_row = df_odmori.loc[idx]
+                                # Odaberi pravi template
                                 if original_row["tip"] == "Godišnji odmor":
-                                    supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
+                                    template_file = "go1.pdf"
                                 elif original_row["tip"] == "Slobodni dan":
-                                    supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
-                                # oduzimamo nove
-                                if row["tip"] == "Godišnji odmor":
-                                    novi_saldo = preostalo_godisnje - novi_broj
-                                    supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
-                                elif row["tip"] == "Slobodni dan":
-                                    novi_slobodni = preostalo_slobodnih - novi_broj
-                                    supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
-                if to_delete:
-                    for rec_id in to_delete:
-                        supabase.table("odmori").delete().eq("id", rec_id).execute()
-                st.success("Izmjene i brisanja spremljeni! Saldo ažuriran.")
-                st.rerun()
+                                    template_file = "sd.pdf"
+                                else:
+                                    st.warning(f"Nevažeći tip za PDF: {original_row['tip']}")
+                                    continue
+                                # Generiraj overlay PDF sa tekstom
+                                overlay_buffer = io.BytesIO()
+                                c = canvas.Canvas(overlay_buffer, pagesize=A4)
+                                width, height = A4
+                                c.setFont('Helvetica', 12)
+                                ime_prezime = original_row["korisnik_ime"]
+                                broj_dana = str(calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, [])))
+                                datum_od = datetime.fromisoformat(original_row["datum_od"]).strftime("%d.%m.%Y.")
+                                datum_do = datetime.fromisoformat(original_row["datum_do"]).strftime("%d.%m.%Y.")
+                                prvi_radni_dan = find_next_working_day(original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
+                                datum_podnosenja = datetime.fromisoformat(original_row["created_at"]).strftime("%d.%m.%Y.")
+                                # Podešene koordinate za centriranje teksta na točkicama (prilagodio prema slici)
+                                # y je od dna stranice (0 dolje, height gore)
+                                c.drawCentredString(width / 2 - 45*mm, height - 129*mm, ime_prezime) # ime centrirano
+                                c.drawCentredString(width / 2 - 5*mm, height - 144*mm, broj_dana) # broj dana centrirano
+                                c.drawCentredString(width / 2 - 4*mm, height - 164*mm, datum_od) # datum od centrirano
+                                c.drawCentredString(width / 2 - 60*mm, height - 184*mm, datum_do) # datum do centrirano
+                                c.drawCentredString(width / 2 + 44*mm, height - 184*mm, prvi_radni_dan) # prvi radni dan centrirano
+                                c.drawCentredString(width / 2 - 60*mm, height - 211*mm, datum_podnosenja) # datum podnošenja centrirano
+                                c.save()
+                                overlay_buffer.seek(0)
+                                # Učitaj template PDF
+                                template_reader = PdfReader(template_file)
+                                overlay_reader = PdfReader(overlay_buffer)
+                                writer = PdfWriter()
+                                template_page = template_reader.pages[0]
+                                overlay_page = overlay_reader.pages[0]
+                                template_page.merge_page(overlay_page)
+                                writer.add_page(template_page)
+                                output_buffer = io.BytesIO()
+                                writer.write(output_buffer)
+                                output_buffer.seek(0)
+                                st.download_button(
+                                    label=f"Preuzmi PDF za unos ID {row['id']} ({original_row['tip']})",
+                                    data=output_buffer,
+                                    file_name=f"{original_row['tip']}_{row['id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                                    mime="application/pdf",
+                                    key=f"pdf_download_{row['id']}"
+                                )
+            else:
+                st.info("Još nema unosa.")
+        except Exception as e:
+            st.error(f"Greška pri dohvaćanju/uređivanju unosa: {str(e)}")
 
-        with col2:
-            if st.button("Izvezi označene u PDF"):
-                from reportlab.lib.pagesizes import A4
-                from reportlab.pdfgen import canvas
-                from reportlab.lib.units import mm
-                from pypdf import PdfReader, PdfWriter
-                import io
-
-                for idx, row in edited_df.iterrows():
-                    if row["Izvezi PDF"]:
-                        original_row = df_odmori.loc[idx]
-                        tip_unosa = original_row["tip"]
-
-                        # Odabir template-a
-                        if tip_unosa == "Godišnji odmor":
-                            template_filename = "go1.pdf"
-                            file_prefix = "Godišnji"
-                        elif tip_unosa == "Slobodni dan":
-                            template_filename = "sd.pdf"
-                            file_prefix = "Slobodni"
-                        else:
-                            st.warning(f"Nepoznat tip za PDF izvoz: {tip_unosa} (ID {row['id']})")
+        # Kalendar sa bojama po korisniku i imenima ispod datuma
+        st.subheader("Kalendar preklapanja")
+        try:
+            col_year, col_month = st.columns(2)
+            year = col_year.selectbox("Godina", range(2025, 2041), index=datetime.now().year - 2025, key="kal_god")
+            month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1,
+                                        format_func=lambda m: calendar.month_name[m], key="kal_mj")
+            odmori_response = supabase.table("odmori")\
+                .select("*, korisnici!inner(ime_prezime)")\
+                .execute()
+            df_odmori = pd.DataFrame(odmori_response.data or [])
+            if not df_odmori.empty:
+                df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
+                df_odmori = df_odmori.drop(columns=["korisnici"])
+                unique_users = df_odmori["korisnik_ime"].unique()
+                color_map = {user: plt.cm.tab10(i / len(unique_users)) for i, user in enumerate(unique_users)}
+                cal = calendar.monthcalendar(year, month)
+                fig, ax = plt.subplots(figsize=(12, 8))
+                ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)
+                ax.axis('off')
+                days = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
+                for i, day in enumerate(days):
+                    ax.text(i + 0.5, 0.3, day, ha='center', va='bottom', fontsize=14, fontweight='bold', color='black')
+                for week_num, week in enumerate(cal):
+                    for day_num, day in enumerate(week):
+                        if day == 0:
                             continue
-
-                        # Generiranje overlay PDF-a
-                        overlay_buffer = io.BytesIO()
-                        c = canvas.Canvas(overlay_buffer, pagesize=A4)
-                        width, height = A4
-                        c.setFont('Helvetica', 12)
-
-                        ime_prezime = original_row["korisnik_ime"]
-                        broj_dana = str(calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, [])))
-                        datum_od = datetime.fromisoformat(original_row["datum_od"]).strftime("%d.%m.%Y.")
-                        datum_do = datetime.fromisoformat(original_row["datum_do"]).strftime("%d.%m.%Y.")
-                        datum_podnosenja = datetime.fromisoformat(original_row["created_at"]).strftime("%d.%m.%Y.")
-                        prvi_radni_dan = find_next_working_day(original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
-
-                        if tip_unosa == "Godišnji odmor":
-                            # tvoje originalne koordinate
-                            c.drawCentredString(width / 2 - 45*mm, height - 129*mm, ime_prezime)
-                            c.drawCentredString(width / 2 - 5*mm,  height - 144*mm, broj_dana)
-                            c.drawCentredString(width / 2 - 4*mm,  height - 164*mm, datum_od)
-                            c.drawCentredString(width / 2 - 60*mm, height - 184*mm, datum_do)
-                            c.drawCentredString(width / 2 + 44*mm, height - 184*mm, prvi_radni_dan)
-                            c.drawCentredString(width / 2 - 60*mm, height - 211*mm, datum_podnosenja)
-
-                        elif tip_unosa == "Slobodni dan":
-                            # ← OVDJE OBAVEZNO PRILAGODI KOORDINATE !!!
-                            # Ovo su primjeri – testiraj i pomakni po potrebi
-                            c.drawCentredString(width / 2 - 40*mm, height - 125*mm, ime_prezime)
-                            c.drawCentredString(width / 2 - 10*mm, height - 140*mm, broj_dana)
-                            c.drawCentredString(width / 2 - 5*mm,  height - 160*mm, datum_od)
-                            c.drawCentredString(width / 2 - 55*mm, height - 180*mm, datum_do)
-                            c.drawCentredString(width / 2 + 40*mm, height - 180*mm, prvi_radni_dan)
-                            c.drawCentredString(width / 2 - 55*mm, height - 205*mm, datum_podnosenja)
-
-                        c.save()
-                        overlay_buffer.seek(0)
-
-                        # Učitavanje template-a
-                        try:
-                            template_reader = PdfReader(template_filename)
-                        except FileNotFoundError:
-                            st.error(f"Datoteka {template_filename} nije pronađena!")
+                        x = day_num
+                        y = -week_num - 0.8
+                        rect = plt.Rectangle((x, y), 1, -1, fill=False, edgecolor='black', linewidth=1)
+                        ax.add_patch(rect)
+                        ax.text(x + 0.5, y - 0.5, day, ha='center', va='center', fontsize=12)
+                        current_date = datetime(year, month, day).date()
+                        overlapping_users = []
+                        for _, unos in df_odmori.iterrows():
+                            start = datetime.fromisoformat(unos["datum_od"]).date()
+                            end = datetime.fromisoformat(unos["datum_do"]).date()
+                            if start <= current_date <= end:
+                                overlapping_users.append(unos["korisnik_ime"])
+                        is_weekend = current_date.weekday() >= 5
+                        is_holiday = current_date in holidays_dict.get(year, [])
+                        if is_weekend or is_holiday:
                             continue
-
-                        overlay_reader = PdfReader(overlay_buffer)
-                        writer = PdfWriter()
-
-                        template_page = template_reader.pages[0]
-                        overlay_page = overlay_reader.pages[0]
-                        template_page.merge_page(overlay_page)
-                        writer.add_page(template_page)
-
-                        output_buffer = io.BytesIO()
-                        writer.write(output_buffer)
-                        output_buffer.seek(0)
-
-                        st.download_button(
-                            label=f"Preuzmi {file_prefix} PDF (ID {row['id']})",
-                            data=output_buffer,
-                            file_name=f"{file_prefix}_{row['id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                            mime="application/pdf",
-                            key=f"pdf_{row['id']}_{tip_unosa.lower().replace(' ', '_')}"
-                        )
-
-    else:
-        st.info("Još nema unosa.")
-except Exception as e:
-    st.error(f"Greška pri dohvaćanju/uređivanju unosa: {str(e)}")
-
-
-
-
-
-
-
-
-
-
+                        if len(overlapping_users) > 1:
+                            ax.add_patch(plt.Rectangle((x, y), 1, -1, color='red', alpha=0.5))
+                            text = "\n".join(overlapping_users)
+                            ax.text(x + 0.5, y - 0.8, text, ha='center', va='center', fontsize=8, color='white')
+                        elif len(overlapping_users) == 1:
+                            user = overlapping_users[0]
+                            user_color = color_map.get(user, 'gray')
+                            ax.add_patch(plt.Rectangle((x, y), 1, -1, color=user_color, alpha=0.5))
+                            ax.text(x + 0.5, y - 0.8, user, ha='center', va='center', fontsize=8, color='white')
+                ax.set_xlim(0, 7)
+                ax.set_ylim(-7.0, 0.8)
+                ax.set_aspect('equal')
+                fig.tight_layout(pad=4.5)
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png", bbox_inches='tight', dpi=120)
+                buf.seek(0)
+                st.image(buf, caption="Kalendar odsustava (crveno za preklapanja, boje po korisniku, imena ispod datuma)")
+            else:
+                st.info("Nema unosa za prikaz kalendara.")
+        except Exception as e:
+            st.error(f"Greška pri prikazu kalendara: {str(e)}")
 
 
 
