@@ -1023,17 +1023,17 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA (PDF + LOG + SVE POPRAVLJENO)
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA (SVE GREŠKE RIJEŠENE)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        import json
+        import json  # ZA LOG TABLICU – ovo rješava 'json' not defined
         from fpdf import FPDF
         from datetime import datetime, timedelta
         import io
 
-        # Funkcija za izračun radnih dana (preskače vikende i praznike)
+        # Definiraj funkciju za izračun radnih dana
         def calculate_working_days(start_str, end_str, holidays):
             start = datetime.fromisoformat(start_str).date()
             end = datetime.fromisoformat(end_str).date()
