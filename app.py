@@ -1023,11 +1023,12 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA PDF IZVOZOM (FONT U fonts/)
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA PDF IZVOZOM
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
+        import json
         from fpdf import FPDF
         from datetime import datetime, timedelta
         import io
@@ -1451,7 +1452,6 @@ else:
 
                 with col2:
                     if st.button("Izvezi označene u PDF"):
-                        pdf_files = []
                         for idx, row in edited_df.iterrows():
                             if row["Izvezi PDF"]:
                                 original_row = df_odmori.loc[idx]
@@ -1459,14 +1459,14 @@ else:
                                 pdf.add_page()
                                 pdf.set_auto_page_break(auto=True, margin=15)
 
-                                # Koristi font iz foldera fonts/
+                                # Font – DejaVuSans iz foldera fonts/
                                 try:
                                     pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
-                                    pdf.set_font("DejaVu", size=11)  # manji font da stane
+                                    pdf.set_font("DejaVu", size=10)  # manji font da stane
                                 except:
-                                    pdf.set_font("Arial", size=11)
+                                    pdf.set_font("Arial", size=10)
 
-                                # Zaglavlje firme
+                                # Zaglavlje firme – sve multi_cell
                                 pdf.multi_cell(0, 6, txt="Medicline d.o.o.", align='C')
                                 pdf.multi_cell(0, 6, txt="Vinogradska 217, 31000 Osijek, Hrvatska", align='C')
                                 pdf.multi_cell(0, 6, txt="tel.: +385 (0) 31 625 302   e-mail: info@medicline.hr", align='C')
@@ -1648,7 +1648,7 @@ else:
                 except Exception as e:
                     st.error(f"Greška pri dodavanju praznika: {str(e)}")
 
- # Prikaz log tablice – SAMO JEDAN PUT
+        # Prikaz log tablice – SAMO JEDAN PUT
         st.subheader("Log izmjena i brisanja")
         try:
             log_response = supabase.table("log_odmori")\
@@ -1661,9 +1661,13 @@ else:
             if not df_log.empty:
                 # Pretvori dikt u string za old_data i new_data da izbjegneš Arrow grešku
                 if 'old_data' in df_log.columns:
-                    df_log['old_data'] = df_log['old_data'].apply(lambda x: json.dumps(x, ensure_ascii=False) if isinstance(x, dict) else x)
+                    df_log['old_data'] = df_log['old_data'].apply(
+                        lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
+                    )
                 if 'new_data' in df_log.columns:
-                    df_log['new_data'] = df_log['new_data'].apply(lambda x: json.dumps(x, ensure_ascii=False) if isinstance(x, dict) else x)
+                    df_log['new_data'] = df_log['new_data'].apply(
+                        lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
+                    )
 
                 st.dataframe(
                     df_log[["action", "unio_korisnik", "old_data", "new_data", "created_at"]],
