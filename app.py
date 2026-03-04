@@ -1023,7 +1023,7 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA PDF OVERLAY (go1.pdf + podaci na točkicama)
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA PDF OVERLAY (go1.pdf + podaci centrirani)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -1476,24 +1476,14 @@ else:
                                 prvi_radni_dan = find_next_working_day(original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                 datum_podnosenja = datetime.fromisoformat(original_row["created_at"]).strftime("%d.%m.%Y.")
 
-                                # Koordinate za tekst centrirano na točkicama (prilagodi ako treba, u mm od dna stranice)
-                                # Ime
-                                c.drawCentredString(width/2, height - 150*mm, ime_prezime)
-
-                                # Broj dana
-                                c.drawCentredString(width/2, height - 170*mm, broj_dana)
-
-                                # Datum od
-                                c.drawCentredString(width/2 - 50*mm, height - 190*mm, datum_od)
-
-                                # Datum do
-                                c.drawCentredString(width/2 + 50*mm, height - 190*mm, datum_do)
-
-                                # Prvi radni dan
-                                c.drawCentredString(width/2, height - 210*mm, prvi_radni_dan)
-
-                                # Datum podnošenja
-                                c.drawCentredString(width/2, height - 230*mm, datum_podnosenja)
+                                # Podešene koordinate za centriranje teksta na točkicama (prilagodio prema slici)
+                                # y je od dna stranice (0 dolje, height gore)
+                                c.drawCentredString(width / 2 - 50*mm, height - 140*mm, ime_prezime)  # ime centrirano
+                                c.drawCentredString(width / 2 + 50*mm, height - 160*mm, broj_dana)  # broj dana centrirano
+                                c.drawCentredString(width / 2 - 50*mm, height - 180*mm, datum_od)  # datum od centrirano
+                                c.drawCentredString(width / 2 + 50*mm, height - 180*mm, datum_do)  # datum do centrirano
+                                c.drawCentredString(width / 2, height - 200*mm, prvi_radni_dan)  # prvi radni dan centrirano
+                                c.drawCentredString(width / 2, height - 220*mm, datum_podnosenja)  # datum podnošenja centrirano
 
                                 c.save()
                                 overlay_buffer.seek(0)
