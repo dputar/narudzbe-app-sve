@@ -1348,7 +1348,7 @@ else:
                 df_odmori = df_odmori.drop(columns=["korisnici"])
 
                 df_odmori["Obriši"] = False
-                df_odmori["Izvezi PDF"] = False  # NOVI CHECKBOX ZA PDF
+                df_odmori["Izvezi PDF"] = False
 
                 if tip_korisnika != "administrator":
                     df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
