@@ -1023,7 +1023,7 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA: PDF = image1.png + podaci centrirani na točkice
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA PDF OVERLAY (go1.pdf + podaci na točkicama)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -1332,7 +1332,7 @@ else:
                     except Exception as e:
                         st.error(f"Greška pri konverziji: {str(e)}")
 
-        # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF (reportlab + template image1.png)
+        # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF (reportlab + pypdf overlay na go1.pdf)
         st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
         try:
             odmori_response = supabase.table("odmori")\
@@ -1454,23 +1454,19 @@ else:
                         from reportlab.lib.pagesizes import A4
                         from reportlab.pdfgen import canvas
                         from reportlab.lib.units import mm
+                        from reportlab.lib.colors import black
+                        from pypdf import PdfReader, PdfWriter
 
                         for idx, row in edited_df.iterrows():
                             if row["Izvezi PDF"]:
                                 original_row = df_odmori.loc[idx]
 
-                                buffer = io.BytesIO()
-                                c = canvas.Canvas(buffer, pagesize=A4)
+                                # Generiraj overlay PDF sa tekstom
+                                overlay_buffer = io.BytesIO()
+                                c = canvas.Canvas(overlay_buffer, pagesize=A4)
                                 width, height = A4
 
-                                # Koristi tvoju sliku kao pozadinu (template)
-                                try:
-                                    c.drawImage("image1.png", 0, 0, width=width, height=height)
-                                except Exception as img_error:
-                                    st.error(f"Slika image1.png nije pronađena: {img_error}. Dodaj je u root projekta i redeployaj.")
-                                    continue
-
-                                # Piši samo podatke preko template-a (centrirano na točkicama)
+                                # Postavi font
                                 c.setFont('Helvetica', 12)  # ili 'DejaVu' ako imaš font
 
                                 ime_prezime = original_row["korisnik_ime"]
@@ -1480,35 +1476,46 @@ else:
                                 prvi_radni_dan = find_next_working_day(original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                 datum_podnosenja = datetime.fromisoformat(original_row["created_at"]).strftime("%d.%m.%Y.")
 
-                                # Koordinate su precizno postavljene da tekst padne u sredinu točkica (prilagodi ako treba nakon testa)
-                                # x = lijevi rub točkice + pomak da bude centrirano
-                                # y = visina linije (od dna stranice)
-
+                                # Koordinate za tekst centrirano na točkicama (prilagodi ako treba, u mm od dna stranice)
                                 # Ime
-                                c.drawString(65*mm, 210*mm, ime_prezime)
+                                c.drawCentredString(width/2, height - 150*mm, ime_prezime)
 
                                 # Broj dana
-                                c.drawString(140*mm, 195*mm, broj_dana)
+                                c.drawCentredString(width/2, height - 170*mm, broj_dana)
 
                                 # Datum od
-                                c.drawString(65*mm, 180*mm, datum_od)
+                                c.drawCentredString(width/2 - 50*mm, height - 190*mm, datum_od)
 
                                 # Datum do
-                                c.drawString(140*mm, 180*mm, datum_do)
+                                c.drawCentredString(width/2 + 50*mm, height - 190*mm, datum_do)
 
                                 # Prvi radni dan
-                                c.drawString(65*mm, 165*mm, prvi_radni_dan)
+                                c.drawCentredString(width/2, height - 210*mm, prvi_radni_dan)
 
                                 # Datum podnošenja
-                                c.drawString(65*mm, 150*mm, datum_podnosenja)
+                                c.drawCentredString(width/2, height - 230*mm, datum_podnosenja)
 
-                                c.showPage()
                                 c.save()
-                                buffer.seek(0)
+                                overlay_buffer.seek(0)
+
+                                # Učitaj template PDF (go1.pdf)
+                                template_reader = PdfReader("go1.pdf")
+                                overlay_reader = PdfReader(overlay_buffer)
+
+                                writer = PdfWriter()
+                                template_page = template_reader.pages[0]
+                                overlay_page = overlay_reader.pages[0]
+
+                                template_page.merge_page(overlay_page)
+                                writer.add_page(template_page)
+
+                                output_buffer = io.BytesIO()
+                                writer.write(output_buffer)
+                                output_buffer.seek(0)
 
                                 st.download_button(
                                     label=f"Preuzmi PDF za unos ID {row['id']} ({original_row['tip']})",
-                                    data=buffer,
+                                    data=output_buffer,
                                     file_name=f"{original_row['tip']}_{row['id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
                                     mime="application/pdf",
                                     key=f"pdf_download_{row['id']}"
