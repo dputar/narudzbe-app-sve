@@ -1023,11 +1023,13 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA REPORTLAB PDF IZVOZOM
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA (POPRAVLJENI IMPORTI)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
+        import json  # ZA LOG TABLICU – rješava name 'json' is not defined
+        from fpdf import FPDF  # ZA PDF – rješava name 'FPDF' is not defined
         from datetime import datetime, timedelta
         import io
 
@@ -1460,7 +1462,7 @@ else:
                                 # Font – DejaVuSans iz foldera fonts/
                                 try:
                                     pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
-                                    pdf.set_font("DejaVu", size=10)  # manji font da stane
+                                    pdf.set_font("DejaVu", size=10)
                                 except Exception as font_error:
                                     st.warning(f"Font DejaVuSans nije pronađen: {font_error}. Koristim Arial.")
                                     pdf.set_font("Arial", size=10)
