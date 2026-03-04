@@ -1248,7 +1248,7 @@ else:
                     st.error("Ista osoba već ima upis na preklapajuće datume! Ne može se dodati.")
                     st.session_state.temp_odmor = None
                     st.rerun()
-                   
+                    return
 
                 st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
                 col1, col2 = st.columns(2)
@@ -1546,6 +1546,37 @@ else:
                 st.info("Nema podataka za pregled.")
         except Exception as e:
             st.error(f"Greška pri sumiranju: {str(e)}")
+
+        # Prikaz log tablice – VRAĆENO
+        st.subheader("Log izmjena i brisanja")
+        try:
+            log_response = supabase.table("log_odmori")\
+                .select("*")\
+                .order("created_at", desc=True)\
+                .execute()
+
+            df_log = pd.DataFrame(log_response.data or [])
+
+            if not df_log.empty:
+                # Pretvori dikt u string za old_data i new_data
+                if 'old_data' in df_log.columns:
+                    df_log['old_data'] = df_log['old_data'].apply(
+                        lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
+                    )
+                if 'new_data' in df_log.columns:
+                    df_log['new_data'] = df_log['new_data'].apply(
+                        lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
+                    )
+
+                st.dataframe(
+                    df_log[["action", "unio_korisnik", "old_data", "new_data", "created_at"]],
+                    use_container_width=True,
+                    hide_index=True
+                )
+            else:
+                st.info("Još nema log zapisa.")
+        except Exception as e:
+            st.error(f"Greška pri dohvaćanju loga: {str(e)}")
 
         # Kalendar sa bojama po korisniku i imenima ispod datuma
         st.subheader("Kalendar preklapanja")
