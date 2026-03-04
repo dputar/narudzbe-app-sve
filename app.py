@@ -1457,14 +1457,14 @@ else:
                                 original_row = df_odmori.loc[idx]
                                 pdf = FPDF()
                                 pdf.add_page()
-                                pdf.set_auto_page_break(auto=True, margin=15)
+				pdf.set_auto_page_break(auto=True, margin=15)
 
                                 # Font – DejaVuSans iz foldera fonts/
                                 try:
                                     pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
-                                    pdf.set_font("DejaVu", size=10)  # manji font da stane
-                                except:
-				    st.warning(f"Font nije pronađen: {font_error}. Koristim Arial.")	
+                                    pdf.set_font("DejaVu", size=10)  # manji font za sigurnost
+                                except Exception as font_error:
+                                    st.warning(f"Font nije pronađen: {font_error}. Koristim Arial.")
                                     pdf.set_font("Arial", size=10)
 
                                 # Zaglavlje firme – sve multi_cell
@@ -1474,7 +1474,7 @@ else:
                                 pdf.multi_cell(0, 6, txt="web: http://www.medicline.hr", align='C')
                                 pdf.ln(8)
 
-                                # Naslov
+                                # Naslov – multi_cell
                                 if original_row["tip"] == "Godišnji odmor":
                                     pdf.multi_cell(0, 8, txt="ZAHTJEV ZA KORIŠTENJE GODIŠNJEG ODMORA", align='C')
                                 else:
@@ -1482,7 +1482,7 @@ else:
 
                                 pdf.ln(8)
 
-                                # Tekst zahtjeva
+                                # Tekst zahtjeva – sve multi_cell, sa manjim razmakom
                                 ime_prezime = original_row["korisnik_ime"]
                                 broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                 datum_od = datetime.fromisoformat(original_row["datum_od"]).strftime("%d.%m.%Y.")
@@ -1490,20 +1490,20 @@ else:
                                 prvi_radni_dan = find_next_working_day(original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                 datum_podnosenja = datetime.fromisoformat(original_row["created_at"]).strftime("%d.%m.%Y.")
 
-                                pdf.multi_cell(0, 8, txt=f"Ja, {ime_prezime} molim da mi se odobri korištenje")
+                                pdf.multi_cell(0, 7, txt=f"Ja, {ime_prezime} molim da mi se odobri korištenje")
                                 if original_row["tip"] == "Godišnji odmor":
-                                    pdf.multi_cell(0, 8, txt=f"godišnjeg odmora u trajanju od {broj_dana} dan/a.")
+                                    pdf.multi_cell(0, 7, txt=f"godišnjeg odmora u trajanju od {broj_dana} dan/a.")
                                 else:
-                                    pdf.multi_cell(0, 8, txt=f"slobodnih dana u trajanju od {broj_dana} dan/a.")
+                                    pdf.multi_cell(0, 7, txt=f"slobodnih dana u trajanju od {broj_dana} dan/a.")
 
-                                pdf.ln(4)
-                                pdf.multi_cell(0, 8, txt=f"{'Godišnji odmor' if original_row['tip'] == 'Godišnji odmor' else 'Slobodne dane'} počeo/la bih {datum_od} godine, a završio/la bi {datum_do} godine.")
-                                pdf.multi_cell(0, 8, txt=f"Prvi radni dan nakon odsustva: {prvi_radni_dan}.")
-                                pdf.ln(8)
+                                pdf.ln(3)
+                                pdf.multi_cell(0, 7, txt=f"{'Godišnji odmor' if original_row['tip'] == 'Godišnji odmor' else 'Slobodne dane'} počeo/la bih {datum_od} godine, a završio/la bi {datum_do} godine.")
+                                pdf.multi_cell(0, 7, txt=f"Prvi radni dan nakon odsustva: {prvi_radni_dan}.")
+                                pdf.ln(6)
 
-                                pdf.multi_cell(0, 8, txt=f".......................................")
-                                pdf.multi_cell(0, 8, txt=f"({datum_podnosenja})", align='C')
-                                pdf.ln(15)
+                                pdf.multi_cell(0, 7, txt=f".......................................")
+                                pdf.multi_cell(0, 7, txt=f"({datum_podnosenja})", align='C')
+                                pdf.ln(12)
 
                                 pdf.cell(90, 10, txt="POTPIS DJELATNIKA:", align='L')
                                 pdf.cell(90, 10, txt="ODOBRIO:", align='R')
