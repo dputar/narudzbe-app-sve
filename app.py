@@ -1023,15 +1023,14 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA (POPRAVLJENI IMPORTI)
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA REPORTLAB PDF IZVOZOM
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        import json  # ZA LOG TABLICU – rješava name 'json' is not defined
-        from fpdf import FPDF  # ZA PDF – rješava name 'FPDF' is not defined
         from datetime import datetime, timedelta
         import io
+        import json
 
         # Definiraj funkciju za izračun radnih dana
         def calculate_working_days(start_str, end_str, holidays):
@@ -1333,7 +1332,7 @@ else:
                     except Exception as e:
                         st.error(f"Greška pri konverziji: {str(e)}")
 
-        # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF
+        # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF (reportlab)
         st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
         try:
             odmori_response = supabase.table("odmori")\
@@ -1452,37 +1451,43 @@ else:
 
                 with col2:
                     if st.button("Izvezi označene u PDF"):
+                        from reportlab.lib.pagesizes import A4
+                        from reportlab.pdfgen import canvas
+                        from reportlab.pdfbase import pdfmetrics
+                        from reportlab.pdfbase.ttfonts import TTFont
+                        from reportlab.lib.units import mm
+
                         for idx, row in edited_df.iterrows():
                             if row["Izvezi PDF"]:
                                 original_row = df_odmori.loc[idx]
-                                pdf = FPDF()
-                                pdf.add_page()
-                                pdf.set_auto_page_break(auto=True, margin=15)
 
-                                # Font – DejaVuSans iz foldera fonts/
+                                buffer = io.BytesIO()
+                                c = canvas.Canvas(buffer, pagesize=A4)
+                                width, height = A4
+
+                                # Registriraj font za hrvatske znakove (DejaVuSans)
                                 try:
-                                    pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
-                                    pdf.set_font("DejaVu", size=10)
-                                except Exception as font_error:
-                                    st.warning(f"Font DejaVuSans nije pronađen: {font_error}. Koristim Arial.")
-                                    pdf.set_font("Arial", size=10)
+                                    pdfmetrics.registerFont(TTFont('DejaVu', 'fonts/DejaVuSans.ttf'))
+                                    c.setFont('DejaVu', 12)
+                                except:
+                                    c.setFont('Helvetica', 12)  # fallback
 
-                                # Zaglavlje firme – sve multi_cell
-                                pdf.multi_cell(0, 6, txt="Medicline d.o.o.", align='C')
-                                pdf.multi_cell(0, 6, txt="Vinogradska 217, 31000 Osijek, Hrvatska", align='C')
-                                pdf.multi_cell(0, 6, txt="tel.: +385 (0) 31 625 302   e-mail: info@medicline.hr", align='C')
-                                pdf.multi_cell(0, 6, txt="web: http://www.medicline.hr", align='C')
-                                pdf.ln(8)
+                                # Zaglavlje firme
+                                c.drawCentredString(width/2, height - 20*mm, "Medicline d.o.o.")
+                                c.drawCentredString(width/2, height - 30*mm, "Vinogradska 217, 31000 Osijek, Hrvatska")
+                                c.drawCentredString(width/2, height - 35*mm, "tel.: +385 (0) 31 625 302   e-mail: info@medicline.hr")
+                                c.drawCentredString(width/2, height - 40*mm, "web: http://www.medicline.hr")
+                                c.line(20*mm, height - 45*mm, width - 20*mm, height - 45*mm)
 
                                 # Naslov
+                                y = height - 60*mm
                                 if original_row["tip"] == "Godišnji odmor":
-                                    pdf.multi_cell(0, 8, txt="ZAHTJEV ZA KORIŠTENJE GODIŠNJEG ODMORA", align='C')
+                                    c.drawCentredString(width/2, y, "ZAHTJEV ZA KORIŠTENJE GODIŠNJEG ODMORA")
                                 else:
-                                    pdf.multi_cell(0, 8, txt="ZAHTJEV ZA KORIŠTENJE SLOBODNIH DANA", align='C')
+                                    c.drawCentredString(width/2, y, "ZAHTJEV ZA KORIŠTENJE SLOBODNIH DANA")
+                                y -= 20*mm
 
-                                pdf.ln(8)
-
-                                # Tekst zahtjeva – sve multi_cell
+                                # Tekst zahtjeva
                                 ime_prezime = original_row["korisnik_ime"]
                                 broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                 datum_od = datetime.fromisoformat(original_row["datum_od"]).strftime("%d.%m.%Y.")
@@ -1490,34 +1495,40 @@ else:
                                 prvi_radni_dan = find_next_working_day(original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                 datum_podnosenja = datetime.fromisoformat(original_row["created_at"]).strftime("%d.%m.%Y.")
 
-                                pdf.multi_cell(0, 7, txt=f"Ja, {ime_prezime} molim da mi se odobri korištenje")
+                                text_object = c.beginText(30*mm, y)
+                                text_object.setFont('DejaVu' if 'DejaVu' in pdfmetrics.getRegisteredFontNames() else 'Helvetica', 12)
+                                text_object.textLines(f"Ja, {ime_prezime} molim da mi se odobri korištenje")
                                 if original_row["tip"] == "Godišnji odmor":
-                                    pdf.multi_cell(0, 7, txt=f"godišnjeg odmora u trajanju od {broj_dana} dan/a.")
+                                    text_object.textLines(f"godišnjeg odmora u trajanju od {broj_dana} dan/a.")
                                 else:
-                                    pdf.multi_cell(0, 7, txt=f"slobodnih dana u trajanju od {broj_dana} dan/a.")
+                                    text_object.textLines(f"slobodnih dana u trajanju od {broj_dana} dan/a.")
+                                y -= 40*mm
+                                text_object.setTextOrigin(30*mm, y)
+                                text_object.textLines(f"{'Godišnji odmor' if original_row['tip'] == 'Godišnji odmor' else 'Slobodne dane'} počeo/la bih {datum_od} godine, a završio/la bi {datum_do} godine.")
+                                y -= 20*mm
+                                text_object.setTextOrigin(30*mm, y)
+                                text_object.textLine(f"Prvi radni dan nakon odsustva: {prvi_radni_dan}.")
+                                y -= 40*mm
+                                text_object.setTextOrigin(30*mm, y)
+                                text_object.textLine(f".......................................")
+                                text_object.setTextOrigin(width/2 - 30*mm, y - 10*mm)
+                                text_object.textLine(f"({datum_podnosenja})")
+                                c.drawText(text_object)
 
-                                pdf.ln(4)
-                                pdf.multi_cell(0, 7, txt=f"{'Godišnji odmor' if original_row['tip'] == 'Godišnji odmor' else 'Slobodne dane'} počeo/la bih {datum_od} godine, a završio/la bi {datum_do} godine.")
-                                pdf.multi_cell(0, 7, txt=f"Prvi radni dan nakon odsustva: {prvi_radni_dan}.")
-                                pdf.ln(6)
+                                # Potpisi
+                                y -= 60*mm
+                                c.drawString(30*mm, y, "POTPIS DJELATNIKA:")
+                                c.drawString(width/2 + 20*mm, y, "ODOBRIO:")
+                                c.line(30*mm, y - 10*mm, 80*mm, y - 10*mm)
+                                c.line(width/2 + 20*mm, y - 10*mm, width - 30*mm, y - 10*mm)
 
-                                pdf.multi_cell(0, 7, txt=f".......................................")
-                                pdf.multi_cell(0, 7, txt=f"({datum_podnosenja})", align='C')
-                                pdf.ln(12)
-
-                                pdf.cell(90, 10, txt="POTPIS DJELATNIKA:", align='L')
-                                pdf.cell(90, 10, txt="ODOBRIO:", align='R')
-                                pdf.ln(10)
-                                pdf.cell(90, 10, txt="........................................")
-                                pdf.cell(90, 10, txt=".........................................")
-
-                                pdf_output = io.BytesIO()
-                                pdf.output(pdf_output)
-                                pdf_output.seek(0)
+                                c.showPage()
+                                c.save()
+                                buffer.seek(0)
 
                                 st.download_button(
                                     label=f"Preuzmi PDF za unos ID {row['id']} ({original_row['tip']})",
-                                    data=pdf_output,
+                                    data=buffer,
                                     file_name=f"{original_row['tip']}_{row['id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
                                     mime="application/pdf",
                                     key=f"pdf_download_{row['id']}"
