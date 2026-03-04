@@ -1451,34 +1451,35 @@ else:
 
                 with col2:
                     if st.button("Izvezi označene u PDF"):
+                        pdf_files = []
                         for idx, row in edited_df.iterrows():
                             if row["Izvezi PDF"]:
                                 original_row = df_odmori.loc[idx]
                                 pdf = FPDF()
                                 pdf.add_page()
+                                pdf.set_auto_page_break(auto=True, margin=15)
 
                                 # Koristi font iz foldera fonts/
                                 try:
                                     pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
-                                    pdf.set_font("DejaVu", size=12)
-                                except Exception as font_error:
-                                    st.warning(f"Font DejaVuSans nije pronađen: {font_error}. Koristim Arial.")
-                                    pdf.set_font("Arial", size=12)
+                                    pdf.set_font("DejaVu", size=11)  # manji font da stane
+                                except:
+                                    pdf.set_font("Arial", size=11)
 
-                                # Zaglavlje firme – koristi multi_cell za sigurnost
-                                pdf.multi_cell(0, 8, txt="Medicline d.o.o.", align='C')
-                                pdf.multi_cell(0, 8, txt="Vinogradska 217, 31000 Osijek, Hrvatska", align='C')
-                                pdf.multi_cell(0, 8, txt="tel.: +385 (0) 31 625 302   e-mail: info@medicline.hr", align='C')
-                                pdf.multi_cell(0, 8, txt="web: http://www.medicline.hr", align='C')
-                                pdf.ln(10)
+                                # Zaglavlje firme
+                                pdf.multi_cell(0, 6, txt="Medicline d.o.o.", align='C')
+                                pdf.multi_cell(0, 6, txt="Vinogradska 217, 31000 Osijek, Hrvatska", align='C')
+                                pdf.multi_cell(0, 6, txt="tel.: +385 (0) 31 625 302   e-mail: info@medicline.hr", align='C')
+                                pdf.multi_cell(0, 6, txt="web: http://www.medicline.hr", align='C')
+                                pdf.ln(8)
 
                                 # Naslov
                                 if original_row["tip"] == "Godišnji odmor":
-                                    pdf.multi_cell(0, 10, txt="ZAHTJEV ZA KORIŠTENJE GODIŠNJEG ODMORA", align='C')
+                                    pdf.multi_cell(0, 8, txt="ZAHTJEV ZA KORIŠTENJE GODIŠNJEG ODMORA", align='C')
                                 else:
-                                    pdf.multi_cell(0, 10, txt="ZAHTJEV ZA KORIŠTENJE SLOBODNIH DANA", align='C')
+                                    pdf.multi_cell(0, 8, txt="ZAHTJEV ZA KORIŠTENJE SLOBODNIH DANA", align='C')
 
-                                pdf.ln(10)
+                                pdf.ln(8)
 
                                 # Tekst zahtjeva
                                 ime_prezime = original_row["korisnik_ime"]
@@ -1488,20 +1489,20 @@ else:
                                 prvi_radni_dan = find_next_working_day(original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                 datum_podnosenja = datetime.fromisoformat(original_row["created_at"]).strftime("%d.%m.%Y.")
 
-                                pdf.multi_cell(0, 10, txt=f"Ja, {ime_prezime} molim da mi se odobri korištenje")
+                                pdf.multi_cell(0, 8, txt=f"Ja, {ime_prezime} molim da mi se odobri korištenje")
                                 if original_row["tip"] == "Godišnji odmor":
-                                    pdf.multi_cell(0, 10, txt=f"godišnjeg odmora u trajanju od {broj_dana} dan/a.")
+                                    pdf.multi_cell(0, 8, txt=f"godišnjeg odmora u trajanju od {broj_dana} dan/a.")
                                 else:
-                                    pdf.multi_cell(0, 10, txt=f"slobodnih dana u trajanju od {broj_dana} dan/a.")
+                                    pdf.multi_cell(0, 8, txt=f"slobodnih dana u trajanju od {broj_dana} dan/a.")
 
-                                pdf.ln(5)
-                                pdf.multi_cell(0, 10, txt=f"{'Godišnji odmor' if original_row['tip'] == 'Godišnji odmor' else 'Slobodne dane'} počeo/la bih {datum_od} godine, a završio/la bi {datum_do} godine.")
-                                pdf.multi_cell(0, 10, txt=f"Prvi radni dan nakon odsustva: {prvi_radni_dan}.")
-                                pdf.ln(10)
+                                pdf.ln(4)
+                                pdf.multi_cell(0, 8, txt=f"{'Godišnji odmor' if original_row['tip'] == 'Godišnji odmor' else 'Slobodne dane'} počeo/la bih {datum_od} godine, a završio/la bi {datum_do} godine.")
+                                pdf.multi_cell(0, 8, txt=f"Prvi radni dan nakon odsustva: {prvi_radni_dan}.")
+                                pdf.ln(8)
 
-                                pdf.multi_cell(0, 10, txt=f".......................................")
-                                pdf.multi_cell(0, 10, txt=f"({datum_podnosenja})", align='C')
-                                pdf.ln(20)
+                                pdf.multi_cell(0, 8, txt=f".......................................")
+                                pdf.multi_cell(0, 8, txt=f"({datum_podnosenja})", align='C')
+                                pdf.ln(15)
 
                                 pdf.cell(90, 10, txt="POTPIS DJELATNIKA:", align='L')
                                 pdf.cell(90, 10, txt="ODOBRIO:", align='R')
