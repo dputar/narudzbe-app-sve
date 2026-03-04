@@ -1033,7 +1033,7 @@ else:
         from datetime import datetime, timedelta
         import io
 
-        # Definiraj funkciju za izračun radnih dana (preskače vikende i praznike)
+        # Definiraj funkciju za izračun radnih dana
         def calculate_working_days(start_str, end_str, holidays):
             start = datetime.fromisoformat(start_str).date()
             end = datetime.fromisoformat(end_str).date()
@@ -1450,18 +1450,20 @@ else:
                         st.success("Izmjene i brisanja spremljeni! Saldo ažuriran.")
                         st.rerun()
 
-              	   with col2:
+                with col2:
                     if st.button("Izvezi označene u PDF"):
                         for idx, row in edited_df.iterrows():
                             if row["Izvezi PDF"]:
                                 original_row = df_odmori.loc[idx]
-
                                 pdf = FPDF()
                                 pdf.add_page()
 
-                                # Dodaj Unicode font (DejaVuSans podržava š, č, ć, đ, ž)
-                                pdf.add_font("DejaVuSans", "", "fonts/DejaVuSans.ttf", uni=True)
-                                pdf.set_font("DejaVuSans", size=12)
+                                # Koristi Unicode font (DejaVuSans ili Arial ako font nije dostupan)
+                                try:
+                                    pdf.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
+                                    pdf.set_font("DejaVu", size=12)
+                                except:
+                                    pdf.set_font("Arial", size=12)
 
                                 # Zaglavlje firme
                                 pdf.cell(200, 10, txt="Medicline d.o.o.", ln=1, align='C')
