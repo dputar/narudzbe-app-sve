@@ -1023,13 +1023,11 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA (PDF + LOG + SVE POPRAVLJENO)
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA REPORTLAB PDF IZVOZOM
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        import json
-        from fpdf import FPDF
         from datetime import datetime, timedelta
         import io
 
