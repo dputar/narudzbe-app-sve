@@ -1024,7 +1024,7 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA PDF IZVOZOM (IS PRAVLJENA INDENTACIJA)
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA PDF IZVOZOM (FONT U fonts/)
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -1458,7 +1458,7 @@ else:
                                 pdf = FPDF()
                                 pdf.add_page()
 
-                                # Unicode font – DejaVuSans (ako postoji u projektu)
+                                # Koristi font iz foldera fonts/
                                 try:
                                     pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
                                     pdf.set_font("DejaVu", size=12)
