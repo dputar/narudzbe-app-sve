@@ -1450,7 +1450,7 @@ else:
                         st.success("Izmjene i brisanja spremljeni! Saldo ažuriran.")
                         st.rerun()
 
-                 with col2:
+              	   with col2:
                     if st.button("Izvezi označene u PDF"):
                         for idx, row in edited_df.iterrows():
                             if row["Izvezi PDF"]:
