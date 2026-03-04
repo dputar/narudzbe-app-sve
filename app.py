@@ -1175,6 +1175,7 @@ else:
                     df_odmori = pd.DataFrame(odmori_response.data or [])
 
                     preklapanja = 0
+                    preklapanja_ista_osoba = 0
                     for _, row in df_odmori.iterrows():
                         start_db = datetime.fromisoformat(row["datum_od"]).date()
                         end_db = datetime.fromisoformat(row["datum_do"]).date()
@@ -1182,6 +1183,12 @@ else:
                         end = min(datum_do, end_db)
                         if start <= end:
                             preklapanja += (end - start).days + 1
+                            if row["korisnik_id"] == korisnik_id:
+                                preklapanja_ista_osoba += (end - start).days + 1
+
+                    if preklapanja_ista_osoba > 0:
+                        st.error("Ista osoba već ima upis na preklapajuće datume! Ne može se dodati dupli unos.")
+                        st.stop()
 
                     if preklapanja > 0:
                         st.session_state.temp_odmor = {
@@ -1226,6 +1233,7 @@ else:
                 odmori_response = supabase.table("odmori").select("*").execute()
                 df_odmori = pd.DataFrame(odmori_response.data or [])
                 preklapanja = 0
+                preklapanja_ista_osoba = 0
                 for _, row in df_odmori.iterrows():
                     start_db = datetime.fromisoformat(row["datum_od"]).date()
                     end_db = datetime.fromisoformat(row["datum_do"]).date()
@@ -1233,40 +1241,47 @@ else:
                     end = min(st.session_state.temp_odmor["datum_do"], end_db)
                     if start <= end:
                         preklapanja += (end - start).days + 1
+                        if row["korisnik_id"] == st.session_state.temp_odmor["korisnik_id"]:
+                            preklapanja_ista_osoba += (end - start).days + 1
+
+                if preklapanja_ista_osoba > 0:
+                    st.error("Ista osoba već ima upis na preklapajuće datume! Ne može se dodati.")
+                    st.session_state.temp_odmor = None
+                    st.rerun()
+                    return
+
+                st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
+                col1, col2 = st.columns(2)
+                if col1.button("Potvrdi dodavanje sa preklapanjem"):
+                    novi = {
+                        "korisnik_id": st.session_state.temp_odmor["korisnik_id"],
+                        "datum_od": st.session_state.temp_odmor["datum_od"].isoformat(),
+                        "datum_do": st.session_state.temp_odmor["datum_do"].isoformat(),
+                        "tip": st.session_state.temp_odmor["tip"],
+                        "napomena": st.session_state.temp_odmor["napomena"],
+                        "unio_korisnik": st.session_state.temp_odmor["unio_korisnik"],
+                        "created_at": datetime.now(TZ).isoformat()
+                    }
+                    supabase.table("odmori").insert(novi).execute()
+
+                    broj_dana = st.session_state.temp_odmor["broj_dana"]
+                    if st.session_state.temp_odmor["tip"] == "Godišnji odmor":
+                        novi_saldo = preostalo_godisnje - broj_dana
+                        supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
+                    elif st.session_state.temp_odmor["tip"] == "Slobodni dan":
+                        novi_slobodni = preostalo_slobodnih - broj_dana
+                        supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
+
+                    st.success("Unos dodan sa preklapanjem!")
+                    st.session_state.temp_odmor = None
+                    st.session_state.form_reset = True
+                    st.rerun()
+                if col2.button("Odustani"):
+                    st.session_state.temp_odmor = None
+                    st.session_state.form_reset = True
+                    st.rerun()
             except Exception as e:
-                preklapanja = 0
                 st.error(f"Greška pri ponovnom dohvaćanju: {str(e)}")
-
-            st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
-            col1, col2 = st.columns(2)
-            if col1.button("Potvrdi dodavanje sa preklapanjem"):
-                novi = {
-                    "korisnik_id": st.session_state.temp_odmor["korisnik_id"],
-                    "datum_od": st.session_state.temp_odmor["datum_od"].isoformat(),
-                    "datum_do": st.session_state.temp_odmor["datum_do"].isoformat(),
-                    "tip": st.session_state.temp_odmor["tip"],
-                    "napomena": st.session_state.temp_odmor["napomena"],
-                    "unio_korisnik": st.session_state.temp_odmor["unio_korisnik"],
-                    "created_at": datetime.now(TZ).isoformat()
-                }
-                supabase.table("odmori").insert(novi).execute()
-
-                broj_dana = st.session_state.temp_odmor["broj_dana"]
-                if st.session_state.temp_odmor["tip"] == "Godišnji odmor":
-                    novi_saldo = preostalo_godisnje - broj_dana
-                    supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
-                elif st.session_state.temp_odmor["tip"] == "Slobodni dan":
-                    novi_slobodni = preostalo_slobodnih - broj_dana
-                    supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
-
-                st.success("Unos dodan sa preklapanjem!")
-                st.session_state.temp_odmor = None
-                st.session_state.form_reset = True
-                st.rerun()
-            if col2.button("Odustani"):
-                st.session_state.temp_odmor = None
-                st.session_state.form_reset = True
-                st.rerun()
 
         # Reset forme nakon dodavanja
         if st.session_state.form_reset:
