@@ -1464,6 +1464,7 @@ else:
                                     pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
                                     pdf.set_font("DejaVu", size=10)  # manji font da stane
                                 except:
+				    st.warning(f"Font nije pronađen: {font_error}. Koristim Arial.")	
                                     pdf.set_font("Arial", size=10)
 
                                 # Zaglavlje firme – sve multi_cell
