@@ -1451,23 +1451,15 @@ else:
 
                 with col2:
                     if st.button("Izvezi označene u PDF"):
-                        from reportlab.lib.pagesizes import A4
-                        from reportlab.pdfgen import canvas
-                        from reportlab.lib.units import mm
-                        from reportlab.lib.colors import black
-                        from pypdf import PdfReader, PdfWriter
-
                         for idx, row in edited_df.iterrows():
                             if row["Izvezi PDF"]:
                                 original_row = df_odmori.loc[idx]
 
-                                # Generiraj overlay PDF sa tekstom
                                 overlay_buffer = io.BytesIO()
                                 c = canvas.Canvas(overlay_buffer, pagesize=A4)
                                 width, height = A4
 
-                                # Postavi font
-                                c.setFont('Helvetica', 12)  # ili 'DejaVu' ako imaš font
+                                c.setFont('Helvetica', 12)
 
                                 ime_prezime = original_row["korisnik_ime"]
                                 broj_dana = str(calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, [])))
@@ -1478,12 +1470,12 @@ else:
 
                                 # Podešene koordinate za centriranje teksta na točkicama (prilagodio prema slici)
                                 # y je od dna stranice (0 dolje, height gore)
-                                c.drawCentredString(width / 2 - 45*mm, height - 129*mm, ime_prezime)  # ime centrirano
-                                c.drawCentredString(width / 2 - 5*mm, height - 144*mm, broj_dana)  # broj dana centrirano
-                                c.drawCentredString(width / 2 - 7*mm, height - 162*mm, datum_od)  # datum od centrirano
-                                c.drawCentredString(width / 2 - 55*mm, height - 185*mm, datum_do)  # datum do centrirano
-                                c.drawCentredString(width / 2, height - 200*mm, prvi_radni_dan)  # prvi radni dan centrirano
-                                c.drawCentredString(width / 2, height - 220*mm, datum_podnosenja)  # datum podnošenja centrirano
+                                c.drawString(40*mm, height - 135*mm, ime_prezime) # ime
+                                c.drawString(140*mm, height - 155*mm, broj_dana) # broj dana
+                                c.drawString(70*mm, height - 175*mm, datum_od) # datum od
+                                c.drawString(150*mm, height - 175*mm, datum_do) # datum do
+                                c.drawString(140*mm, height - 195*mm, prvi_radni_dan) # prvi radni dan
+                                c.drawString(40*mm, height - 215*mm, datum_podnosenja) # datum podnošenja
 
                                 c.save()
                                 overlay_buffer.seek(0)
@@ -1539,7 +1531,7 @@ else:
 
                 cal = calendar.monthcalendar(year, month)
 
-                fig, ax = plt.subplots(figsize=(12, 8))
+                fig, ax = plt.subplots(figsize=(12, 8)
                 ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)
                 ax.axis('off')
 
