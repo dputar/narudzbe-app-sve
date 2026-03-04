@@ -1450,7 +1450,7 @@ else:
                         st.success("Izmjene i brisanja spremljeni! Saldo ažuriran.")
                         st.rerun()
 
-                with col2:
+                 with col2:
                     if st.button("Izvezi označene u PDF"):
                         for idx, row in edited_df.iterrows():
                             if row["Izvezi PDF"]:
@@ -1458,29 +1458,29 @@ else:
                                 pdf = FPDF()
                                 pdf.add_page()
 
-                                # Unicode font – koristi DejaVuSans ako postoji, inače Arial
+                                # Unicode font – DejaVuSans (podržava š, č, ć, đ, ž)
                                 try:
-                                    pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
+                                    pdf.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
                                     pdf.set_font("DejaVu", size=12)
                                 except:
                                     pdf.set_font("Arial", size=12)
 
-                                # Zaglavlje firme
-                                pdf.cell(200, 10, txt="Medicline d.o.o.", ln=1, align='C')
-                                pdf.cell(200, 10, txt="Vinogradska 217, 31000 Osijek, Hrvatska", ln=1, align='C')
-                                pdf.cell(200, 10, txt="tel.: +385 (0) 31 625 302   e-mail: info@medicline.hr", ln=1, align='C')
-                                pdf.cell(200, 10, txt="web: http://www.medicline.hr", ln=1, align='C')
+                                # Zaglavlje firme – koristi multi_cell za wrap
+                                pdf.multi_cell(0, 8, txt="Medicline d.o.o.", align='C')
+                                pdf.multi_cell(0, 8, txt="Vinogradska 217, 31000 Osijek, Hrvatska", align='C')
+                                pdf.multi_cell(0, 8, txt="tel.: +385 (0) 31 625 302   e-mail: info@medicline.hr", align='C')
+                                pdf.multi_cell(0, 8, txt="web: http://www.medicline.hr", align='C')
                                 pdf.ln(10)
 
                                 # Naslov dokumenta
                                 if original_row["tip"] == "Godišnji odmor":
-                                    pdf.cell(200, 10, txt="ZAHTJEV ZA KORIŠTENJE GODIŠNJEG ODMORA", ln=1, align='C')
+                                    pdf.multi_cell(0, 10, txt="ZAHTJEV ZA KORIŠTENJE GODIŠNJEG ODMORA", align='C')
                                 else:
-                                    pdf.cell(200, 10, txt="ZAHTJEV ZA KORIŠTENJE SLOBODNIH DANA", ln=1, align='C')
+                                    pdf.multi_cell(0, 10, txt="ZAHTJEV ZA KORIŠTENJE SLOBODNIH DANA", align='C')
 
                                 pdf.ln(10)
 
-                                # Tekst zahtjeva
+                                # Tekst zahtjeva – koristi multi_cell za duže tekstove
                                 ime_prezime = original_row["korisnik_ime"]
                                 broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                 datum_od = datetime.fromisoformat(original_row["datum_od"]).strftime("%d.%m.%Y.")
@@ -1499,8 +1499,8 @@ else:
                                 pdf.multi_cell(0, 10, txt=f"Prvi radni dan nakon odsustva: {prvi_radni_dan}.")
                                 pdf.ln(10)
 
-                                pdf.cell(200, 10, txt=f".......................................", ln=1)
-                                pdf.cell(200, 10, txt=f"({datum_podnosenja})", ln=1, align='C')
+                                pdf.multi_cell(0, 10, txt=f".......................................")
+                                pdf.multi_cell(0, 10, txt=f"({datum_podnosenja})", align='C')
                                 pdf.ln(20)
 
                                 pdf.cell(90, 10, txt="POTPIS DJELATNIKA:", align='L')
@@ -1520,7 +1520,6 @@ else:
                                     mime="application/pdf",
                                     key=f"pdf_download_{row['id']}"
                                 )
-
             else:
                 st.info("Još nema unosa.")
         except Exception as e:
