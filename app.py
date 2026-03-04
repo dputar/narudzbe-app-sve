@@ -1024,7 +1024,7 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA (KUMULATIVNI SALDO + UPSERT)
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA POVRATOM DANA PRI BRISANJU/UREĐIVANJU
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -1275,7 +1275,6 @@ else:
                 if st.button(f"Dodijeli nove godišnje dane za {tekuca_godina} svima"):
                     try:
                         korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,odobreni_dani_po_godini").execute()
-                        uspjesno = 0
                         for kor in korisnici_response.data or []:
                             kor_id = kor["id"]
                             dodjeljeni = kor.get("odobreni_dani_po_godini") or 20
@@ -1284,29 +1283,15 @@ else:
 
                             supabase.table("korisnici").update({"godisnji_dani": novi_saldo}).eq("id", kor_id).execute()
 
-                            # Provjeri postoji li red u godisnji_balans
-                            check = supabase.table("godisnji_balans")\
-                                .select("count", count="exact")\
-                                .eq("korisnik_id", kor_id)\
-                                .eq("godina", tekuca_godina)\
-                                .execute()
+                            # Koristimo upsert da izbjegnemo duplicate key error
+                            supabase.table("godisnji_balans").upsert({
+                                "korisnik_id": kor_id,
+                                "godina": tekuca_godina,
+                                "iskoristeno_dana": 0,
+                                "neiskoristeno_dana": dodjeljeni
+                            }).execute()
 
-                            if check.count > 0:
-                                supabase.table("godisnji_balans").update({
-                                    "neiskoristeno_dana": dodjeljeni,
-                                    "iskoristeno_dana": 0
-                                }).eq("korisnik_id", kor_id).eq("godina", tekuca_godina).execute()
-                            else:
-                                supabase.table("godisnji_balans").insert({
-                                    "korisnik_id": kor_id,
-                                    "godina": tekuca_godina,
-                                    "iskoristeno_dana": 0,
-                                    "neiskoristeno_dana": dodjeljeni
-                                }).execute()
-
-                            uspjesno += 1
-
-                        st.success(f"Dodijeljeno novih dana za {uspjesno} korisnika za {tekuca_godina}. godinu!")
+                        st.success(f"Novi godišnji dani dodijeljeni svima za {tekuca_godina}. godinu!")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Greška pri dodjeljivanju: {str(e)}")
@@ -1315,7 +1300,9 @@ else:
                 if st.button("Izvrši konverziju 30.06. (neiskorišteni → slobodni dani)"):
                     try:
                         korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,odobreni_dani_po_godini,slobodni_dani").execute()
-                        for kor in korisnici_response.data or []:
+                        korisnici_df = pd.DataFrame(korisnici_response.data or [])
+
+                        for _, kor in korisnici_df.iterrows():
                             kor_id = kor["id"]
                             trenutni_saldo = kor.get("godisnji_dani") or 0
                             odobreni = kor.get("odobreni_dani_po_godini") or 20
@@ -1329,14 +1316,14 @@ else:
                                     "slobodni_dani": novi_slobodni
                                 }).eq("id", kor_id).execute()
 
-                                st.write(f"{kor['ime_prezime']}: prebačeno {razlika} dana u slobodne")
+                                st.write(f"{kor['ime_prezime']}: prebačeno {razlika} dana u slobodne (novi saldo: {novi_slobodni})")
 
                         st.success("Konverzija 30.06. izvršena za sve korisnike!")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Greška pri konverziji: {str(e)}")
 
-        # Prikaz i uređivanje/brisanje unosa
+        # Prikaz i uređivanje/brisanje unosa – OVDJE JE DODANA LOGIKA POVRATA DANA
         st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje i brisanje)")
         try:
             odmori_response = supabase.table("odmori")\
@@ -1375,6 +1362,7 @@ else:
                     for idx, row in edited_df.iterrows():
                         original_row = df_odmori.loc[idx]
 
+                        # Brisanje retka – VRAĆAMO DANE
                         if row["Obriši"]:
                             to_delete.append(row["id"])
                             log = {
@@ -1384,8 +1372,19 @@ else:
                                 "created_at": datetime.now(TZ).isoformat()
                             }
                             supabase.table("log_odmori").insert(log).execute()
+
+                            # Vraćamo dane korisniku
+                            broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
+                            if original_row["tip"] == "Godišnji odmor":
+                                novi_saldo = preostalo_godisnje + broj_dana
+                                supabase.table("korisnici").update({"godisnji_dani": int(novi_saldo)}).eq("id", original_row["korisnik_id"]).execute()
+                            elif original_row["tip"] == "Slobodni dan":
+                                novi_slobodni = preostalo_slobodnih + broj_dana
+                                supabase.table("korisnici").update({"slobodni_dani": int(novi_slobodni)}).eq("id", original_row["korisnik_id"]).execute()
+
                             continue
 
+                        # Uređivanje – provjeravamo promjene i prilagođavamo saldo
                         changed_fields = {}
                         for field in ["datum_od", "datum_do", "tip", "napomena"]:
                             if row[field] != original_row[field]:
@@ -1406,11 +1405,27 @@ else:
                             }
                             supabase.table("log_odmori").insert(log).execute()
 
+                            # Ako se promijenio tip ili datumi – prilagođavamo saldo
+                            if "tip" in changed_fields or "datum_od" in changed_fields or "datum_do" in changed_fields:
+                                # Stari broj dana
+                                stari_broj = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
+                                # Novi broj dana
+                                novi_broj = calculate_working_days(row["datum_od"], row["datum_do"], holidays_dict.get(tekuca_godina, []))
+
+                                if original_row["tip"] == "Godišnji odmor":
+                                    razlika = stari_broj - novi_broj
+                                    novi_saldo = preostalo_godisnje + razlika
+                                    supabase.table("korisnici").update({"godisnji_dani": int(novi_saldo)}).eq("id", original_row["korisnik_id"]).execute()
+                                elif original_row["tip"] == "Slobodni dan":
+                                    razlika = stari_broj - novi_broj
+                                    novi_slobodni = preostalo_slobodnih + razlika
+                                    supabase.table("korisnici").update({"slobodni_dani": int(novi_slobodni)}).eq("id", original_row["korisnik_id"]).execute()
+
                     if to_delete:
                         for rec_id in to_delete:
                             supabase.table("odmori").delete().eq("id", rec_id).execute()
 
-                    st.success("Izmjene i brisanja spremljeni!")
+                    st.success("Izmjene i brisanja spremljeni! Saldo ažuriran.")
                     st.rerun()
             else:
                 st.info("Još nema unosa.")
