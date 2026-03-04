@@ -1175,7 +1175,6 @@ else:
                     df_odmori = pd.DataFrame(odmori_response.data or [])
 
                     preklapanja = 0
-                    preklapanja_ista_osoba = 0
                     for _, row in df_odmori.iterrows():
                         start_db = datetime.fromisoformat(row["datum_od"]).date()
                         end_db = datetime.fromisoformat(row["datum_do"]).date()
@@ -1183,12 +1182,6 @@ else:
                         end = min(datum_do, end_db)
                         if start <= end:
                             preklapanja += (end - start).days + 1
-                            if row["korisnik_id"] == korisnik_id:
-                                preklapanja_ista_osoba += (end - start).days + 1
-
-                    if preklapanja_ista_osoba > 0:
-                        st.error("Ista osoba već ima upis na preklapajuće datume! Ne može se dodati dupli unos.")
-                        st.stop()
 
                     if preklapanja > 0:
                         st.session_state.temp_odmor = {
@@ -1233,7 +1226,6 @@ else:
                 odmori_response = supabase.table("odmori").select("*").execute()
                 df_odmori = pd.DataFrame(odmori_response.data or [])
                 preklapanja = 0
-                preklapanja_ista_osoba = 0
                 for _, row in df_odmori.iterrows():
                     start_db = datetime.fromisoformat(row["datum_od"]).date()
                     end_db = datetime.fromisoformat(row["datum_do"]).date()
@@ -1241,47 +1233,40 @@ else:
                     end = min(st.session_state.temp_odmor["datum_do"], end_db)
                     if start <= end:
                         preklapanja += (end - start).days + 1
-                        if row["korisnik_id"] == st.session_state.temp_odmor["korisnik_id"]:
-                            preklapanja_ista_osoba += (end - start).days + 1
-
-                if preklapanja_ista_osoba > 0:
-                    st.error("Ista osoba već ima upis na preklapajuće datume! Ne može se dodati.")
-                    st.session_state.temp_odmor = None
-                    st.rerun()
-                   
-
-                st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
-                col1, col2 = st.columns(2)
-                if col1.button("Potvrdi dodavanje sa preklapanjem"):
-                    novi = {
-                        "korisnik_id": st.session_state.temp_odmor["korisnik_id"],
-                        "datum_od": st.session_state.temp_odmor["datum_od"].isoformat(),
-                        "datum_do": st.session_state.temp_odmor["datum_do"].isoformat(),
-                        "tip": st.session_state.temp_odmor["tip"],
-                        "napomena": st.session_state.temp_odmor["napomena"],
-                        "unio_korisnik": st.session_state.temp_odmor["unio_korisnik"],
-                        "created_at": datetime.now(TZ).isoformat()
-                    }
-                    supabase.table("odmori").insert(novi).execute()
-
-                    broj_dana = st.session_state.temp_odmor["broj_dana"]
-                    if st.session_state.temp_odmor["tip"] == "Godišnji odmor":
-                        novi_saldo = preostalo_godisnje - broj_dana
-                        supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
-                    elif st.session_state.temp_odmor["tip"] == "Slobodni dan":
-                        novi_slobodni = preostalo_slobodnih - broj_dana
-                        supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
-
-                    st.success("Unos dodan sa preklapanjem!")
-                    st.session_state.temp_odmor = None
-                    st.session_state.form_reset = True
-                    st.rerun()
-                if col2.button("Odustani"):
-                    st.session_state.temp_odmor = None
-                    st.session_state.form_reset = True
-                    st.rerun()
             except Exception as e:
+                preklapanja = 0
                 st.error(f"Greška pri ponovnom dohvaćanju: {str(e)}")
+
+            st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
+            col1, col2 = st.columns(2)
+            if col1.button("Potvrdi dodavanje sa preklapanjem"):
+                novi = {
+                    "korisnik_id": st.session_state.temp_odmor["korisnik_id"],
+                    "datum_od": st.session_state.temp_odmor["datum_od"].isoformat(),
+                    "datum_do": st.session_state.temp_odmor["datum_do"].isoformat(),
+                    "tip": st.session_state.temp_odmor["tip"],
+                    "napomena": st.session_state.temp_odmor["napomena"],
+                    "unio_korisnik": st.session_state.temp_odmor["unio_korisnik"],
+                    "created_at": datetime.now(TZ).isoformat()
+                }
+                supabase.table("odmori").insert(novi).execute()
+
+                broj_dana = st.session_state.temp_odmor["broj_dana"]
+                if st.session_state.temp_odmor["tip"] == "Godišnji odmor":
+                    novi_saldo = preostalo_godisnje - broj_dana
+                    supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
+                elif st.session_state.temp_odmor["tip"] == "Slobodni dan":
+                    novi_slobodni = preostalo_slobodnih - broj_dana
+                    supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
+
+                st.success("Unos dodan sa preklapanjem!")
+                st.session_state.temp_odmor = None
+                st.session_state.form_reset = True
+                st.rerun()
+            if col2.button("Odustani"):
+                st.session_state.temp_odmor = None
+                st.session_state.form_reset = True
+                st.rerun()
 
         # Reset forme nakon dodavanja
         if st.session_state.form_reset:
@@ -1523,6 +1508,30 @@ else:
         except Exception as e:
             st.error(f"Greška pri dohvaćanju/uređivanju unosa: {str(e)}")
 
+        # Pregled po korisniku - VRAĆEN KAKO JE RADIO PRIJE
+        st.subheader("Pregled po korisniku")
+        try:
+            if not df_odmori.empty:
+                if tip_korisnika != "administrator":
+                    df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
+
+                praznici_response = supabase.table("praznici").select("datum").execute()
+                holidays = {datetime.fromisoformat(p["datum"]).date() for p in praznici_response.data or []}
+
+                df_odmori["broj_dana"] = df_odmori.apply(lambda row: calculate_working_days(row["datum_od"], row["datum_do"], holidays), axis=1)
+
+                summary = df_odmori.groupby("korisnik_ime").agg(
+                    ukupno_dana=("broj_dana", "sum"),
+                    broj_unosa=("id", "count")
+                ).reset_index()
+
+                st.dataframe(summary, use_container_width=True, hide_index=True)
+                st.info("Napomena: Broj dana isključuje vikende i praznike/blagdane.")
+            else:
+                st.info("Nema podataka za pregled.")
+        except Exception as e:
+            st.error(f"Greška pri sumiranju: {str(e)}")
+
         # Kalendar sa bojama po korisniku i imenima ispod datuma
         st.subheader("Kalendar preklapanja")
         try:
@@ -1530,22 +1539,30 @@ else:
             year = col_year.selectbox("Godina", range(2025, 2041), index=datetime.now().year - 2025, key="kal_god")
             month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1,
                                         format_func=lambda m: calendar.month_name[m], key="kal_mj")
+
             odmori_response = supabase.table("odmori")\
                 .select("*, korisnici!inner(ime_prezime)")\
                 .execute()
+
             df_odmori = pd.DataFrame(odmori_response.data or [])
+
             if not df_odmori.empty:
                 df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
                 df_odmori = df_odmori.drop(columns=["korisnici"])
+
                 unique_users = df_odmori["korisnik_ime"].unique()
                 color_map = {user: plt.cm.tab10(i / len(unique_users)) for i, user in enumerate(unique_users)}
+
                 cal = calendar.monthcalendar(year, month)
+
                 fig, ax = plt.subplots(figsize=(12, 8))
                 ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)
                 ax.axis('off')
+
                 days = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
                 for i, day in enumerate(days):
                     ax.text(i + 0.5, 0.3, day, ha='center', va='bottom', fontsize=14, fontweight='bold', color='black')
+
                 for week_num, week in enumerate(cal):
                     for day_num, day in enumerate(week):
                         if day == 0:
@@ -1555,6 +1572,7 @@ else:
                         rect = plt.Rectangle((x, y), 1, -1, fill=False, edgecolor='black', linewidth=1)
                         ax.add_patch(rect)
                         ax.text(x + 0.5, y - 0.5, day, ha='center', va='center', fontsize=12)
+
                         current_date = datetime(year, month, day).date()
                         overlapping_users = []
                         for _, unos in df_odmori.iterrows():
@@ -1562,10 +1580,12 @@ else:
                             end = datetime.fromisoformat(unos["datum_do"]).date()
                             if start <= current_date <= end:
                                 overlapping_users.append(unos["korisnik_ime"])
+
                         is_weekend = current_date.weekday() >= 5
                         is_holiday = current_date in holidays_dict.get(year, [])
                         if is_weekend or is_holiday:
                             continue
+
                         if len(overlapping_users) > 1:
                             ax.add_patch(plt.Rectangle((x, y), 1, -1, color='red', alpha=0.5))
                             text = "\n".join(overlapping_users)
@@ -1575,10 +1595,13 @@ else:
                             user_color = color_map.get(user, 'gray')
                             ax.add_patch(plt.Rectangle((x, y), 1, -1, color=user_color, alpha=0.5))
                             ax.text(x + 0.5, y - 0.8, user, ha='center', va='center', fontsize=8, color='white')
+
                 ax.set_xlim(0, 7)
                 ax.set_ylim(-7.0, 0.8)
                 ax.set_aspect('equal')
+
                 fig.tight_layout(pad=4.5)
+
                 buf = io.BytesIO()
                 fig.savefig(buf, format="png", bbox_inches='tight', dpi=120)
                 buf.seek(0)
