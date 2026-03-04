@@ -1480,7 +1480,7 @@ else:
                                 # y je od dna stranice (0 dolje, height gore)
                                 c.drawCentredString(width / 2 - 45*mm, height - 129*mm, ime_prezime)  # ime centrirano
                                 c.drawCentredString(width / 2 - 5*mm, height - 144*mm, broj_dana)  # broj dana centrirano
-                                c.drawCentredString(width / 2 - 5*mm, height - 164*mm, datum_od)  # datum od centrirano
+                                c.drawCentredString(width / 2 - 4*mm, height - 164*mm, datum_od)  # datum od centrirano
                                 c.drawCentredString(width / 2 - 60*mm, height - 184*mm, datum_do)  # datum do centrirano
                                 c.drawCentredString(width / 2 + 44*mm, height - 184*mm, prvi_radni_dan)  # prvi radni dan centrirano
                                 c.drawCentredString(width / 2 - 60*mm, height - 211*mm, datum_podnosenja)  # datum podnošenja centrirano
