@@ -1460,7 +1460,7 @@ else:
 
                                 # Unicode font – DejaVuSans (podržava š, č, ć, đ, ž)
                                 try:
-                                    pdf.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
+                                    pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
                                     pdf.set_font("DejaVu", size=12)
                                 except:
                                     pdf.set_font("Arial", size=12)
