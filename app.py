@@ -1029,7 +1029,7 @@ else:
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # Definiraj funkciju za izračun radnih dana
+        # Definiraj funkciju za izračun radnih dana (preskače vikende i praznike)
         def calculate_working_days(start_str, end_str, holidays):
             start = datetime.fromisoformat(start_str).date()
             end = datetime.fromisoformat(end_str).date()
@@ -1040,6 +1040,14 @@ else:
                     count += 1
                 current += timedelta(days=1)
             return count
+
+        # Funkcija za pronalazak sljedećeg radnog dana nakon datuma (preskače vikende i praznike)
+        def find_next_working_day(end_date, holidays):
+            current = end_date + timedelta(days=1)
+            while True:
+                if current.weekday() < 5 and current not in holidays:
+                    return current
+                current += timedelta(days=1)
 
         # Inicijaliziraj session_state
         if "temp_odmor" not in st.session_state:
@@ -1265,7 +1273,7 @@ else:
             st.session_state.form_reset = False
             st.rerun()
 
-        # Administrativne radnje – SAMO ZA ADMINISTRATORA
+        # Administrativne radnje – samo za admina
         if tip_korisnika == "administrator":
             st.subheader("Administrativne radnje")
 
