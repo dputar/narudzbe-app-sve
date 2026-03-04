@@ -1029,7 +1029,7 @@ else:
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
 
-        # Definiraj funkciju za izračun radnih dana (preskače vikende i praznike)
+        # Definiraj funkciju za izračun radnih dana
         def calculate_working_days(start_str, end_str, holidays):
             start = datetime.fromisoformat(start_str).date()
             end = datetime.fromisoformat(end_str).date()
@@ -1541,7 +1541,7 @@ else:
         except Exception as e:
             st.error(f"Greška pri sumiranju: {str(e)}")
 
-        # Gumb za punjenje baze praznika – SAMO ZA ADMINISTRATORA
+        # Puni bazu praznika – SAMO ZA ADMINISTRATORA
         if tip_korisnika == "administrator":
             st.subheader("Puni bazu praznika")
             if st.button("Dodaj praznike za 2026-2040 (klikni jednom)"):
@@ -1559,26 +1559,8 @@ else:
                 except Exception as e:
                     st.error(f"Greška pri dodavanju praznika: {str(e)}")
 
-        # Prikaz log tablice (needitabilna)
+        # Prikaz log tablice – SAMO JEDAN PUT
         st.subheader("Log izmjena i brisanja")
-        try:
-            log_response = supabase.table("log_odmori")\
-                .select("*")\
-                .order("created_at", desc=True)\
-                .execute()
-
-            df_log = pd.DataFrame(log_response.data or [])
-
-            if not df_log.empty:
-                st.dataframe(
-                    df_log[["action", "unio_korisnik", "old_data", "new_data", "created_at"]],
-                    use_container_width=True,
-                    hide_index=True
-                )
-            else:
-                st.info("Još nema log zapisa.")
-        except Exception as e:
-            st.error(f"Greška pri dohvaćanju loga: {str(e)}")
         try:
             log_response = supabase.table("log_odmori")\
                 .select("*")\
