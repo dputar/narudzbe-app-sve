@@ -1023,7 +1023,7 @@ else:
 
 
     # ────────────────────────────────────────────────
-    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA REPORTLAB PDF IZVOZOM
+    # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA REPORTLAB PDF IZVOZOM + SLIKA
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "dokumenti":
         st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -1332,7 +1332,7 @@ else:
                     except Exception as e:
                         st.error(f"Greška pri konverziji: {str(e)}")
 
-        # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF (reportlab)
+        # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF (reportlab sa slikom)
         st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
         try:
             odmori_response = supabase.table("odmori")\
@@ -1473,19 +1473,22 @@ else:
                                     c.setFont('Helvetica', 12)  # fallback
 
                                 # Zaglavlje firme
-                                c.drawCentredString(width/2, height - 20*mm, "Medicline d.o.o.")
-                                c.drawCentredString(width/2, height - 30*mm, "Vinogradska 217, 31000 Osijek, Hrvatska")
-                                c.drawCentredString(width/2, height - 35*mm, "tel.: +385 (0) 31 625 302   e-mail: info@medicline.hr")
-                                c.drawCentredString(width/2, height - 40*mm, "web: http://www.medicline.hr")
-                                c.line(20*mm, height - 45*mm, width - 20*mm, height - 45*mm)
+                                y = height - 40*mm
+                                c.drawCentredString(width/2, y, "Medicline d.o.o.")
+                                y -= 8*mm
+                                c.drawCentredString(width/2, y, "Vinogradska 217, 31000 Osijek, Hrvatska")
+                                y -= 8*mm
+                                c.drawCentredString(width/2, y, "tel.: +385 (0) 31 625 302   e-mail: info@medicline.hr")
+                                y -= 8*mm
+                                c.drawCentredString(width/2, y, "web: http://www.medicline.hr")
+                                y -= 20*mm
 
                                 # Naslov
-                                y = height - 60*mm
-                                if original_row["tip"] == "Godišnji odmor":
-                                    c.drawCentredString(width/2, y, "ZAHTJEV ZA KORIŠTENJE GODIŠNJEG ODMORA")
-                                else:
-                                    c.drawCentredString(width/2, y, "ZAHTJEV ZA KORIŠTENJE SLOBODNIH DANA")
+                                title = "ZAHTJEV ZA KORIŠTENJE GODIŠNJEG ODMORA" if original_row["tip"] == "Godišnji odmor" else "ZAHTJEV ZA KORIŠTENJE SLOBODNIH DANA"
+                                c.setFont('DejaVu' if 'DejaVu' in pdfmetrics.getRegisteredFontNames() else 'Helvetica', 14)
+                                c.drawCentredString(width/2, y, title)
                                 y -= 20*mm
+                                c.setFont('DejaVu' if 'DejaVu' in pdfmetrics.getRegisteredFontNames() else 'Helvetica', 12)
 
                                 # Tekst zahtjeva
                                 ime_prezime = original_row["korisnik_ime"]
@@ -1496,7 +1499,6 @@ else:
                                 datum_podnosenja = datetime.fromisoformat(original_row["created_at"]).strftime("%d.%m.%Y.")
 
                                 text_object = c.beginText(30*mm, y)
-                                text_object.setFont('DejaVu' if 'DejaVu' in pdfmetrics.getRegisteredFontNames() else 'Helvetica', 12)
                                 text_object.textLines(f"Ja, {ime_prezime} molim da mi se odobri korištenje")
                                 if original_row["tip"] == "Godišnji odmor":
                                     text_object.textLines(f"godišnjeg odmora u trajanju od {broj_dana} dan/a.")
@@ -1521,6 +1523,12 @@ else:
                                 c.drawString(width/2 + 20*mm, y, "ODOBRIO:")
                                 c.line(30*mm, y - 10*mm, 80*mm, y - 10*mm)
                                 c.line(width/2 + 20*mm, y - 10*mm, width - 30*mm, y - 10*mm)
+
+                                # Dodaj sliku (image1.png) na dnu desno
+                                try:
+                                    c.drawImage("image1.png", width - 60*mm, y - 40*mm, width=40*mm, height=40*mm)
+                                except Exception as img_error:
+                                    st.warning(f"Slika image1.png nije pronađena: {img_error}. Dodaj je u root projekta.")
 
                                 c.showPage()
                                 c.save()
@@ -1671,7 +1679,7 @@ else:
             df_log = pd.DataFrame(log_response.data or [])
 
             if not df_log.empty:
-                # Pretvori dikt u string za old_data i new_data da izbjegneš Arrow grešku
+                # Pretvori dikt u string za old_data i new_data
                 if 'old_data' in df_log.columns:
                     df_log['old_data'] = df_log['old_data'].apply(
                         lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
