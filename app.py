@@ -1022,7 +1022,6 @@ else:
 
 
 
-
     # ────────────────────────────────────────────────
     # GODIŠNJI ODMOR / SLOBODNI DANI – FINALNA VERZIJA SA PDF IZVOZOM (FONT U fonts/)
     # ────────────────────────────────────────────────
@@ -1462,7 +1461,8 @@ else:
                                 try:
                                     pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
                                     pdf.set_font("DejaVu", size=12)
-                                except:
+                                except Exception as font_error:
+                                    st.warning(f"Font DejaVuSans nije pronađen: {font_error}. Koristim Arial (mogući problemi sa hrvatskim znakovima).")
                                     pdf.set_font("Arial", size=12)
 
                                 # Zaglavlje firme – koristi multi_cell za sigurnost
