@@ -22,31 +22,25 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 TZ = ZoneInfo("Europe/Zagreb")
 
 # ────────────────────────────────────────────────
-# SESSION STATE – INICIJALIZACIJA
+# SESSION STATE – INICIJALIZACIJA (ostavi netaknuto)
 # ────────────────────────────────────────────────
 if "user" not in st.session_state:
     st.session_state.user = None
-
 if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
-
 if "search_input" not in st.session_state:
     st.session_state.search_input = ""
-
 if "temp_order" not in st.session_state:
     st.session_state.temp_order = None
-
 if "temp_odmor" not in st.session_state:
     st.session_state.temp_odmor = None
-
 if "form_reset" not in st.session_state:
     st.session_state.form_reset = False
-
 if "last_refresh_time" not in st.session_state:
     st.session_state.last_refresh_time = time.time()
 
 # ────────────────────────────────────────────────
-# FUNKCIJA ZA AUTENTIFIKACIJU IZ TABLICE KORISNICI
+# FUNKCIJA ZA AUTENTIFIKACIJU – STABILNA VERZIJA
 # ────────────────────────────────────────────────
 def authenticate_user(username, password):
     try:
@@ -62,15 +56,13 @@ def authenticate_user(username, password):
             st.error("Korisnik nije pronađen u tablici korisnici")
             return None
         
-        # Čišćenje hash-a iz baze
         stored_hash = user['lozinka'].strip()
         
-        # Debug ispis (odkomentiraj ako trebaš testirati)
+        # Debug (odkomentiraj ako treba)
         # st.write("Pronađen korisnik:", user.get("ime_prezime", "Nepoznato"))
-        # st.write("Dužina lozinke u bazi:", len(stored_hash))
+        # st.write("Dužina lozinke:", len(stored_hash))
         # st.write("Početak lozinke:", stored_hash[:10])
         
-        # Provjera lozinke
         try:
             if bcrypt.checkpw(password.strip().encode('utf-8'), stored_hash.encode('utf-8')):
                 return user
@@ -79,9 +71,8 @@ def authenticate_user(username, password):
                 return None
         except Exception as enc_err:
             st.error(f"Encoding greška pri provjeri: {str(enc_err)}")
-            # Fallback za plain text lozinku (stari podaci)
-            if stored_hash == password:
-                st.warning("Upozorenje: Lozinka je plain text – hashirajte je u bazi!")
+            if stored_hash == password.strip():
+                st.warning("Lozinka je plain text – hashirajte je u bazi!")
                 return user
             else:
                 return None
@@ -118,7 +109,7 @@ if st.session_state.stranica == "login":
     st.stop()
 
 # ────────────────────────────────────────────────
-# SIDEBAR – NAVIGACIJA (bez dijakritika u ključevima)
+# SIDEBAR – NAVIGACIJA (bez dijakritika!)
 # ────────────────────────────────────────────────
 st.sidebar.title(f"Dobro došli, {st.session_state.user.get('ime_prezime', 'Nepoznato')}")
 
@@ -142,69 +133,40 @@ if st.sidebar.button("Odjavi se"):
     st.rerun()
 
 # ────────────────────────────────────────────────
+# GLAVNI SADRŽAJ – STRANICE BEZ DIJAKRITIKA
+# ────────────────────────────────────────────────
+if st.session_state.stranica == "narudzbe":
+    st.title("📦 Narudžbe")
+    # ovdje ostaje tvoj kod za narudžbe (pregled, upload, spremanje itd.)
+
+elif st.session_state.stranica == "proizvodi":
+    st.title("🛒 Proizvodi")
+    # ovdje tvoj kod za proizvode
+
+elif st.session_state.stranica == "dobavljaci":
+    st.title("🛒 Dobavljači")
+    # ovdje tvoj kod za dobavljače
+
+elif st.session_state.stranica == "korisnici":
+    st.title("👥 Korisnici")
+    # ovdje tvoj kod za korisnike
+
+elif st.session_state.stranica == "dokumenti":
+    st.title("🏖️ Godišnji odmor i slobodni dani")
+    # ovdje ide cijeli blok za dokumenti koji sam ti poslao ranije
+    # (ili zalijepi svoj najnoviji kod za dokumente ovdje – ostaje netaknut)
+
+# ────────────────────────────────────────────────
 # GLAVNI SADRŽAJ – OVISNO O STRANICI (bez dijakritika)
 # ────────────────────────────────────────────────
 if st.session_state.stranica == "narudzbe":
     st.title("📦 Narudžbe")
     # ... (ovdje zalijepi svoj kod za narudžbe ako ga imaš)
 
-elif st.session_state.stranica == "proizvodi":
-    st.title("🛒 Proizvodi")
-    # ... (tvoj kod za proizvode)
-
-elif st.session_state.stranica == "dobavljaci":
-    st.title("🛒 Dobavljači")
-    # ... (tvoj kod za dobavljače)
-
-elif st.session_state.stranica == "korisnici":
-    st.title("👥 Korisnici")
-    # ... (tvoj kod za korisnike)
-
-elif st.session_state.stranica == "dokumenti":
-    st.title("🏖️ Godišnji odmor i slobodni dani")
-    # ────────────────────────────────────────────────
-    # OVDJE IDE CIJELI TVOJ KOD ZA DOKUMENTI (kopiraj iz prethodne poruke ako treba)
-    # ────────────────────────────────────────────────
-    # (npr. forma za unos, potvrda preklapanja, administrativne radnje, PDF izvoz, pregled po korisniku, log tablica, kalendar...)
-    # ... (zalijepi svoj najnoviji kod za "dokumenti" ovdje)
-
-# ────────────────────────────────────────────────
-# CALLBACK ZA TRAŽILICE (ako ih koristiš)
-# ────────────────────────────────────────────────
-def on_proizvodi_search_change():
-    st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
-
-def on_dobavljaci_search_change():
-    st.session_state.dobavljaci_search = st.session_state.dobavljaci_search_input
-
-def on_narudzbe_search_change():
-    st.session_state.narudzbe_search = st.session_state.narudzbe_search_input
-
-def on_korisnici_search_change():
-    st.session_state.korisnici_search = st.session_state.korisnici_search_input
-
-# ────────────────────────────────────────────────
-# POČETNA STRANICA (ako postoji)
-# ────────────────────────────────────────────────
-if st.session_state.stranica == "početna":
-    st.title("Početna")
-    st.markdown("### Dobrodošli u sustav narudžbi!")
-    st.info("Ovdje će biti dashboard, statistike...")
-
-# Automatski refresh svakih 5 minuta
-if time.time() - st.session_state.last_refresh_time > 300:
-    st.rerun()
-
-
-
- # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-
-
-    # ────────────────────────────────────────────────
+  # ────────────────────────────────────────────────
     # NARUDŽBE – pregled
     # ────────────────────────────────────────────────
-    elif st.session_state.stranica == "narudžbe":
+    elif st.session_state.stranica == "narudzbe":
         st.title("Pregled narudžbi")
 
         col1, col2 = st.columns([6, 4])
@@ -422,14 +384,6 @@ if time.time() - st.session_state.last_refresh_time > 300:
 
         else:
             st.info("Još nema narudžbi.")
-
-
-
-
-
-
-
-
 #################################################################################################################################
 
 
@@ -516,152 +470,11 @@ if time.time() - st.session_state.last_refresh_time > 300:
                         st.session_state.show_dodaj_proizvod = False
                         st.rerun()
 
-    # ────────────────────────────────────────────────
-    # ADMINISTRACIJA → DOBAVLJAČI
-    # ────────────────────────────────────────────────
-    elif st.session_state.stranica == "admin_dobavljaci":
-        st.title("Administracija - Dobavljači")
-        response = supabase.table("dobavljaci").select("*").execute()
-        df_dobavljaci = pd.DataFrame(response.data or [])
-        if not df_dobavljaci.empty:
-            col1, col2 = st.columns([6, 4])
-            with col1:
-                st.subheader("Postojeći dobavljači")
-            with col2:
-                st.text_input(
-                    "Pretraži po svim stupcima",
-                    value=st.session_state.dobavljaci_search,
-                    key="dobavljaci_search_input",
-                    placeholder="upiši naziv, email, rok...",
-                    on_change=on_dobavljaci_search_change
-                )
-            df_display = df_dobavljaci.copy()
-            if st.session_state.dobavljaci_search:
-                search_term = str(st.session_state.dobavljaci_search).strip().lower()
-                mask = df_display.astype(str).apply(lambda x: x.str.lower().str.contains(search_term), axis=1).any(axis=1)
-                df_display = df_display[mask]
-            if df_display.empty and st.session_state.dobavljaci_search:
-                st.info("Ništa nije pronađeno.")
-            elif df_display.empty:
-                st.info("Još nema dobavljača u bazi.")
-            df_display["Odaberi za brisanje"] = False
-            edited_df = st.data_editor(
-                df_display,
-                num_rows="dynamic",
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "naziv_dobavljaca": st.column_config.TextColumn("Naziv dobavljača", required=True),
-                    "email": st.column_config.TextColumn("Email"),
-                    "rok_isporuke": st.column_config.TextColumn("Rok isporuke"),
-                    "telefonski_broj": st.column_config.TextColumn("Telefonski broj"),
-                    "napomena": st.column_config.TextColumn("Napomena"),
-                    "neuneseno1": st.column_config.TextColumn("Neuneseno 1"),
-                    "neuneseno2": st.column_config.TextColumn("Neuneseno 2"),
-                    "created_at": st.column_config.TextColumn("Kreirano"),
-                    "updated_at": st.column_config.TextColumn("Ažurirano"),
-                    "Odaberi za brisanje": st.column_config.CheckboxColumn("Obriši"),
-                }
-            )
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                if st.button("💾 Spremi promjene", type="primary"):
-                    for row in edited_df.to_dict("records"):
-                        row_id = row["id"]
-                        if row["Odaberi za brisanje"]:
-                            supabase.table("dobavljaci").delete().eq("id", row_id).execute()
-                        else:
-                            update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje"]}
-                            supabase.table("dobavljaci").update(update_data).eq("id", row_id).execute()
-                    st.success("Promjene spremljene! Označeni dobavljači su obrisani.")
-                    st.rerun()
-            with col2:
-                if st.button("Izvezi sve dobavljače u Excel"):
-                    output = io.BytesIO()
-                    df_dobavljaci.to_excel(output, index=False, sheet_name="Dobavljači")
-                    output.seek(0)
-                    st.download_button(
-                        label="Preuzmi cijelu listu (.xlsx)",
-                        data=output,
-                        file_name=f"svi_dobavljaci_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-            with col3:
-                st.button("🔄 Osvježi", on_click=st.rerun)
-            st.subheader("Dodaj novog dobavljača")
-            with st.form("dodaj_dobavljaca"):
-                naziv = st.text_input("Naziv dobavljača *", key="dodaj_naziv_dobavljaca")
-                email = st.text_input("Email", key="dodaj_email_dobavljaca")
-                rok = st.text_input("Rok isporuke", key="dodaj_rok_dobavljaca")
-                telefon = st.text_input("Telefonski broj", key="dodaj_telefon_dobavljaca")
-                napomena = st.text_area("Napomena", key="dodaj_napomena_dobavljaca")
-                neuneseno1 = st.text_input("Neuneseno 1", key="dodaj_neuneseno1")
-                neuneseno2 = st.text_input("Neuneseno 2", key="dodaj_neuneseno2")
-                submitted = st.form_submit_button("Dodaj dobavljača")
-                if submitted:
-                    if naziv:
-                        novi = {
-                            "naziv_dobavljaca": naziv,
-                            "email": email,
-                            "rok_isporuke": rok,
-                            "telefonski_broj": telefon,
-                            "napomena": napomena,
-                            "neuneseno1": neuneseno1,
-                            "neuneseno2": neuneseno2
-                        }
-                        supabase.table("dobavljaci").insert(novi).execute()
-                        st.success("Dobavljač dodan!")
-                        st.rerun()
-                    else:
-                        st.error("Naziv dobavljača je obavezan!")
-            st.subheader("Upload dobavljača iz Excela")
-            uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_dobavljaci")
-            if uploaded_file:
-                try:
-                    df_upload = pd.read_excel(uploaded_file)
-                    st.write("Pregled podataka iz datoteke:")
-                    st.dataframe(df_upload.head(10))
-                    if st.button("Učitaj sve u bazu", type="primary"):
-                        broj_dodanih = 0
-                        broj_preskocenih = 0
-                        for _, row in df_upload.iterrows():
-                            novi = {
-                                "naziv_dobavljaca": str(row.get("Naziv dobavljača", "")) or "",
-                                "email": str(row.get("Email", "")) or "",
-                                "rok_isporuke": str(row.get("Rok isporuke", "")) or "",
-                                "telefonski_broj": str(row.get("Telefonski broj", "")) or "",
-                                "napomena": str(row.get("Napomena", "")) or "",
-                                "neuneseno1": "",
-                                "neuneseno2": ""
-                            }
-                            for k in novi:
-                                if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
-                                    novi[k] = None
-                            supabase.table("dobavljaci").insert(novi).execute()
-                            broj_dodanih += 1
-                        st.success(f"Učitano {broj_dodanih} novih dobavljača.")
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"Greška pri čitanju Excela: {e}")
-                    st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
-        else:
-            st.info("Još nema dobavljača u bazi.")
-
- 
 
 
-
-
-
-
-
-
-
-
-
-
-
-   # ────────────────────────────────────────────────
+elif st.session_state.stranica == "proizvodi":
+    st.title("🛒 Proizvodi")
+ # ────────────────────────────────────────────────
     # ADMINISTRACIJA → PROIZVODI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_proizvodi":
@@ -844,11 +657,173 @@ if time.time() - st.session_state.last_refresh_time > 300:
 
 
 
+elif st.session_state.stranica == "dobavljaci":
+    st.title("🛒 Dobavljači")
+
+
+    # ────────────────────────────────────────────────
+    # ADMINISTRACIJA → DOBAVLJAČI
+    # ────────────────────────────────────────────────
+    elif st.session_state.stranica == "admin_dobavljaci":
+        st.title("Administracija - Dobavljači")
+        response = supabase.table("dobavljaci").select("*").execute()
+        df_dobavljaci = pd.DataFrame(response.data or [])
+        if not df_dobavljaci.empty:
+            col1, col2 = st.columns([6, 4])
+            with col1:
+                st.subheader("Postojeći dobavljači")
+            with col2:
+                st.text_input(
+                    "Pretraži po svim stupcima",
+                    value=st.session_state.dobavljaci_search,
+                    key="dobavljaci_search_input",
+                    placeholder="upiši naziv, email, rok...",
+                    on_change=on_dobavljaci_search_change
+                )
+            df_display = df_dobavljaci.copy()
+            if st.session_state.dobavljaci_search:
+                search_term = str(st.session_state.dobavljaci_search).strip().lower()
+                mask = df_display.astype(str).apply(lambda x: x.str.lower().str.contains(search_term), axis=1).any(axis=1)
+                df_display = df_display[mask]
+            if df_display.empty and st.session_state.dobavljaci_search:
+                st.info("Ništa nije pronađeno.")
+            elif df_display.empty:
+                st.info("Još nema dobavljača u bazi.")
+            df_display["Odaberi za brisanje"] = False
+            edited_df = st.data_editor(
+                df_display,
+                num_rows="dynamic",
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "naziv_dobavljaca": st.column_config.TextColumn("Naziv dobavljača", required=True),
+                    "email": st.column_config.TextColumn("Email"),
+                    "rok_isporuke": st.column_config.TextColumn("Rok isporuke"),
+                    "telefonski_broj": st.column_config.TextColumn("Telefonski broj"),
+                    "napomena": st.column_config.TextColumn("Napomena"),
+                    "neuneseno1": st.column_config.TextColumn("Neuneseno 1"),
+                    "neuneseno2": st.column_config.TextColumn("Neuneseno 2"),
+                    "created_at": st.column_config.TextColumn("Kreirano"),
+                    "updated_at": st.column_config.TextColumn("Ažurirano"),
+                    "Odaberi za brisanje": st.column_config.CheckboxColumn("Obriši"),
+                }
+            )
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.button("💾 Spremi promjene", type="primary"):
+                    for row in edited_df.to_dict("records"):
+                        row_id = row["id"]
+                        if row["Odaberi za brisanje"]:
+                            supabase.table("dobavljaci").delete().eq("id", row_id).execute()
+                        else:
+                            update_data = {k: v for k, v in row.items() if k not in ["Odaberi za brisanje"]}
+                            supabase.table("dobavljaci").update(update_data).eq("id", row_id).execute()
+                    st.success("Promjene spremljene! Označeni dobavljači su obrisani.")
+                    st.rerun()
+            with col2:
+                if st.button("Izvezi sve dobavljače u Excel"):
+                    output = io.BytesIO()
+                    df_dobavljaci.to_excel(output, index=False, sheet_name="Dobavljači")
+                    output.seek(0)
+                    st.download_button(
+                        label="Preuzmi cijelu listu (.xlsx)",
+                        data=output,
+                        file_name=f"svi_dobavljaci_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+            with col3:
+                st.button("🔄 Osvježi", on_click=st.rerun)
+            st.subheader("Dodaj novog dobavljača")
+            with st.form("dodaj_dobavljaca"):
+                naziv = st.text_input("Naziv dobavljača *", key="dodaj_naziv_dobavljaca")
+                email = st.text_input("Email", key="dodaj_email_dobavljaca")
+                rok = st.text_input("Rok isporuke", key="dodaj_rok_dobavljaca")
+                telefon = st.text_input("Telefonski broj", key="dodaj_telefon_dobavljaca")
+                napomena = st.text_area("Napomena", key="dodaj_napomena_dobavljaca")
+                neuneseno1 = st.text_input("Neuneseno 1", key="dodaj_neuneseno1")
+                neuneseno2 = st.text_input("Neuneseno 2", key="dodaj_neuneseno2")
+                submitted = st.form_submit_button("Dodaj dobavljača")
+                if submitted:
+                    if naziv:
+                        novi = {
+                            "naziv_dobavljaca": naziv,
+                            "email": email,
+                            "rok_isporuke": rok,
+                            "telefonski_broj": telefon,
+                            "napomena": napomena,
+                            "neuneseno1": neuneseno1,
+                            "neuneseno2": neuneseno2
+                        }
+                        supabase.table("dobavljaci").insert(novi).execute()
+                        st.success("Dobavljač dodan!")
+                        st.rerun()
+                    else:
+                        st.error("Naziv dobavljača je obavezan!")
+            st.subheader("Upload dobavljača iz Excela")
+            uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_dobavljaci")
+            if uploaded_file:
+                try:
+                    df_upload = pd.read_excel(uploaded_file)
+                    st.write("Pregled podataka iz datoteke:")
+                    st.dataframe(df_upload.head(10))
+                    if st.button("Učitaj sve u bazu", type="primary"):
+                        broj_dodanih = 0
+                        broj_preskocenih = 0
+                        for _, row in df_upload.iterrows():
+                            novi = {
+                                "naziv_dobavljaca": str(row.get("Naziv dobavljača", "")) or "",
+                                "email": str(row.get("Email", "")) or "",
+                                "rok_isporuke": str(row.get("Rok isporuke", "")) or "",
+                                "telefonski_broj": str(row.get("Telefonski broj", "")) or "",
+                                "napomena": str(row.get("Napomena", "")) or "",
+                                "neuneseno1": "",
+                                "neuneseno2": ""
+                            }
+                            for k in novi:
+                                if pd.isna(novi[k]) or novi[k] in [float('inf'), float('-inf')]:
+                                    novi[k] = None
+                            supabase.table("dobavljaci").insert(novi).execute()
+                            broj_dodanih += 1
+                        st.success(f"Učitano {broj_dodanih} novih dobavljača.")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Greška pri čitanju Excela: {e}")
+                    st.error("Provjeri da li je datoteka ispravna .xlsx i da ima potrebne stupce.")
+        else:
+            st.info("Još nema dobavljača u bazi.")
+
+ 
+
+
+
+
+
+
+
+
+
+
+
 
 
   
 
-    # ────────────────────────────────────────────────
+
+
+  
+
+   
+
+
+
+
+
+
+
+
+elif st.session_state.stranica == "korisnici":
+    st.title("👥 Korisnici")
+ # ────────────────────────────────────────────────
     # ADMINISTRACIJA → KORISNICI
     # ────────────────────────────────────────────────
     elif st.session_state.stranica == "admin_korisnici":
@@ -1079,27 +1054,55 @@ if time.time() - st.session_state.last_refresh_time > 300:
                         st.rerun()
 
 
-
-
-
-
-
-
-
-
-
-#############################################################################################################################
-
-
-
 elif st.session_state.stranica == "dokumenti":
+    st.title("🏖️ Godišnji odmor i slobodni dani")
+    # ────────────────────────────────────────────────
+    # OVDJE IDE CIJELI TVOJ KOD ZA DOKUMENTI (kopiraj iz prethodne poruke ako treba)
+    # ────────────────────────────────────────────────
+    # (npr. forma za unos, potvrda preklapanja, administrativne radnje, PDF izvoz, pregled po korisniku, log tablica, kalendar...)
+    # ... (zalijepi svoj najnoviji kod za "dokumenti" ovdje)
+
+# ────────────────────────────────────────────────
+# CALLBACK ZA TRAŽILICE (ako ih koristiš)
+# ────────────────────────────────────────────────
+def on_proizvodi_search_change():
+    st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
+
+def on_dobavljaci_search_change():
+    st.session_state.dobavljaci_search = st.session_state.dobavljaci_search_input
+
+def on_narudzbe_search_change():
+    st.session_state.narudzbe_search = st.session_state.narudzbe_search_input
+
+def on_korisnici_search_change():
+    st.session_state.korisnici_search = st.session_state.korisnici_search_input
+
+# ────────────────────────────────────────────────
+# POČETNA STRANICA (ako postoji)
+# ────────────────────────────────────────────────
+if st.session_state.stranica == "početna":
+    st.title("Početna")
+    st.markdown("### Dobrodošli u sustav narudžbi!")
+    st.info("Ovdje će biti dashboard, statistike...")
+
+# Automatski refresh svakih 5 minuta
+if time.time() - st.session_state.last_refresh_time > 300:
+    st.rerun()
+
+
+
+ # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+
+
+ elif st.session_state.stranica == "dokumenti":
     st.title("🏖️ Godišnji odmor i slobodni dani")
 
     from datetime import datetime, timedelta
     import io
     import json
 
-    # Funkcija za izračun radnih dana
+    # Funkcija za izračun radnih dana (vikendi + praznici)
     def calculate_working_days(start_str, end_str, holidays):
         start = datetime.fromisoformat(start_str).date()
         end = datetime.fromisoformat(end_str).date()
@@ -1111,7 +1114,7 @@ elif st.session_state.stranica == "dokumenti":
             current += timedelta(days=1)
         return count
 
-    # Funkcija za pronalazak prvog radnog dana nakon završetka
+    # Funkcija za prvi radni dan nakon završetka
     def find_next_working_day(end_date_str, holidays):
         end = datetime.fromisoformat(end_date_str).date()
         current = end + timedelta(days=1)
@@ -1119,7 +1122,7 @@ elif st.session_state.stranica == "dokumenti":
             current += timedelta(days=1)
         return current.strftime("%d.%m.%Y.")
 
-    # Funkcija za računanje stvarnog broja iskorištenih dana korisnika
+    # Računanje stvarnog broja iskorištenih dana za korisnika (bez preklapanja unutar iste osobe)
     def get_used_days_for_user(korisnik_id, exclude_id=None):
         query = supabase.table("odmori").select("datum_od, datum_do").eq("korisnik_id", korisnik_id)
         if exclude_id:
@@ -1136,13 +1139,13 @@ elif st.session_state.stranica == "dokumenti":
             total += calculate_working_days(row["datum_od"].isoformat(), row["datum_do"].isoformat(), holidays)
         return total
 
-    # Inicijaliziraj session_state
+    # Inicijalizacija session_state
     if "temp_odmor" not in st.session_state:
         st.session_state.temp_odmor = None
     if "form_reset" not in st.session_state:
         st.session_state.form_reset = False
 
-    # Ručno definirani hrvatski praznici i blagdani za 2026-2040
+    # Praznici 2026–2040 (dodaj ranije godine ako treba)
     holidays_dict = {
         2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
         2027: [date(2027, 1, 1), date(2027, 1, 6), date(2027, 3, 28), date(2027, 3, 29), date(2027, 5, 1), date(2027, 5, 27), date(2027, 6, 22), date(2027, 8, 15), date(2027, 11, 1), date(2027, 11, 18), date(2027, 12, 25), date(2027, 12, 26)],
