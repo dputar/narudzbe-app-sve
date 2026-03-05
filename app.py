@@ -283,8 +283,8 @@ if st.session_state.stranica == "narudzbe":
                         st.rerun()
                 except Exception as e:
                     st.error(f"Greška pri čitanju Excela: {e}")
-        else:
-            st.info("Još nema narudžbi.")
+
+        
 
 # ────────────────────────────────────────────────
 # DOKUMENTI – OVDJE JE CIJELI TVOJ KOD (bez promjena osim stabilnosti)
