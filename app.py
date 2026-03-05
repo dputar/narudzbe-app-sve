@@ -1266,7 +1266,7 @@ else:
                     st.error("Ista osoba već ima upis na preklapajuće datume! Ne može se dodati.")
                     st.session_state.temp_odmor = None
                     st.rerun()
-                    return
+                    
 
                 st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
                 col1, col2 = st.columns(2)
