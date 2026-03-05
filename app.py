@@ -316,7 +316,7 @@ elif st.session_state.stranica == "dokumenti":
             current += timedelta(days=1)
         return current.strftime("%d.%m.%Y.")
 
-    # Stvarni broj iskorištenih dana
+    # Stvarni broj iskorištenih dana za korisnika
     def get_used_days_for_user(korisnik_id, exclude_id=None):
         query = supabase.table("odmori").select("datum_od, datum_do").eq("korisnik_id", korisnik_id)
         if exclude_id:
@@ -333,16 +333,32 @@ elif st.session_state.stranica == "dokumenti":
             total += calculate_working_days(row["datum_od"].isoformat(), row["datum_do"].isoformat(), holidays)
         return total
 
+    # Inicijalizacija session_state
     if "temp_odmor" not in st.session_state:
         st.session_state.temp_odmor = None
     if "form_reset" not in st.session_state:
         st.session_state.form_reset = False
 
+    # Praznici 2026–2040 (možeš dodati i ranije godine ako treba)
     holidays_dict = {
         2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
-        # ... (dodaj ostale godine ako treba)
+        2027: [date(2027, 1, 1), date(2027, 1, 6), date(2027, 3, 28), date(2027, 3, 29), date(2027, 5, 1), date(2027, 5, 27), date(2027, 6, 22), date(2027, 8, 15), date(2027, 11, 1), date(2027, 11, 18), date(2027, 12, 25), date(2027, 12, 26)],
+        2028: [date(2028, 1, 1), date(2028, 1, 6), date(2028, 4, 16), date(2028, 4, 17), date(2028, 5, 1), date(2028, 5, 30), date(2028, 6, 22), date(2028, 8, 15), date(2028, 11, 1), date(2028, 11, 18), date(2028, 12, 25), date(2028, 12, 26)],
+        2029: [date(2029, 1, 1), date(2029, 1, 6), date(2029, 4, 1), date(2029, 4, 2), date(2029, 5, 1), date(2029, 5, 30), date(2029, 6, 22), date(2029, 8, 15), date(2029, 11, 1), date(2029, 11, 18), date(2029, 12, 25), date(2029, 12, 26)],
+        2030: [date(2030, 1, 1), date(2030, 1, 6), date(2030, 4, 21), date(2030, 4, 22), date(2030, 5, 1), date(2030, 5, 30), date(2030, 6, 22), date(2030, 8, 15), date(2030, 11, 1), date(2030, 11, 18), date(2030, 12, 25), date(2030, 12, 26)],
+        2031: [date(2031, 1, 1), date(2031, 1, 6), date(2031, 4, 13), date(2031, 4, 14), date(2031, 5, 1), date(2031, 5, 30), date(2031, 6, 22), date(2031, 8, 15), date(2031, 11, 1), date(2031, 11, 18), date(2031, 12, 25), date(2031, 12, 26)],
+        2032: [date(2032, 1, 1), date(2032, 1, 6), date(2032, 3, 28), date(2032, 3, 29), date(2032, 5, 1), date(2032, 5, 30), date(2032, 6, 22), date(2032, 8, 15), date(2032, 11, 1), date(2032, 11, 18), date(2032, 12, 25), date(2032, 12, 26)],
+        2033: [date(2033, 1, 1), date(2033, 1, 6), date(2033, 4, 17), date(2033, 4, 18), date(2033, 5, 1), date(2033, 5, 30), date(2033, 6, 22), date(2033, 8, 15), date(2033, 11, 1), date(2033, 11, 18), date(2033, 12, 25), date(2033, 12, 26)],
+        2034: [date(2034, 1, 1), date(2034, 1, 6), date(2034, 4, 9), date(2034, 4, 10), date(2034, 5, 1), date(2034, 5, 30), date(2034, 6, 22), date(2034, 8, 15), date(2034, 11, 1), date(2034, 11, 18), date(2034, 12, 25), date(2034, 12, 26)],
+        2035: [date(2035, 1, 1), date(2035, 1, 6), date(2035, 3, 25), date(2035, 3, 26), date(2035, 5, 1), date(2035, 5, 30), date(2035, 6, 22), date(2035, 8, 15), date(2035, 11, 1), date(2035, 11, 18), date(2035, 12, 25), date(2035, 12, 26)],
+        2036: [date(2036, 1, 1), date(2036, 1, 6), date(2036, 4, 13), date(2036, 4, 14), date(2036, 5, 1), date(2036, 5, 30), date(2036, 6, 22), date(2036, 8, 15), date(2036, 11, 1), date(2036, 11, 18), date(2036, 12, 25), date(2036, 12, 26)],
+        2037: [date(2037, 1, 1), date(2037, 1, 6), date(2037, 4, 5), date(2037, 4, 6), date(2037, 5, 1), date(2037, 5, 30), date(2037, 6, 22), date(2037, 8, 15), date(2037, 11, 1), date(2037, 11, 18), date(2037, 12, 25), date(2037, 12, 26)],
+        2038: [date(2038, 1, 1), date(2038, 1, 6), date(2038, 4, 25), date(2038, 4, 26), date(2038, 5, 1), date(2038, 5, 30), date(2038, 6, 22), date(2038, 8, 15), date(2038, 11, 1), date(2038, 11, 18), date(2038, 12, 25), date(2038, 12, 26)],
+        2039: [date(2039, 1, 1), date(2039, 1, 6), date(2039, 4, 10), date(2039, 4, 11), date(2039, 5, 1), date(2039, 5, 30), date(2039, 6, 22), date(2039, 8, 15), date(2039, 11, 1), date(2039, 11, 18), date(2039, 12, 25), date(2039, 12, 26)],
+        2040: [date(2040, 1, 1), date(2040, 1, 6), date(2040, 4, 1), date(2040, 4, 2), date(2040, 5, 1), date(2040, 5, 30), date(2040, 6, 22), date(2040, 8, 15), date(2040, 11, 1), date(2040, 11, 18), date(2040, 12, 25), date(2040, 12, 26)],
     }
 
+    # Dohvati korisnike za padajući izbornik
     try:
         korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini").eq("aktivan", True).execute()
         korisnici = korisnici_response.data or []
@@ -351,6 +367,7 @@ elif st.session_state.stranica == "dokumenti":
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
         korisnik_options = {}
 
+    # Dohvati svježe podatke prijavljenog korisnika
     try:
         user_response = supabase.table("korisnici")\
             .select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini")\
@@ -368,16 +385,19 @@ elif st.session_state.stranica == "dokumenti":
 
     tekuca_godina = datetime.now().year
 
+    # Odabir korisnika (samo za admina)
     if tip_korisnika == "administrator":
         korisnik_ime = st.selectbox("Odaberi korisnika za unos", list(korisnik_options.keys()),
                                     index=list(korisnik_options.keys()).index(prijavljeni_korisnik_ime) if prijavljeni_korisnik_ime in korisnik_options else 0,
                                     key="odmor_selected_korisnik")
-        korisnik_id = korisnik_options.get(korisnik_ime, {}).get("id", prijavljeni_korisnik_id)
+        selected_korisnik = korisnik_options.get(korisnik_ime, {})
+        korisnik_id = selected_korisnik.get("id", prijavljeni_korisnik_id)
     else:
         korisnik_id = prijavljeni_korisnik_id
         korisnik_ime = prijavljeni_korisnik_ime
         st.text_input("Korisnik *", value=korisnik_ime, disabled=True, key="odmor_korisnik_disabled")
 
+    # Dohvati kumulativni saldo
     try:
         korisnik_response = supabase.table("korisnici")\
             .select("godisnji_dani,slobodni_dani")\
@@ -395,13 +415,17 @@ elif st.session_state.stranica == "dokumenti":
     st.markdown(f"**Preostalo godišnjih dana za {tekuca_godina} ({korisnik_ime}): {preostalo_godisnje}**")
     st.markdown(f"**Preostalo slobodnih dana ({korisnik_ime}): {preostalo_slobodnih}**")
 
+    # Forma za dodavanje odmora
     with st.form("dodaj_odmor_form", clear_on_submit=True):
         st.subheader("Dodaj novi unos godišnjeg / slobodnog dana")
+
         col1, col2 = st.columns(2)
         datum_od_input = col1.date_input("Datum od *", value=None, key="odmor_datum_od")
         datum_do_input = col2.date_input("Datum do *", value=None, key="odmor_datum_do")
+
         tip_odmora = st.selectbox("Tip odsustva *", [""] + ["Godišnji odmor", "Slobodni dan", "Bolovanje", "Ostalo"], index=0, key="odmor_tip")
         napomena = st.text_area("Napomena (opcionalno)", key="odmor_napomena")
+
         submitted = st.form_submit_button("Dodaj unos", type="primary")
 
     if submitted:
@@ -416,17 +440,23 @@ elif st.session_state.stranica == "dokumenti":
         else:
             datum_od = datum_od_input
             datum_do = datum_do_input
+
             broj_dana = calculate_working_days(datum_od.isoformat(), datum_do.isoformat(), holidays_dict.get(tekuca_godina, []))
-            if tip_odmora == "Godišnji odmor" and broj_dana > preostalo_godisnje:
-                st.error(f"Premašuješ preostale godišnje dane! Preostalo: {preostalo_godisnje}, tražiš: {broj_dana}")
-                st.stop()
-            if tip_odmora == "Slobodni dan" and broj_dana > preostalo_slobodnih:
-                st.error(f"Premašuješ preostale slobodne dane! Preostalo: {preostalo_slobodnih}, tražiš: {broj_dana}")
-                st.stop()
+
+            # Provjera ograničenja
+            if tip_odmora == "Godišnji odmor":
+                if broj_dana > preostalo_godisnje:
+                    st.error(f"Premašuješ preostale godišnje dane! Preostalo: {preostalo_godisnje}, tražiš: {broj_dana}")
+                    st.stop()
+            elif tip_odmora == "Slobodni dan":
+                if broj_dana > preostalo_slobodnih:
+                    st.error(f"Premašuješ preostale slobodne dane! Preostalo: {preostalo_slobodnih}, tražiš: {broj_dana}")
+                    st.stop()
 
             try:
                 odmori_response = supabase.table("odmori").select("*").execute()
                 df_odmori = pd.DataFrame(odmori_response.data or [])
+
                 preklapanja = 0
                 preklapanja_ista_osoba = 0
                 for _, row in df_odmori.iterrows():
@@ -438,9 +468,11 @@ elif st.session_state.stranica == "dokumenti":
                         preklapanja += (end - start).days + 1
                         if row["korisnik_id"] == korisnik_id:
                             preklapanja_ista_osoba += (end - start).days + 1
+
                 if preklapanja_ista_osoba > 0:
                     st.error("Ista osoba već ima upis na preklapajuće datume! Ne može se dodati dupli unos.")
                     st.stop()
+
                 if preklapanja > 0:
                     st.session_state.temp_odmor = {
                         "korisnik_id": korisnik_id,
@@ -464,6 +496,7 @@ elif st.session_state.stranica == "dokumenti":
                     }
                     supabase.table("odmori").insert(novi).execute()
 
+                    # Oduzmi dane iz salda
                     if tip_odmora == "Godišnji odmor":
                         novi_saldo = preostalo_godisnje - broj_dana
                         supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
@@ -498,7 +531,7 @@ elif st.session_state.stranica == "dokumenti":
                 st.error("Ista osoba već ima upis na preklapajuće datume! Ne može se dodati.")
                 st.session_state.temp_odmor = None
                 st.rerun()
-                
+                return
 
             st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
             col1, col2 = st.columns(2)
@@ -533,6 +566,7 @@ elif st.session_state.stranica == "dokumenti":
         except Exception as e:
             st.error(f"Greška pri ponovnom dohvaćanju: {str(e)}")
 
+    # Reset forme
     if st.session_state.form_reset:
         st.session_state.form_reset = False
         st.rerun()
@@ -673,7 +707,7 @@ elif st.session_state.stranica == "dokumenti":
                     st.error(f"Greška pri konverziji: {str(e)}")
 
     # Prikaz i uređivanje/brisanje unosa + PDF
-    st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
+    st.subheader("Svi unosi (uređivanje, brisanje i PDF)")
     try:
         odmori_response = supabase.table("odmori")\
             .select("*, korisnici!inner(ime_prezime)")\
@@ -851,7 +885,7 @@ elif st.session_state.stranica == "dokumenti":
     # Pregled po korisniku
     st.subheader("Pregled po korisniku")
     try:
-        if not df_odmori.empty:
+        if 'df_odmori' in locals() and not df_odmori.empty:
             if tip_korisnika != "administrator":
                 df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
 
