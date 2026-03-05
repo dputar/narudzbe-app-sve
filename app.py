@@ -1028,6 +1028,7 @@ else:
         from datetime import datetime, timedelta
         import io
         import json
+        import bcrypt
 
         # Funkcija za izračun radnih dana
         def calculate_working_days(start_str, end_str, holidays):
@@ -1049,7 +1050,7 @@ else:
                 current += timedelta(days=1)
             return current.strftime("%d.%m.%Y.")
 
-        # Nova funkcija: računa stvarni broj iskorištenih dana za korisnika u određenom periodu
+        # Funkcija za računanje stvarnog broja iskorištenih dana korisnika (bez preklapanja unutar iste osobe)
         def get_used_days_for_user(korisnik_id, exclude_id=None):
             query = supabase.table("odmori").select("datum_od, datum_do").eq("korisnik_id", korisnik_id)
             if exclude_id:
@@ -1265,7 +1266,7 @@ else:
                     st.error("Ista osoba već ima upis na preklapajuće datume! Ne može se dodati.")
                     st.session_state.temp_odmor = None
                     st.rerun()
-                    
+                    return
 
                 st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
                 col1, col2 = st.columns(2)
@@ -1304,6 +1305,85 @@ else:
         if st.session_state.form_reset:
             st.session_state.form_reset = False
             st.rerun()
+
+        # Kalendar sa bojama po korisniku i imenima ispod datuma – ISPOD FORME ZA UNOS
+        st.subheader("Kalendar preklapanja")
+        try:
+            col_year, col_month = st.columns(2)
+            year = col_year.selectbox("Godina", range(2025, 2041), index=datetime.now().year - 2025, key="kal_god")
+            month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1,
+                                        format_func=lambda m: calendar.month_name[m], key="kal_mj")
+
+            odmori_response = supabase.table("odmori")\
+                .select("*, korisnici!inner(ime_prezime)")\
+                .execute()
+
+            df_odmori = pd.DataFrame(odmori_response.data or [])
+
+            if not df_odmori.empty:
+                df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
+                df_odmori = df_odmori.drop(columns=["korisnici"])
+
+                unique_users = df_odmori["korisnik_ime"].unique()
+                color_map = {user: plt.cm.tab10(i / len(unique_users)) for i, user in enumerate(unique_users)}
+
+                cal = calendar.monthcalendar(year, month)
+
+                fig, ax = plt.subplots(figsize=(12, 8))
+                ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)
+                ax.axis('off')
+
+                days = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
+                for i, day in enumerate(days):
+                    ax.text(i + 0.5, 0.3, day, ha='center', va='bottom', fontsize=14, fontweight='bold', color='black')
+
+                for week_num, week in enumerate(cal):
+                    for day_num, day in enumerate(week):
+                        if day == 0:
+                            continue
+                        x = day_num
+                        y = -week_num - 0.8
+                        rect = plt.Rectangle((x, y), 1, -1, fill=False, edgecolor='black', linewidth=1)
+                        ax.add_patch(rect)
+                        ax.text(x + 0.5, y - 0.5, day, ha='center', va='center', fontsize=12)
+
+                        current_date = datetime(year, month, day).date()
+                        overlapping_users = []
+                        for _, unos in df_odmori.iterrows():
+                            start = datetime.fromisoformat(unos["datum_od"]).date()
+                            end = datetime.fromisoformat(unos["datum_do"]).date()
+                            if start <= current_date <= end:
+                                overlapping_users.append(unos["korisnik_ime"])
+
+                        is_weekend = current_date.weekday() >= 5
+                        is_holiday = current_date in holidays_dict.get(year, [])
+                        if is_weekend or is_holiday:
+                            continue
+
+                        if len(overlapping_users) > 1:
+                            ax.add_patch(plt.Rectangle((x, y), 1, -1, color='red', alpha=0.5))
+                            text = "\n".join(overlapping_users)
+                            ax.text(x + 0.5, y - 0.8, text, ha='center', va='center', fontsize=8, color='white')
+                        elif len(overlapping_users) == 1:
+                            user = overlapping_users[0]
+                            user_color = color_map.get(user, 'gray')
+                            ax.add_patch(plt.Rectangle((x, y), 1, -1, color=user_color, alpha=0.5))
+                            ax.text(x + 0.5, y - 0.8, user, ha='center', va='center', fontsize=8, color='white')
+
+                ax.set_xlim(0, 7)
+                ax.set_ylim(-7.0, 0.8)
+                ax.set_aspect('equal')
+
+                fig.tight_layout(pad=4.5)
+
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png", bbox_inches='tight', dpi=120)
+                buf.seek(0)
+                st.image(buf, caption="Kalendar odsustava (crveno za preklapanja, boje po korisniku, imena ispod datuma)")
+            else:
+                st.info("Nema unosa za prikaz kalendara.")
+        except Exception as e:
+            st.error(f"Greška pri prikazu kalendara: {str(e)}")
 
         # Administrativne radnje – SAMO ZA ADMINISTRATORA
         if tip_korisnika == "administrator":
@@ -1598,82 +1678,3 @@ else:
                 st.info("Još nema log zapisa.")
         except Exception as e:
             st.error(f"Greška pri dohvaćanju loga: {str(e)}")
-
-        # Kalendar sa bojama po korisniku i imenima ispod datuma
-        st.subheader("Kalendar preklapanja")
-        try:
-            col_year, col_month = st.columns(2)
-            year = col_year.selectbox("Godina", range(2025, 2041), index=datetime.now().year - 2025, key="kal_god")
-            month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1,
-                                        format_func=lambda m: calendar.month_name[m], key="kal_mj")
-
-            odmori_response = supabase.table("odmori")\
-                .select("*, korisnici!inner(ime_prezime)")\
-                .execute()
-
-            df_odmori = pd.DataFrame(odmori_response.data or [])
-
-            if not df_odmori.empty:
-                df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
-                df_odmori = df_odmori.drop(columns=["korisnici"])
-
-                unique_users = df_odmori["korisnik_ime"].unique()
-                color_map = {user: plt.cm.tab10(i / len(unique_users)) for i, user in enumerate(unique_users)}
-
-                cal = calendar.monthcalendar(year, month)
-
-                fig, ax = plt.subplots(figsize=(12, 8))
-                ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)
-                ax.axis('off')
-
-                days = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
-                for i, day in enumerate(days):
-                    ax.text(i + 0.5, 0.3, day, ha='center', va='bottom', fontsize=14, fontweight='bold', color='black')
-
-                for week_num, week in enumerate(cal):
-                    for day_num, day in enumerate(week):
-                        if day == 0:
-                            continue
-                        x = day_num
-                        y = -week_num - 0.8
-                        rect = plt.Rectangle((x, y), 1, -1, fill=False, edgecolor='black', linewidth=1)
-                        ax.add_patch(rect)
-                        ax.text(x + 0.5, y - 0.5, day, ha='center', va='center', fontsize=12)
-
-                        current_date = datetime(year, month, day).date()
-                        overlapping_users = []
-                        for _, unos in df_odmori.iterrows():
-                            start = datetime.fromisoformat(unos["datum_od"]).date()
-                            end = datetime.fromisoformat(unos["datum_do"]).date()
-                            if start <= current_date <= end:
-                                overlapping_users.append(unos["korisnik_ime"])
-
-                        is_weekend = current_date.weekday() >= 5
-                        is_holiday = current_date in holidays_dict.get(year, [])
-                        if is_weekend or is_holiday:
-                            continue
-
-                        if len(overlapping_users) > 1:
-                            ax.add_patch(plt.Rectangle((x, y), 1, -1, color='red', alpha=0.5))
-                            text = "\n".join(overlapping_users)
-                            ax.text(x + 0.5, y - 0.8, text, ha='center', va='center', fontsize=8, color='white')
-                        elif len(overlapping_users) == 1:
-                            user = overlapping_users[0]
-                            user_color = color_map.get(user, 'gray')
-                            ax.add_patch(plt.Rectangle((x, y), 1, -1, color=user_color, alpha=0.5))
-                            ax.text(x + 0.5, y - 0.8, user, ha='center', va='center', fontsize=8, color='white')
-
-                ax.set_xlim(0, 7)
-                ax.set_ylim(-7.0, 0.8)
-                ax.set_aspect('equal')
-
-                fig.tight_layout(pad=4.5)
-
-                buf = io.BytesIO()
-                fig.savefig(buf, format="png", bbox_inches='tight', dpi=120)
-                buf.seek(0)
-                st.image(buf, caption="Kalendar odsustava (crveno za preklapanja, boje po korisniku, imena ispod datuma)")
-            else:
-                st.info("Nema unosa za prikaz kalendara.")
-        except Exception as e:
-            st.error(f"Greška pri prikazu kalendara: {str(e)}")
