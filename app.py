@@ -1049,6 +1049,23 @@ else:
                 current += timedelta(days=1)
             return current.strftime("%d.%m.%Y.")
 
+        # Nova funkcija: računa stvarni broj iskorištenih dana za korisnika u određenom periodu
+        def get_used_days_for_user(korisnik_id, exclude_id=None):
+            query = supabase.table("odmori").select("datum_od, datum_do").eq("korisnik_id", korisnik_id)
+            if exclude_id:
+                query = query.neq("id", exclude_id)
+            response = query.execute()
+            df = pd.DataFrame(response.data or [])
+            if df.empty:
+                return 0
+            df["datum_od"] = pd.to_datetime(df["datum_od"]).dt.date
+            df["datum_do"] = pd.to_datetime(df["datum_do"]).dt.date
+            holidays = holidays_dict.get(tekuca_godina, [])
+            total = 0
+            for _, row in df.iterrows():
+                total += calculate_working_days(row["datum_od"].isoformat(), row["datum_do"].isoformat(), holidays)
+            return total
+
         # Inicijaliziraj session_state
         if "temp_odmor" not in st.session_state:
             st.session_state.temp_odmor = None
@@ -1288,85 +1305,6 @@ else:
             st.session_state.form_reset = False
             st.rerun()
 
-        # Kalendar sa bojama po korisniku i imenima ispod datuma – SADA ODMAH ISPOD FORME
-        st.subheader("Kalendar preklapanja")
-        try:
-            col_year, col_month = st.columns(2)
-            year = col_year.selectbox("Godina", range(2025, 2041), index=datetime.now().year - 2025, key="kal_god")
-            month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1,
-                                        format_func=lambda m: calendar.month_name[m], key="kal_mj")
-
-            odmori_response = supabase.table("odmori")\
-                .select("*, korisnici!inner(ime_prezime)")\
-                .execute()
-
-            df_odmori = pd.DataFrame(odmori_response.data or [])
-
-            if not df_odmori.empty:
-                df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
-                df_odmori = df_odmori.drop(columns=["korisnici"])
-
-                unique_users = df_odmori["korisnik_ime"].unique()
-                color_map = {user: plt.cm.tab10(i / len(unique_users)) for i, user in enumerate(unique_users)}
-
-                cal = calendar.monthcalendar(year, month)
-
-                fig, ax = plt.subplots(figsize=(12, 8))
-                ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)
-                ax.axis('off')
-
-                days = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
-                for i, day in enumerate(days):
-                    ax.text(i + 0.5, 0.3, day, ha='center', va='bottom', fontsize=14, fontweight='bold', color='black')
-
-                for week_num, week in enumerate(cal):
-                    for day_num, day in enumerate(week):
-                        if day == 0:
-                            continue
-                        x = day_num
-                        y = -week_num - 0.8
-                        rect = plt.Rectangle((x, y), 1, -1, fill=False, edgecolor='black', linewidth=1)
-                        ax.add_patch(rect)
-                        ax.text(x + 0.5, y - 0.5, day, ha='center', va='center', fontsize=12)
-
-                        current_date = datetime(year, month, day).date()
-                        overlapping_users = []
-                        for _, unos in df_odmori.iterrows():
-                            start = datetime.fromisoformat(unos["datum_od"]).date()
-                            end = datetime.fromisoformat(unos["datum_do"]).date()
-                            if start <= current_date <= end:
-                                overlapping_users.append(unos["korisnik_ime"])
-
-                        is_weekend = current_date.weekday() >= 5
-                        is_holiday = current_date in holidays_dict.get(year, [])
-                        if is_weekend or is_holiday:
-                            continue
-
-                        if len(overlapping_users) > 1:
-                            ax.add_patch(plt.Rectangle((x, y), 1, -1, color='red', alpha=0.5))
-                            text = "\n".join(overlapping_users)
-                            ax.text(x + 0.5, y - 0.8, text, ha='center', va='center', fontsize=8, color='white')
-                        elif len(overlapping_users) == 1:
-                            user = overlapping_users[0]
-                            user_color = color_map.get(user, 'gray')
-                            ax.add_patch(plt.Rectangle((x, y), 1, -1, color=user_color, alpha=0.5))
-                            ax.text(x + 0.5, y - 0.8, user, ha='center', va='center', fontsize=8, color='white')
-
-                ax.set_xlim(0, 7)
-                ax.set_ylim(-7.0, 0.8)
-                ax.set_aspect('equal')
-
-                fig.tight_layout(pad=4.5)
-
-                buf = io.BytesIO()
-                fig.savefig(buf, format="png", bbox_inches='tight', dpi=120)
-                buf.seek(0)
-                st.image(buf, caption="Kalendar odsustava (crveno za preklapanja, boje po korisniku, imena ispod datuma)")
-            else:
-                st.info("Nema unosa za prikaz kalendara.")
-        except Exception as e:
-            st.error(f"Greška pri prikazu kalendara: {str(e)}")
-
         # Administrativne radnje – SAMO ZA ADMINISTRATORA
         if tip_korisnika == "administrator":
             st.subheader("Administrativne radnje")
@@ -1476,13 +1414,17 @@ else:
                                 }
                                 supabase.table("log_odmori").insert(log).execute()
 
-                                broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
+                                # Ispravljeno vraćanje dana: računamo stvarnu razliku prije i poslije brisanja
+                                used_before = get_used_days_for_user(original_row["korisnik_id"])
+                                supabase.table("odmori").delete().eq("id", row["id"]).execute()
+                                used_after = get_used_days_for_user(original_row["korisnik_id"])
+                                razlika = used_before - used_after  # koliko je dana manje nakon brisanja
 
                                 if original_row["tip"] == "Godišnji odmor":
-                                    novi_saldo = preostalo_godisnje + broj_dana
+                                    novi_saldo = preostalo_godisnje + razlika
                                     supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
                                 elif original_row["tip"] == "Slobodni dan":
-                                    novi_slobodni = preostalo_slobodnih + broj_dana
+                                    novi_slobodni = preostalo_slobodnih + razlika
                                     supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
 
                                 continue
@@ -1508,29 +1450,29 @@ else:
                                 supabase.table("log_odmori").insert(log).execute()
 
                                 if "tip" in changed_fields or "datum_od" in changed_fields or "datum_do" in changed_fields:
-                                    stari_broj = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
-                                    novi_broj = calculate_working_days(row["datum_od"], row["datum_do"], holidays_dict.get(tekuca_godina, []))
+                                    used_before = get_used_days_for_user(original_row["korisnik_id"], exclude_id=row["id"])
+                                    used_after = get_used_days_for_user(original_row["korisnik_id"])
+                                    razlika = used_before - used_after  # koliko je dana promijenjeno
 
                                     if original_row["tip"] == row["tip"]:
                                         if original_row["tip"] == "Godišnji odmor":
-                                            razlika = stari_broj - novi_broj
                                             novi_saldo = preostalo_godisnje + razlika
                                             supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
                                         elif original_row["tip"] == "Slobodni dan":
-                                            razlika = stari_broj - novi_broj
                                             novi_slobodni = preostalo_slobodnih + razlika
                                             supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
                                     else:
+                                        # Ako je promijenjen tip, oduzmemo stari i dodamo novi
                                         if original_row["tip"] == "Godišnji odmor":
-                                            supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
+                                            supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + used_before}).eq("id", original_row["korisnik_id"]).execute()
                                         elif original_row["tip"] == "Slobodni dan":
-                                            supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
+                                            supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + used_before}).eq("id", original_row["korisnik_id"]).execute()
 
                                         if row["tip"] == "Godišnji odmor":
-                                            novi_saldo = preostalo_godisnje - novi_broj
+                                            novi_saldo = preostalo_godisnje - used_after
                                             supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
                                         elif row["tip"] == "Slobodni dan":
-                                            novi_slobodni = preostalo_slobodnih - novi_broj
+                                            novi_slobodni = preostalo_slobodnih - used_after
                                             supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
 
                         if to_delete:
@@ -1656,3 +1598,82 @@ else:
                 st.info("Još nema log zapisa.")
         except Exception as e:
             st.error(f"Greška pri dohvaćanju loga: {str(e)}")
+
+        # Kalendar sa bojama po korisniku i imenima ispod datuma
+        st.subheader("Kalendar preklapanja")
+        try:
+            col_year, col_month = st.columns(2)
+            year = col_year.selectbox("Godina", range(2025, 2041), index=datetime.now().year - 2025, key="kal_god")
+            month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1,
+                                        format_func=lambda m: calendar.month_name[m], key="kal_mj")
+
+            odmori_response = supabase.table("odmori")\
+                .select("*, korisnici!inner(ime_prezime)")\
+                .execute()
+
+            df_odmori = pd.DataFrame(odmori_response.data or [])
+
+            if not df_odmori.empty:
+                df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
+                df_odmori = df_odmori.drop(columns=["korisnici"])
+
+                unique_users = df_odmori["korisnik_ime"].unique()
+                color_map = {user: plt.cm.tab10(i / len(unique_users)) for i, user in enumerate(unique_users)}
+
+                cal = calendar.monthcalendar(year, month)
+
+                fig, ax = plt.subplots(figsize=(12, 8))
+                ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)
+                ax.axis('off')
+
+                days = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
+                for i, day in enumerate(days):
+                    ax.text(i + 0.5, 0.3, day, ha='center', va='bottom', fontsize=14, fontweight='bold', color='black')
+
+                for week_num, week in enumerate(cal):
+                    for day_num, day in enumerate(week):
+                        if day == 0:
+                            continue
+                        x = day_num
+                        y = -week_num - 0.8
+                        rect = plt.Rectangle((x, y), 1, -1, fill=False, edgecolor='black', linewidth=1)
+                        ax.add_patch(rect)
+                        ax.text(x + 0.5, y - 0.5, day, ha='center', va='center', fontsize=12)
+
+                        current_date = datetime(year, month, day).date()
+                        overlapping_users = []
+                        for _, unos in df_odmori.iterrows():
+                            start = datetime.fromisoformat(unos["datum_od"]).date()
+                            end = datetime.fromisoformat(unos["datum_do"]).date()
+                            if start <= current_date <= end:
+                                overlapping_users.append(unos["korisnik_ime"])
+
+                        is_weekend = current_date.weekday() >= 5
+                        is_holiday = current_date in holidays_dict.get(year, [])
+                        if is_weekend or is_holiday:
+                            continue
+
+                        if len(overlapping_users) > 1:
+                            ax.add_patch(plt.Rectangle((x, y), 1, -1, color='red', alpha=0.5))
+                            text = "\n".join(overlapping_users)
+                            ax.text(x + 0.5, y - 0.8, text, ha='center', va='center', fontsize=8, color='white')
+                        elif len(overlapping_users) == 1:
+                            user = overlapping_users[0]
+                            user_color = color_map.get(user, 'gray')
+                            ax.add_patch(plt.Rectangle((x, y), 1, -1, color=user_color, alpha=0.5))
+                            ax.text(x + 0.5, y - 0.8, user, ha='center', va='center', fontsize=8, color='white')
+
+                ax.set_xlim(0, 7)
+                ax.set_ylim(-7.0, 0.8)
+                ax.set_aspect('equal')
+
+                fig.tight_layout(pad=4.5)
+
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png", bbox_inches='tight', dpi=120)
+                buf.seek(0)
+                st.image(buf, caption="Kalendar odsustava (crveno za preklapanja, boje po korisniku, imena ispod datuma)")
+            else:
+                st.info("Nema unosa za prikaz kalendara.")
+        except Exception as e:
+            st.error(f"Greška pri prikazu kalendara: {str(e)}")
