@@ -46,11 +46,10 @@ if "last_refresh_time" not in st.session_state:
     st.session_state.last_refresh_time = time.time()
 
 # ────────────────────────────────────────────────
-# FUNKCIJA ZA AUTENTIFIKACIJU IZ TABLICE KORISNICI – IS PRAVLJENO
+# FUNKCIJA ZA AUTENTIFIKACIJU IZ TABLICE KORISNICI
 # ────────────────────────────────────────────────
 def authenticate_user(username, password):
     try:
-        # Dohvat korisnika – sa strip() da ukloni skrivene razmake
         user_response = supabase.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username.strip())\
@@ -63,13 +62,13 @@ def authenticate_user(username, password):
             st.error("Korisnik nije pronađen u tablici korisnici")
             return None
         
-        # Čišćenje hash-a iz baze (uklanja razmake, newline-ove i slično)
+        # Čišćenje hash-a iz baze
         stored_hash = user['lozinka'].strip()
         
-        # Debug ispis – vidiš što se dohvaća (možeš obrisati kasnije kad radi)
+        # Debug ispis (odkomentiraj ako trebaš testirati)
         # st.write("Pronađen korisnik:", user.get("ime_prezime", "Nepoznato"))
-        # st.write("Dužina hash-a u bazi:", len(stored_hash))
-        # st.write("Početak hash-a:", stored_hash[:10])  # trebalo bi biti $2a$ ili $2b$
+        # st.write("Dužina lozinke u bazi:", len(stored_hash))
+        # st.write("Početak lozinke:", stored_hash[:10])
         
         # Provjera lozinke
         try:
@@ -79,8 +78,8 @@ def authenticate_user(username, password):
                 st.error("Lozinka se ne podudara")
                 return None
         except Exception as enc_err:
-            st.error(f"Encoding greška pri provjeri lozinke: {str(enc_err)}")
-            # Fallback – ako je lozinka plain text (stari podaci)
+            st.error(f"Encoding greška pri provjeri: {str(enc_err)}")
+            # Fallback za plain text lozinku (stari podaci)
             if stored_hash == password:
                 st.warning("Upozorenje: Lozinka je plain text – hashirajte je u bazi!")
                 return user
@@ -92,7 +91,7 @@ def authenticate_user(username, password):
         return None
 
 # ────────────────────────────────────────────────
-# LOGIN STRANICA – OVO JE FINALNO IS PRAVLJENO
+# LOGIN STRANICA
 # ────────────────────────────────────────────────
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
@@ -109,29 +108,29 @@ if st.session_state.stranica == "login":
                 user = authenticate_user(username, password)
                 if user:
                     st.session_state.user = user
-                    st.session_state.stranica = "main_orders"  # ili "dokumenti" – promijeni po želji
+                    st.session_state.stranica = "main_orders"  # ili "dokumenti" ako želiš
                     st.success("Uspješna prijava!")
                     time.sleep(1)
                     st.rerun()
                 else:
                     st.error("Korisničko ime ne postoji ili lozinka nije ispravna.")
     
-    st.stop()  # zaustavi izvršavanje ako nije prijavljen
+    st.stop()
 
 # ────────────────────────────────────────────────
-# SIDEBAR – NAVIGACIJA (samo ako je prijavljen)
+# SIDEBAR – NAVIGACIJA (bez dijakritika u ključevima)
 # ────────────────────────────────────────────────
 st.sidebar.title(f"Dobro došli, {st.session_state.user.get('ime_prezime', 'Nepoznato')}")
 
-stranice = ["Narudzbe", "Proizvodi", "Dobavljači", "Korisnici", "Dokumenti"]
+stranice = ["Narudzbe", "Proizvodi", "Dobavljaci", "Korisnici", "Dokumenti"]
 izbor = st.sidebar.selectbox("Odaberi stranicu", stranice)
 
 if izbor == "Narudzbe":
-    st.session_state.stranica = "main_orders"
+    st.session_state.stranica = "narudzbe"
 elif izbor == "Proizvodi":
     st.session_state.stranica = "proizvodi"
-elif izbor == "Dobavljači":
-    st.session_state.stranica = "dobavljači"
+elif izbor == "Dobavljaci":
+    st.session_state.stranica = "dobavljaci"
 elif izbor == "Korisnici":
     st.session_state.stranica = "korisnici"
 elif izbor == "Dokumenti":
@@ -143,23 +142,23 @@ if st.sidebar.button("Odjavi se"):
     st.rerun()
 
 # ────────────────────────────────────────────────
-# GLAVNI SADRŽAJ – OVISNO O ODABRANOJ STRANICI
+# GLAVNI SADRŽAJ – OVISNO O STRANICI (bez dijakritika)
 # ────────────────────────────────────────────────
-if st.session_state.stranica == "main_orders":
+if st.session_state.stranica == "narudzbe":
     st.title("📦 Narudžbe")
-    # ... (tvoj kod za narudžbe ostaje netaknut – zalijepi ga ovdje ako treba)
+    # ... (ovdje zalijepi svoj kod za narudžbe ako ga imaš)
 
 elif st.session_state.stranica == "proizvodi":
     st.title("🛒 Proizvodi")
-    # ... (tvoj kod za proizvode – ostavi netaknut)
+    # ... (tvoj kod za proizvode)
 
-elif st.session_state.stranica == "dobavljači":
+elif st.session_state.stranica == "dobavljaci":
     st.title("🛒 Dobavljači")
-    # ... (tvoj kod za dobavljače – ostavi netaknut)
+    # ... (tvoj kod za dobavljače)
 
 elif st.session_state.stranica == "korisnici":
     st.title("👥 Korisnici")
-    # ... (tvoj kod za korisnike – ostavi netaknut)
+    # ... (tvoj kod za korisnike)
 
 elif st.session_state.stranica == "dokumenti":
     st.title("🏖️ Godišnji odmor i slobodni dani")
