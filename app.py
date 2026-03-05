@@ -1094,8 +1094,7 @@ if time.time() - st.session_state.last_refresh_time > 300:
  # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 
-
- elif st.session_state.stranica == "dokumenti":
+elif st.session_state.stranica == "dokumenti":
     st.title("🏖️ Godišnji odmor i slobodni dani")
 
     from datetime import datetime, timedelta
@@ -1122,7 +1121,7 @@ if time.time() - st.session_state.last_refresh_time > 300:
             current += timedelta(days=1)
         return current.strftime("%d.%m.%Y.")
 
-    # Računanje stvarnog broja iskorištenih dana za korisnika (bez preklapanja unutar iste osobe)
+    # Računanje stvarnog broja iskorištenih dana za korisnika
     def get_used_days_for_user(korisnik_id, exclude_id=None):
         query = supabase.table("odmori").select("datum_od, datum_do").eq("korisnik_id", korisnik_id)
         if exclude_id:
@@ -1145,7 +1144,7 @@ if time.time() - st.session_state.last_refresh_time > 300:
     if "form_reset" not in st.session_state:
         st.session_state.form_reset = False
 
-    # Praznici 2026–2040 (dodaj ranije godine ako treba)
+    # Praznici 2026–2040 (možeš dodati i ranije godine ako treba)
     holidays_dict = {
         2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
         2027: [date(2027, 1, 1), date(2027, 1, 6), date(2027, 3, 28), date(2027, 3, 29), date(2027, 5, 1), date(2027, 5, 27), date(2027, 6, 22), date(2027, 8, 15), date(2027, 11, 1), date(2027, 11, 18), date(2027, 12, 25), date(2027, 12, 26)],
@@ -1173,7 +1172,7 @@ if time.time() - st.session_state.last_refresh_time > 300:
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
         korisnik_options = {}
 
-    # Dohvati svježe podatke prijavljenog korisnika iz baze
+    # Dohvati svježe podatke prijavljenog korisnika
     try:
         user_response = supabase.table("korisnici")\
             .select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini")\
@@ -1204,7 +1203,7 @@ if time.time() - st.session_state.last_refresh_time > 300:
         korisnik_ime = prijavljeni_korisnik_ime
         st.text_input("Korisnik *", value=korisnik_ime, disabled=True, key="odmor_korisnik_disabled")
 
-    # Dohvati kumulativni saldo za odabranog korisnika
+    # Dohvati kumulativni saldo
     try:
         korisnik_response = supabase.table("korisnici")\
             .select("godisnji_dani,slobodni_dani")\
@@ -1378,7 +1377,7 @@ if time.time() - st.session_state.last_refresh_time > 300:
         st.session_state.form_reset = False
         st.rerun()
 
-    # Kalendar sa bojama po korisniku i imenima ispod datuma – ISPOD FORME ZA UNOS
+    # Kalendar – ISPOD FORME ZA UNOS
     st.subheader("Kalendar preklapanja")
     try:
         col_year, col_month = st.columns(2)
@@ -1566,11 +1565,10 @@ if time.time() - st.session_state.last_refresh_time > 300:
                             }
                             supabase.table("log_odmori").insert(log).execute()
 
-                            # Ispravljeno vraćanje dana: računamo stvarnu razliku prije i poslije brisanja
                             used_before = get_used_days_for_user(original_row["korisnik_id"])
                             supabase.table("odmori").delete().eq("id", row["id"]).execute()
                             used_after = get_used_days_for_user(original_row["korisnik_id"])
-                            razlika = used_before - used_after  # koliko je dana manje nakon brisanja
+                            razlika = used_before - used_after
 
                             if original_row["tip"] == "Godišnji odmor":
                                 novi_saldo = preostalo_godisnje + razlika
@@ -1604,7 +1602,7 @@ if time.time() - st.session_state.last_refresh_time > 300:
                             if "tip" in changed_fields or "datum_od" in changed_fields or "datum_do" in changed_fields:
                                 used_before = get_used_days_for_user(original_row["korisnik_id"], exclude_id=row["id"])
                                 used_after = get_used_days_for_user(original_row["korisnik_id"])
-                                razlika = used_before - used_after  # koliko je dana promijenjeno
+                                razlika = used_before - used_after
 
                                 if original_row["tip"] == row["tip"]:
                                     if original_row["tip"] == "Godišnji odmor":
@@ -1614,7 +1612,6 @@ if time.time() - st.session_state.last_refresh_time > 300:
                                         novi_slobodni = preostalo_slobodnih + razlika
                                         supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
                                 else:
-                                    # Ako je promijenjen tip, oduzmemo stari i dodamo novi
                                     if original_row["tip"] == "Godišnji odmor":
                                         supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + used_before}).eq("id", original_row["korisnik_id"]).execute()
                                     elif original_row["tip"] == "Slobodni dan":
@@ -1644,7 +1641,6 @@ if time.time() - st.session_state.last_refresh_time > 300:
                     for idx, row in edited_df.iterrows():
                         if row["Izvezi PDF"]:
                             original_row = df_odmori.loc[idx]
-                            # Odaberi template ovisno o tipu
                             if original_row["tip"] == "Godišnji odmor":
                                 template_file = "go1.pdf"
                             elif original_row["tip"] == "Slobodni dan":
@@ -1652,7 +1648,6 @@ if time.time() - st.session_state.last_refresh_time > 300:
                             else:
                                 st.warning(f"Nevažeći tip za PDF: {original_row['tip']}")
                                 continue
-                            # Generiraj overlay PDF sa tekstom
                             overlay_buffer = io.BytesIO()
                             c = canvas.Canvas(overlay_buffer, pagesize=A4)
                             width, height = A4
@@ -1663,17 +1658,14 @@ if time.time() - st.session_state.last_refresh_time > 300:
                             datum_do = datetime.fromisoformat(original_row["datum_do"]).strftime("%d.%m.%Y.")
                             prvi_radni_dan = find_next_working_day(original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                             datum_podnosenja = datetime.fromisoformat(original_row["created_at"]).strftime("%d.%m.%Y.")
-                            # Podešene koordinate za centriranje teksta na točkicama (prilagodio prema slici)
-                            # y je od dna stranice (0 dolje, height gore)
-                            c.drawCentredString(width / 2 - 45*mm, height - 129*mm, ime_prezime) # ime centrirano
-                            c.drawCentredString(width / 2 - 5*mm, height - 144*mm, broj_dana) # broj dana centrirano
-                            c.drawCentredString(width / 2 - 4*mm, height - 164*mm, datum_od) # datum od centrirano
-                            c.drawCentredString(width / 2 - 60*mm, height - 184*mm, datum_do) # datum do centrirano
-                            c.drawCentredString(width / 2 + 44*mm, height - 184*mm, prvi_radni_dan) # prvi radni dan centrirano
-                            c.drawCentredString(width / 2 - 60*mm, height - 211*mm, datum_podnosenja) # datum podnošenja centrirano
+                            c.drawCentredString(width / 2 - 45*mm, height - 129*mm, ime_prezime)
+                            c.drawCentredString(width / 2 - 5*mm, height - 144*mm, broj_dana)
+                            c.drawCentredString(width / 2 - 4*mm, height - 164*mm, datum_od)
+                            c.drawCentredString(width / 2 - 60*mm, height - 184*mm, datum_do)
+                            c.drawCentredString(width / 2 + 44*mm, height - 184*mm, prvi_radni_dan)
+                            c.drawCentredString(width / 2 - 60*mm, height - 211*mm, datum_podnosenja)
                             c.save()
                             overlay_buffer.seek(0)
-                            # Učitaj template PDF
                             template_reader = PdfReader(template_file)
                             overlay_reader = PdfReader(overlay_buffer)
                             writer = PdfWriter()
@@ -1731,7 +1723,6 @@ if time.time() - st.session_state.last_refresh_time > 300:
         df_log = pd.DataFrame(log_response.data or [])
 
         if not df_log.empty:
-            # Pretvori dikt u string za old_data i new_data
             if 'old_data' in df_log.columns:
                 df_log['old_data'] = df_log['old_data'].apply(
                     lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
