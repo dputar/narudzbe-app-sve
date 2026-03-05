@@ -123,10 +123,10 @@ if st.session_state.stranica == "login":
 # ────────────────────────────────────────────────
 st.sidebar.title(f"Dobro došli, {st.session_state.user.get('ime_prezime', 'Nepoznato')}")
 
-stranice = ["Narudžbe", "Proizvodi", "Dobavljači", "Korisnici", "Dokumenti"]
+stranice = ["Narudzbe", "Proizvodi", "Dobavljači", "Korisnici", "Dokumenti"]
 izbor = st.sidebar.selectbox("Odaberi stranicu", stranice)
 
-if izbor == "Narudžbe":
+if izbor == "Narudzbe":
     st.session_state.stranica = "main_orders"
 elif izbor == "Proizvodi":
     st.session_state.stranica = "proizvodi"
@@ -205,7 +205,7 @@ if time.time() - st.session_state.last_refresh_time > 300:
     # ────────────────────────────────────────────────
     # NARUDŽBE – pregled
     # ────────────────────────────────────────────────
-    elif st.session_state.stranica == "narudžbe":
+    elif st.session_state.stranica == "narudzbe":
         st.title("Pregled narudžbi")
 
         col1, col2 = st.columns([6, 4])
@@ -444,7 +444,7 @@ if time.time() - st.session_state.last_refresh_time > 300:
         with col_natrag:
             if st.button("← Natrag na pregled", key="nova_natrag"):
                 st.session_state.narudzbe_proizvodi = []
-                st.session_state.stranica = "narudžbe"
+                st.session_state.stranica = "narudzbe"
                 st.rerun()
         col_lijevo, col_desno = st.columns([1, 2])
         with col_lijevo:
