@@ -10,35 +10,118 @@ import calendar
 import matplotlib.pyplot as plt
 from datetime import timedelta
 from datetime import date
+import bcrypt  # za provjeru hashed lozinke
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
 # Supabase konekcija
-SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
+SUPABASE_URL = "https://vwekjvazuexwoglxq... (tvoj URL)"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... (tvoj anon key)"
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+
 TZ = ZoneInfo("Europe/Zagreb")
 
-# ────────────────────────────────────────────────
-# SESSION STATE
-# ────────────────────────────────────────────────
-if "narudzbe_proizvodi" not in st.session_state:
-    st.session_state.narudzbe_proizvodi = []
+# Inicijalizacija session state
+if "user" not in st.session_state:
+    st.session_state.user = None
+
 if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
-if "proizvodi_search" not in st.session_state:
-    st.session_state.proizvodi_search = ""
-if "dobavljaci_search" not in st.session_state:
-    st.session_state.dobavljaci_search = ""
-if "narudzbe_search" not in st.session_state:
-    st.session_state.narudzbe_search = ""
-if "korisnici_search" not in st.session_state:
-    st.session_state.korisnici_search = ""
-if "novi_korisnik_form_shown" not in st.session_state:
-    st.session_state.novi_korisnik_form_shown = False
-if "edit_korisnik_id" not in st.session_state:
-    st.session_state.edit_korisnik_id = None
+
+if "search_input" not in st.session_state:
+    st.session_state.search_input = ""
+
+if "temp_order" not in st.session_state:
+    st.session_state.temp_order = None
+
+if "temp_odmor" not in st.session_state:
+    st.session_state.temp_odmor = None
+
+if "form_reset" not in st.session_state:
+    st.session_state.form_reset = False
+
+if "last_refresh_time" not in st.session_state:
+    st.session_state.last_refresh_time = time.time()
+
+# Funkcija za autentifikaciju iz tablice korisnici
+def authenticate_user(username, password):
+    try:
+        user_response = supabase.table("korisnici").select("*").eq("korisničko_ime", username).single().execute()
+        user = user_response.data
+        if user and bcrypt.checkpw(password.encode('utf-8'), user['lozinka'].encode('utf-8')):
+            return user
+        return None
+    except Exception as e:
+        st.error(f"Greška pri autentifikaciji: {str(e)}")
+        return None
+
+# Login stranica
+if st.session_state.stranica == "login":
+    st.title("Prijava u sustav narudžbi")
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        username = st.text_input("Korisničko ime")
+        password = st.text_input("Lozinka", type="password")
+
+        if st.button("Prijavi se"):
+            if not username or not password:
+                st.error("Unesite korisničko ime i lozinku!")
+            else:
+                user = authenticate_user(username, password)
+                if user:
+                    st.session_state.user = user
+                    st.session_state.stranica = "main_orders"
+                    st.success("Uspješna prijava!")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("Korisničko ime ne postoji ili lozinka nije ispravna.")
+
+    st.stop()  # zaustavi izvršavanje ako nije prijavljen
+
+# Sidebar za navigaciju (samo ako je prijavljen)
+st.sidebar.title(f"Dobro došli, {st.session_state.user.get('ime_prezime', 'Nepoznato')}")
+
+stranice = ["Narudžbe", "Proizvodi", "Dobavljači", "Korisnici", "Dokumenti"]
+izbor = st.sidebar.selectbox("Odaberi stranicu", stranice)
+
+if izbor == "Narudžbe":
+    st.session_state.stranica = "main_orders"
+elif izbor == "Proizvodi":
+    st.session_state.stranica = "proizvodi"
+elif izbor == "Dobavljači":
+    st.session_state.stranica = "dobavljači"
+elif izbor == "Korisnici":
+    st.session_state.stranica = "korisnici"
+elif izbor == "Dokumenti":
+    st.session_state.stranica = "dokumenti"
+
+if st.sidebar.button("Odjavi se"):
+    st.session_state.user = None
+    st.session_state.stranica = "login"
+    st.rerun()
+
+# Glavni sadržaj ovisno o stranici
+if st.session_state.stranica == "main_orders":
+    st.title("📦 Narudžbe")
+    # ... (tvoj kod za narudžbe ostaje isti)
+
+elif st.session_state.stranica == "proizvodi":
+    st.title("🛒 Proizvodi")
+    # ... (tvoj kod za proizvode ostaje isti)
+
+elif st.session_state.stranica == "dobavljači":
+    st.title("🛒 Dobavljači")
+    # ... (tvoj kod za dobavljače ostaje isti)
+
+elif st.session_state.stranica == "korisnici":
+    st.title("👥 Korisnici")
+    # ... (tvoj kod za korisnike ostaje isti)
+
+elif st.session_state.stranica == "dokumenti":
+    st.title("🏖️ Godišnji odmor i slobodni dani")
 
 # ────────────────────────────────────────────────
 # CALLBACK ZA TRAŽILICE
@@ -58,29 +141,40 @@ def on_korisnici_search_change():
 # ────────────────────────────────────────────────
 # LOGIN (korisničko ime + lozinka)
 # ────────────────────────────────────────────────
+def authenticate_user(username, password):
+    try:
+        user_response = supabase.table("korisnici").select("*").eq("korisničko_ime", username).single().execute()
+        user = user_response.data
+        if user and bcrypt.checkpw(password.encode('utf-8'), user['lozinka'].encode('utf-8')):
+            return user
+        return None
+    except Exception as e:
+        st.error(f"Greška pri autentifikaciji: {str(e)}")
+        return None
+
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
-    korisnicko_ime = st.text_input("Korisničko ime", key="login_korisnicko_ime")
-    lozinka = st.text_input("Lozinka", type="password", key="login_lozinka")
-    if st.button("Prijavi se", key="login_prijavi"):
-        try:
-            # Dohvati korisnika po korisničko_ime
-            response = supabase.table("korisnici").select("*").eq("korisničko_ime", korisnicko_ime).execute()
-            if response.data and len(response.data) > 0:
-                user = response.data[0]
-                if user["lozinka"] == lozinka:
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        username = st.text_input("Korisničko ime")
+        password = st.text_input("Lozinka", type="password")
+
+        if st.button("Prijavi se"):
+            if not username or not password:
+                st.error("Unesite korisničko ime i lozinku!")
+            else:
+                user = authenticate_user(username, password)
+                if user:
                     st.session_state.user = user
-                    st.session_state.stranica = "početna"
+                    st.session_state.stranica = "main_orders"
                     st.success("Uspješna prijava!")
+                    time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("Neispravna lozinka.")
-            else:
-                st.error("Korisničko ime ne postoji.")
-        except Exception as e:
-            st.error(f"Greška pri prijavi: {str(e)}")
+                    st.error("Korisničko ime ne postoji ili lozinka nije ispravna.")
 
-else:
+    st.stop()  # zaustavi izvršavanje ako nije prijavljen
     # ────────────────────────────────────────────────
     # SIDEBAR – FINALNA VERZIJA SA OGRANIČENJIMA PO TIPU KORISNIKA
     # ────────────────────────────────────────────────
