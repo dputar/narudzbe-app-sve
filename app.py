@@ -47,13 +47,13 @@ def on_korisnici_search_change():
 # Funkcija za autentifikaciju
 def authenticate_user(username, password):
     try:
-        # Prvo dohvati korisnika (bez .single())
+        # Dohvati bez .single() – dozvoli 0 ili 1 red
         user_response = supabase.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username.strip())\
             .execute()
         
-        users = user_response.data
+        users = user_response.data or []
         
         if not users:
             st.error("Korisnik nije pronađen")
@@ -67,8 +67,9 @@ def authenticate_user(username, password):
         try:
             if bcrypt.checkpw(password.strip().encode('utf-8'), stored.encode('utf-8')):
                 return user
-        except:
-            pass
+        except Exception as e:
+            st.error(f"Greška pri provjeri lozinke: {str(e)}")
+            return None
         
         if stored == password.strip():
             return user
