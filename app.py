@@ -36,6 +36,8 @@ if "edit_korisnik_id" not in st.session_state:
     st.session_state.edit_korisnik_id = None
 if "novi_korisnik_form_shown" not in st.session_state:
     st.session_state.novi_korisnik_form_shown = False
+if "korisnici_search" not in st.session_state:
+    st.session_state.korisnici_search = ""
 
 # Funkcija za autentifikaciju
 def authenticate_user(username, password):
@@ -86,7 +88,7 @@ if st.session_state.stranica == "login":
                 user = authenticate_user(username, password)
                 if user:
                     st.session_state.user = user
-                    st.session_state.stranica = "godisnji"  # početna stranica nakon logina
+                    st.session_state.stranica = "godisnji"  # početna stranica
                     st.success("Uspješna prijava!")
                     time.sleep(1)
                     st.rerun()
@@ -122,7 +124,6 @@ if st.session_state.stranica == "godisnji":
     import io
     import json
 
-    # Funkcija za izračun radnih dana
     def calculate_working_days(start_str, end_str, holidays):
         start = datetime.fromisoformat(start_str).date()
         end = datetime.fromisoformat(end_str).date()
@@ -134,7 +135,6 @@ if st.session_state.stranica == "godisnji":
             current += timedelta(days=1)
         return count
 
-    # Prvi radni dan nakon završetka
     def find_next_working_day(end_date_str, holidays):
         end = datetime.fromisoformat(end_date_str).date()
         current = end + timedelta(days=1)
@@ -142,7 +142,6 @@ if st.session_state.stranica == "godisnji":
             current += timedelta(days=1)
         return current.strftime("%d.%m.%Y.")
 
-    # Stvarni broj iskorištenih dana
     def get_used_days_for_user(korisnik_id, exclude_id=None):
         query = supabase.table("odmori").select("datum_od, datum_do").eq("korisnik_id", korisnik_id)
         if exclude_id:
@@ -768,7 +767,6 @@ elif st.session_state.stranica == "korisnici":
                 if st.form_submit_button("Odustani", key="odustani_form"):
                     st.session_state.novi_korisnik_form_shown = False
                     st.rerun()
-
 
 
 
