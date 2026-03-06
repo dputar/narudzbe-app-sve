@@ -40,20 +40,7 @@ if "novi_korisnik_form_shown" not in st.session_state:
 if "edit_korisnik_id" not in st.session_state:
     st.session_state.edit_korisnik_id = None
 
-# ────────────────────────────────────────────────
-# CALLBACK ZA TRAŽILICE
-# ────────────────────────────────────────────────
-def on_proizvodi_search_change():
-    st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
 
-def on_dobavljaci_search_change():
-    st.session_state.dobavljaci_search = st.session_state.dobavljaci_search_input
-
-def on_narudzbe_search_change():
-    st.session_state.narudzbe_search = st.session_state.narudzbe_search_input
-
-def on_korisnici_search_change():
-    st.session_state.korisnici_search = st.session_state.korisnici_search_input
 
 # ────────────────────────────────────────────────
 # LOGIN (korisničko ime + lozinka)
@@ -133,6 +120,25 @@ else:
             st.session_state.stranica = "login"
             st.rerun()
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # ────────────────────────────────────────────────
     # POČETNA
     # ────────────────────────────────────────────────
@@ -140,6 +146,17 @@ else:
         st.title("Početna")
         st.markdown("### Dobrodošli u sustav narudžbi!")
         st.info("Ovdje će biti dashboard, statistike...")
+
+
+
+
+
+
+
+
+
+
+
 
     # ────────────────────────────────────────────────
     # NARUDŽBE – pregled
@@ -1676,3 +1693,23 @@ else:
                 st.info("Nema unosa za prikaz kalendara.")
         except Exception as e:
             st.error(f"Greška pri prikazu kalendara: {str(e)}")
+
+
+
+
+
+
+# ────────────────────────────────────────────────
+# CALLBACK ZA TRAŽILICE
+# ────────────────────────────────────────────────
+def on_proizvodi_search_change():
+    st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
+
+def on_dobavljaci_search_change():
+    st.session_state.dobavljaci_search = st.session_state.dobavljaci_search_input
+
+def on_narudzbe_search_change():
+    st.session_state.narudzbe_search = st.session_state.narudzbe_search_input
+
+def on_korisnici_search_change():
+    st.session_state.korisnici_search = st.session_state.korisnici_search_input
