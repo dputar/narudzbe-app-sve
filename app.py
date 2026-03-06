@@ -408,7 +408,7 @@ if st.session_state.stranica == "godisnji":
     st.subheader("Svi unosi (uređivanje, brisanje i PDF)")
     try:
             query = query.eq("korisnik_id", prijavljeni_korisnik_id)
-        odmori_response = supabase.table("odmori")\
+            odmori_response = supabase.table("odmori")\
             .select("*, korisnici!inner(ime_prezime)")\
             .order("datum_od", desc=True)\
             .execute()
