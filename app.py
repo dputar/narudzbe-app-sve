@@ -82,6 +82,27 @@ if st.sidebar.button("Odjavi se"):
     st.session_state.stranica = "login"
     st.rerun()
 
+
+
+# ────────────────────────────────────────────────
+# CALLBACK ZA TRAŽILICE
+# ────────────────────────────────────────────────
+#def on_proizvodi_search_change():
+#    st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
+
+#def on_dobavljaci_search_change():
+#    st.session_state.dobavljaci_search = st.session_state.dobavljaci_search_input
+
+#def on_narudzbe_search_change():
+#    st.session_state.narudzbe_search = st.session_state.narudzbe_search_input
+
+def on_korisnici_search_change():
+    st.session_state.korisnici_search = st.session_state.korisnici_search_input
+
+
+
+
+
 # ────────────────────────────────────────────────
 # GLAVNI SADRŽAJ – SAMO DVIJE STRANICE
 # ────────────────────────────────────────────────
