@@ -1,3 +1,29 @@
+import streamlit as st
+import pandas as pd
+from supabase import create_client, Client
+from datetime import datetime
+from zoneinfo import ZoneInfo
+import time
+import io
+import numpy as np
+import calendar
+import matplotlib.pyplot as plt
+from datetime import timedelta
+from datetime import date
+
+st.set_page_config(page_title="Sustav narudžbi", layout="wide")
+
+# Supabase konekcija
+SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+TZ = ZoneInfo("Europe/Zagreb")
+
+
+
+
+
 # ────────────────────────────────────────────────
 # SESSION STATE – INICIJALIZACIJA (ostavi netaknuto)
 # ────────────────────────────────────────────────
