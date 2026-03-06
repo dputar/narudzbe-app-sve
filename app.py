@@ -100,23 +100,14 @@ if st.session_state.stranica == "login":
    
     st.stop()
 
-# ────────────────────────────────────────────────
-# SIDEBAR – PRAVA PRISTUPA
-# ────────────────────────────────────────────────
-tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik") if st.session_state.user else None
-
-stranice = ["Godišnji odmor"]
-if tip_korisnika == "administrator":
-    stranice.append("Korisnici")
-
-st.sidebar.title(f"Dobro došli, {st.session_state.user.get('ime_prezime', 'Nepoznato') if st.session_state.user else 'Neprijavljen'}")
+# Sidebar
+st.sidebar.title(f"Dobro došli, {st.session_state.user.get('ime_prezime', 'Nepoznato')}")
+stranice = ["Godišnji odmor", "Korisnici"]
 izbor = st.sidebar.selectbox("Odaberi stranicu", stranice)
-
 if izbor == "Godišnji odmor":
     st.session_state.stranica = "godisnji"
-elif izbor == "Korisnici" and tip_korisnika == "administrator":
+elif izbor == "Korisnici":
     st.session_state.stranica = "korisnici"
-
 if st.sidebar.button("Odjavi se"):
     st.session_state.user = None
     st.session_state.stranica = "login"
@@ -407,8 +398,7 @@ if st.session_state.stranica == "godisnji":
     # TABLICA + UREĐIVANJE (BALANS POPRAVLJEN)
     st.subheader("Svi unosi (uređivanje, brisanje i PDF)")
     try:
-            query = query.eq("korisnik_id", prijavljeni_korisnik_id)
-            odmori_response = supabase.table("odmori")\
+        odmori_response = supabase.table("odmori")\
             .select("*, korisnici!inner(ime_prezime)")\
             .order("datum_od", desc=True)\
             .execute()
