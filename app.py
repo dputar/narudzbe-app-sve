@@ -47,17 +47,20 @@ def on_korisnici_search_change():
 # Funkcija za autentifikaciju
 def authenticate_user(username, password):
     try:
+        # Prvo dohvati korisnika (bez .single())
         user_response = supabase.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username.strip())\
-            .single()\
             .execute()
         
-        user = user_response.data
+        users = user_response.data
         
-        if not user:
+        if not users:
             st.error("Korisnik nije pronađen")
             return None
+        
+        # Uzmi prvog (trebao bi biti samo jedan)
+        user = users[0]
         
         stored = user['lozinka'].strip()
         
