@@ -126,7 +126,7 @@ if st.session_state.stranica == "godisnji":
     st.title("🏖️ Godišnji odmor i slobodni dani")
 
     # ────────────────────────────────────────────────
-    # PUNI ORIGINALNI BLOK SA SVIM FUNKCIONALNOSTIMA + ISPRAVLJEN BALANS
+    # PUNI BLOK SA SVIM FUNKCIONALNOSTIMA + ISPRAVLJEN BALANS
     # ────────────────────────────────────────────────
     from datetime import datetime, timedelta
     import io
@@ -425,6 +425,7 @@ if st.session_state.stranica == "godisnji":
                 except Exception as e:
                     st.error(f"Greška pri konverziji: {str(e)}")
 
+    # Prikaz unosa + uređivanje + PDF
     st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
     try:
         odmori_response = supabase.table("odmori")\
@@ -460,6 +461,8 @@ if st.session_state.stranica == "godisnji":
                     to_delete = []
                     for idx, row in edited_df.iterrows():
                         original_row = df_odmori.loc[idx]
+
+                        # Brisanje
                         if row["Obriši"]:
                             to_delete.append(row["id"])
                             log = {
@@ -469,10 +472,11 @@ if st.session_state.stranica == "godisnji":
                                 "created_at": datetime.now(TZ).isoformat()
                             }
                             supabase.table("log_odmori").insert(log).execute()
+
                             used_before = get_used_days_for_user(original_row["korisnik_id"])
                             supabase.table("odmori").delete().eq("id", row["id"]).execute()
                             used_after = get_used_days_for_user(original_row["korisnik_id"])
-                            razlika = used_before - used_after
+                            razlika = used_before - used_after  # pozitivno = vratiti na saldo
                             korisnik_response = supabase.table("korisnici")\
                                 .select("godisnji_dani,slobodni_dani")\
                                 .eq("id", original_row["korisnik_id"])\
@@ -487,6 +491,8 @@ if st.session_state.stranica == "godisnji":
                                 novi_slobodni = trenutni_slobodni + razlika
                                 supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
                             continue
+
+                        # Uređivanje
                         changed_fields = {}
                         for field in ["datum_od", "datum_do", "tip", "napomena"]:
                             if row[field] != original_row[field]:
@@ -494,9 +500,11 @@ if st.session_state.stranica == "godisnji":
                                     "old": original_row[field],
                                     "new": row[field]
                                 }
+
                         if changed_fields:
                             update_data = {k: row[k] for k in changed_fields}
                             supabase.table("odmori").update(update_data).eq("id", row["id"]).execute()
+
                             log = {
                                 "action": "update",
                                 "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
@@ -505,10 +513,13 @@ if st.session_state.stranica == "godisnji":
                                 "created_at": datetime.now(TZ).isoformat()
                             }
                             supabase.table("log_odmori").insert(log).execute()
+
+                            # Korigiraj saldo samo ako je promijenjen interval ili tip
                             if "tip" in changed_fields or "datum_od" in changed_fields or "datum_do" in changed_fields:
                                 used_before = get_used_days_for_user(original_row["korisnik_id"], exclude_id=row["id"])
                                 used_after = get_used_days_for_user(original_row["korisnik_id"])
-                                razlika = used_before - used_after
+                                razlika = used_after - used_before  # pozitivno = dodatni dani (oduzeti), negativno = manje dana (vratiti)
+
                                 korisnik_response = supabase.table("korisnici")\
                                     .select("godisnji_dani,slobodni_dani")\
                                     .eq("id", original_row["korisnik_id"])\
@@ -516,29 +527,35 @@ if st.session_state.stranica == "godisnji":
                                     .execute()
                                 trenutni_godisnji = korisnik_response.data.get("godisnji_dani") or 0
                                 trenutni_slobodni = korisnik_response.data.get("slobodni_dani") or 0
+
                                 if original_row["tip"] == row["tip"]:
                                     if original_row["tip"] == "Godišnji odmor":
-                                        novi_saldo = trenutni_godisnji + razlika
+                                        novi_saldo = trenutni_godisnji - razlika
                                         supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
                                     elif original_row["tip"] == "Slobodni dan":
-                                        novi_slobodni = trenutni_slobodni + razlika
+                                        novi_slobodni = trenutni_slobodni - razlika
                                         supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
                                 else:
+                                    # Promijenjen tip → vratiti stari, oduzeti novi
                                     if original_row["tip"] == "Godišnji odmor":
                                         supabase.table("korisnici").update({"godisnji_dani": trenutni_godisnji + used_before}).eq("id", original_row["korisnik_id"]).execute()
                                     elif original_row["tip"] == "Slobodni dan":
                                         supabase.table("korisnici").update({"slobodni_dani": trenutni_slobodni + used_before}).eq("id", original_row["korisnik_id"]).execute()
+
                                     if row["tip"] == "Godišnji odmor":
                                         novi_saldo = trenutni_godisnji - used_after
                                         supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
                                     elif row["tip"] == "Slobodni dan":
                                         novi_slobodni = trenutni_slobodni - used_after
                                         supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+
                     if to_delete:
                         for rec_id in to_delete:
                             supabase.table("odmori").delete().eq("id", rec_id).execute()
+
                     st.success("Izmjene i brisanja spremljeni! Saldo ažuriran.")
                     st.rerun()
+
             with col2:
                 if st.button("Izvezi označene u PDF"):
                     for idx, row in edited_df.iterrows():
