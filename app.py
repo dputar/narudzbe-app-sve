@@ -107,7 +107,7 @@ if st.session_state.stranica == "login":
     st.stop()
 
 # ────────────────────────────────────────────────
-# SIDEBAR – NAVIGACIJA (BEZ DIJAKRITIKA U KLJUČEVIMA!)
+# SIDEBAR – NAVIGACIJA (bez dijakritika u ključevima)
 # ────────────────────────────────────────────────
 st.sidebar.title(f"Dobro došli, {st.session_state.user.get('ime_prezime', 'Nepoznato')}")
 
@@ -129,6 +129,29 @@ if st.sidebar.button("Odjavi se"):
     st.session_state.user = None
     st.session_state.stranica = "login"
     st.rerun()
+
+# ────────────────────────────────────────────────
+# GLAVNI SADRŽAJ – OVISNO O ODABRANOJ STRANICI
+# ────────────────────────────────────────────────
+if st.session_state.stranica == "narudzbe":
+    # OVDJE IDE CIJELI TVOJ KOD ZA PREGLED NARUDŽBI (kopiraj ga iz stare verzije)
+    st.title("Pregled narudžbi")
+    # ... zalijepi svoj kod za pregled, search, data_editor, spremanje, upload Excela itd.
+
+elif st.session_state.stranica == "proizvodi":
+    st.title("Proizvodi")
+    # ... zalijepi svoj kod za proizvode (ako ga imaš)
+
+elif st.session_state.stranica == "dobavljaci":
+    st.title("Dobavljači")
+    # ... zalijepi svoj kod za dobavljače
+
+elif st.session_state.stranica == "korisnici":
+    st.title("Korisnici")
+    # ... zalijepi svoj kod za korisnike
+
+elif st.session_state.stranica == "dokumenti":
+    st.title("Godišnji odmor i slobodni dani")
 
 
 
