@@ -174,7 +174,6 @@ def on_korisnici_search_change():
 # ────────────────────────────────────────────────
 # GLAVNI SADRŽAJ – OVISNO O ODABRANOJ STRANICI
 # ────────────────────────────────────────────────
-
 if st.session_state.stranica == "narudzbe":
     st.title("Pregled narudžbi")
     col1, col2 = st.columns([6, 4])
@@ -372,7 +371,8 @@ if st.session_state.stranica == "narudzbe":
             st.title("Nova narudžba")
         with col_natrag:
             if st.button("← Natrag na pregled", key="nova_natrag"):
-                st.session_state.narudzbe_proizvodi = []
+                if "narudzbe_proizvodi" in st.session_state:
+                    st.session_state.narudzbe_proizvodi = []
                 st.session_state.stranica = "narudzbe"
                 st.rerun()
         col_lijevo, col_desno = st.columns([1, 2])
@@ -407,7 +407,7 @@ if st.session_state.stranica == "narudzbe":
             napomena = st.text_area("", height=100, key="nova_napomena", label_visibility="collapsed")
         with col_desno:
             st.markdown("**Proizvodi**")
-            if st.session_state.narudzbe_proizvodi:
+            if "narudzbe_proizvodi" in st.session_state and st.session_state.narudzbe_proizvodi:
                 df = pd.DataFrame(st.session_state.narudzbe_proizvodi)
                 df["Ukupno"] = df["Kol."] * df["Cijena"]
                 st.dataframe(df, use_container_width=True, height=400)
@@ -437,6 +437,8 @@ if st.session_state.stranica == "narudzbe":
                                 "Ukupno": kol * cijena,
                                 "Dobavljač": dobavljac
                             }
+                            if "narudzbe_proizvodi" not in st.session_state:
+                                st.session_state.narudzbe_proizvodi = []
                             st.session_state.narudzbe_proizvodi.append(novi)
                             st.success("Proizvod dodan!")
                             st.rerun()
