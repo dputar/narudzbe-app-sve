@@ -61,14 +61,14 @@ def authenticate_user(username, password):
         
         stored = user['lozinka'].strip()
         
-        # Pokušaj bcrypt provjeru
+        # Pokušaj bcrypt provjeru (za hashirane lozinke)
         try:
             if bcrypt.checkpw(password.strip().encode('utf-8'), stored.encode('utf-8')):
                 return user
         except:
-            pass  # ako nije bcrypt hash → ide na plain provjeru
+            pass  # ako nije bcrypt → ide na plain provjeru
         
-        # Fallback za plain text (tvoje trenutno stanje)
+        # Fallback za plain text (ostavi dok ne hashiraš sve)
         if stored == password.strip():
             return user
         
