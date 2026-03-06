@@ -141,7 +141,20 @@ if st.sidebar.button("Odjavi se"):
 
 
 
+# ────────────────────────────────────────────────
+# CALLBACK ZA TRAŽILICE
+# ────────────────────────────────────────────────
+def on_proizvodi_search_change():
+    st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
 
+def on_dobavljaci_search_change():
+    st.session_state.dobavljaci_search = st.session_state.dobavljaci_search_input
+
+def on_narudzbe_search_change():
+    st.session_state.narudzbe_search = st.session_state.narudzbe_search_input
+
+def on_korisnici_search_change():
+    st.session_state.korisnici_search = st.session_state.korisnici_search_input
 
 
 
@@ -1720,17 +1733,3 @@ elif st.session_state.stranica == "dokumenti":
 
 
 
-# ────────────────────────────────────────────────
-# CALLBACK ZA TRAŽILICE
-# ────────────────────────────────────────────────
-def on_proizvodi_search_change():
-    st.session_state.proizvodi_search = st.session_state.proizvodi_search_input
-
-def on_dobavljaci_search_change():
-    st.session_state.dobavljaci_search = st.session_state.dobavljaci_search_input
-
-def on_narudzbe_search_change():
-    st.session_state.narudzbe_search = st.session_state.narudzbe_search_input
-
-def on_korisnici_search_change():
-    st.session_state.korisnici_search = st.session_state.korisnici_search_input
