@@ -1,128 +1,108 @@
-import streamlit as st
-import pandas as pd
-from supabase import create_client, Client
-from datetime import datetime
-from zoneinfo import ZoneInfo
-import time
-import io
-import numpy as np
-import calendar
-import matplotlib.pyplot as plt
-from datetime import timedelta
-from datetime import date
-
-st.set_page_config(page_title="Sustav narudžbi", layout="wide")
-
-# Supabase konekcija
-SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-TZ = ZoneInfo("Europe/Zagreb")
-
 # ────────────────────────────────────────────────
-# SESSION STATE
+# SESSION STATE – INICIJALIZACIJA (ostavi netaknuto)
 # ────────────────────────────────────────────────
-if "narudzbe_proizvodi" not in st.session_state:
-    st.session_state.narudzbe_proizvodi = []
+if "user" not in st.session_state:
+    st.session_state.user = None
 if "stranica" not in st.session_state:
     st.session_state.stranica = "login"
-if "proizvodi_search" not in st.session_state:
-    st.session_state.proizvodi_search = ""
-if "dobavljaci_search" not in st.session_state:
-    st.session_state.dobavljaci_search = ""
-if "narudzbe_search" not in st.session_state:
-    st.session_state.narudzbe_search = ""
-if "korisnici_search" not in st.session_state:
-    st.session_state.korisnici_search = ""
-if "novi_korisnik_form_shown" not in st.session_state:
-    st.session_state.novi_korisnik_form_shown = False
-if "edit_korisnik_id" not in st.session_state:
-    st.session_state.edit_korisnik_id = None
-
-
+if "search_input" not in st.session_state:
+    st.session_state.search_input = ""
+if "temp_order" not in st.session_state:
+    st.session_state.temp_order = None
+if "temp_odmor" not in st.session_state:
+    st.session_state.temp_odmor = None
+if "form_reset" not in st.session_state:
+    st.session_state.form_reset = False
+if "last_refresh_time" not in st.session_state:
+    st.session_state.last_refresh_time = time.time()
 
 # ────────────────────────────────────────────────
-# LOGIN (korisničko ime + lozinka)
+# FUNKCIJA ZA AUTENTIFIKACIJU – RADI I SA HASHIRANIM I SA PLAIN LOZINKAMA
+# ────────────────────────────────────────────────
+def authenticate_user(username, password):
+    try:
+        user_response = supabase.table("korisnici")\
+            .select("*")\
+            .eq("korisničko_ime", username.strip())\
+            .single()\
+            .execute()
+        
+        user = user_response.data
+        
+        if not user:
+            st.error("Korisnik nije pronađen u tablici korisnici")
+            return None
+        
+        stored = user['lozinka'].strip()
+        
+        # Pokušaj bcrypt provjeru
+        try:
+            if bcrypt.checkpw(password.strip().encode('utf-8'), stored.encode('utf-8')):
+                return user
+        except:
+            pass  # ako nije bcrypt hash → ide na plain provjeru
+        
+        # Fallback za plain text (tvoje trenutno stanje)
+        if stored == password.strip():
+            return user
+        
+        st.error("Lozinka se ne podudara")
+        return None
+        
+    except Exception as e:
+        st.error(f"Greška pri autentifikaciji: {str(e)}")
+        return None
+
+# ────────────────────────────────────────────────
+# LOGIN STRANICA
 # ────────────────────────────────────────────────
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav narudžbi")
-    korisnicko_ime = st.text_input("Korisničko ime", key="login_korisnicko_ime")
-    lozinka = st.text_input("Lozinka", type="password", key="login_lozinka")
-    if st.button("Prijavi se", key="login_prijavi"):
-        try:
-            # Dohvati korisnika po korisničko_ime
-            response = supabase.table("korisnici").select("*").eq("korisničko_ime", korisnicko_ime).execute()
-            if response.data and len(response.data) > 0:
-                user = response.data[0]
-                if user["lozinka"] == lozinka:
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        username = st.text_input("Korisničko ime").strip()
+        password = st.text_input("Lozinka", type="password").strip()
+
+        if st.button("Prijavi se"):
+            if not username or not password:
+                st.error("Unesite korisničko ime i lozinku!")
+            else:
+                user = authenticate_user(username, password)
+                if user:
                     st.session_state.user = user
-                    st.session_state.stranica = "početna"
+                    st.session_state.stranica = "narudzbe"  # početna stranica nakon logina
                     st.success("Uspješna prijava!")
+                    time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("Neispravna lozinka.")
-            else:
-                st.error("Korisničko ime ne postoji.")
-        except Exception as e:
-            st.error(f"Greška pri prijavi: {str(e)}")
+                    st.error("Korisničko ime ne postoji ili lozinka nije ispravna.")
+    
+    st.stop()
 
-else:
-    # ────────────────────────────────────────────────
-    # SIDEBAR – FINALNA VERZIJA SA OGRANIČENJIMA PO TIPU KORISNIKA
-    # ────────────────────────────────────────────────
-    with st.sidebar:
-        st.title("Sustav narudžbi")
+# ────────────────────────────────────────────────
+# SIDEBAR – NAVIGACIJA (BEZ DIJAKRITIKA U KLJUČEVIMA!)
+# ────────────────────────────────────────────────
+st.sidebar.title(f"Dobro došli, {st.session_state.user.get('ime_prezime', 'Nepoznato')}")
 
-        # Početna – vidi svi
-        if st.button("🏠 Početna", key="menu_pocetna"):
-            st.session_state.stranica = "početna"
-            st.rerun()
+stranice = ["Narudzbe", "Proizvodi", "Dobavljaci", "Korisnici", "Dokumenti"]
+izbor = st.sidebar.selectbox("Odaberi stranicu", stranice)
 
-        # Godišnji/Slobodni – vidi svi
-        if st.button("🏖️ Godišnji/Slobodni", key="menu_dokumenti"):
-            st.session_state.stranica = "dokumenti"
-            st.rerun()
+if izbor == "Narudzbe":
+    st.session_state.stranica = "narudzbe"
+elif izbor == "Proizvodi":
+    st.session_state.stranica = "proizvodi"
+elif izbor == "Dobavljaci":
+    st.session_state.stranica = "dobavljaci"
+elif izbor == "Korisnici":
+    st.session_state.stranica = "korisnici"
+elif izbor == "Dokumenti":
+    st.session_state.stranica = "dokumenti"
 
-        # Samo admin vidi dodatne opcije
-        if st.session_state.user.get("tip_korisnika") == "administrator":
-            if st.button("🛒 Narudžbe", key="menu_narudzbe"):
-                st.session_state.stranica = "narudžbe"
-                st.rerun()
-
-            if st.button("🔍 Pretraga narudžbi", key="menu_pretraga"):
-                st.session_state.stranica = "pretraga"
-                st.rerun()
-
-            with st.expander("📊 Izvještaji", expanded=False):
-                st.info("Izvještaji dolaze kasnije...")
-
-            with st.expander("⚙️ Administracija", expanded=False):
-                if st.button("📦 Proizvodi", key="admin_proizvodi"):
-                    st.session_state.stranica = "admin_proizvodi"
-                    st.rerun()
-
-                if st.button("🚚 Dobavljači", key="admin_dobavljaci"):
-                    st.session_state.stranica = "admin_dobavljaci"
-                    st.rerun()
-
-                if st.button("👥 Korisnici", key="admin_korisnici"):
-                    st.session_state.stranica = "admin_korisnici"
-                    st.rerun()
-
-                if st.button("📋 Šifarnici", key="admin_sifarnici"):
-                    st.session_state.stranica = "admin_sifarnici"
-                    st.rerun()
-
-        # Odjava – vidi svi (na dnu)
-        if st.button("➡️ Odjava", key="menu_odjava"):
-            st.session_state.user = None
-            st.session_state.stranica = "login"
-            st.rerun()
-
-
-
-
+if st.sidebar.button("Odjavi se"):
+    st.session_state.user = None
+    st.session_state.stranica = "login"
+    st.rerun()
 
 
 
@@ -161,7 +141,7 @@ else:
     # ────────────────────────────────────────────────
     # NARUDŽBE – pregled
     # ────────────────────────────────────────────────
-    elif st.session_state.stranica == "narudžbe":
+    elif st.session_state.stranica == "narudzbe":
         st.title("Pregled narudžbi")
 
         col1, col2 = st.columns([6, 4])
@@ -390,7 +370,7 @@ else:
         with col_natrag:
             if st.button("← Natrag na pregled", key="nova_natrag"):
                 st.session_state.narudzbe_proizvodi = []
-                st.session_state.stranica = "narudžbe"
+                st.session_state.stranica = "narudzbe"
                 st.rerun()
         col_lijevo, col_desno = st.columns([1, 2])
         with col_lijevo:
