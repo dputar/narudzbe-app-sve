@@ -358,10 +358,10 @@ if st.session_state.stranica == "godisnji":
         st.session_state.form_reset = False
         st.rerun()
 
-# Administrativne radnje – SAMO ADMIN vidi
-            if tip_korisnika == "administrator":
-                st.subheader("Administrativne radnje")
-                col1, col2 = st.columns(2)
+    # Administrativne radnje
+    if tip_korisnika == "administrator":
+        st.subheader("Administrativne radnje")
+        col1, col2 = st.columns(2)
         with col1:
             if st.button(f"Dodijeli nove godišnje dane za {tekuca_godina} svima"):
                 try:
@@ -404,19 +404,21 @@ if st.session_state.stranica == "godisnji":
                 except Exception as e:
                     st.error(f"Greška: {str(e)}")
 
-# TABLICA UNOSA – FILTRIRANO ZA NE-ADMINA
-    st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
+    # TABLICA + UREĐIVANJE (BALANS POPRAVLJEN)
+    st.subheader("Svi unosi (uređivanje, brisanje i PDF)")
     try:
-        query = supabase.table("odmori").select("*, korisnici!inner(ime_prezime)").order("datum_od", desc=True)
-        if tip_korisnika != "administrator":
-            query = query.eq("korisnik_id", prijavljeni_korisnik_id)
-        odmori_response = query.execute()
+        odmori_response = supabase.table("odmori")\
+            .select("*, korisnici!inner(ime_prezime)")\
+            .order("datum_od", desc=True)\
+            .execute()
         df_odmori = pd.DataFrame(odmori_response.data or [])
         if not df_odmori.empty:
             df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) else "Nepoznato")
             df_odmori = df_odmori.drop(columns=["korisnici"])
             df_odmori["Obriši"] = False
             df_odmori["Izvezi PDF"] = False
+            if tip_korisnika != "administrator":
+                df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
             edited_df = st.data_editor(
                 df_odmori[["id", "korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at", "Obriši", "Izvezi PDF"]],
                 column_config={
@@ -424,8 +426,8 @@ if st.session_state.stranica == "godisnji":
                     "korisnik_ime": st.column_config.TextColumn("Korisnik", disabled=True),
                     "created_at": st.column_config.TextColumn("Kreirano", disabled=True),
                     "unio_korisnik": st.column_config.TextColumn("Unio", disabled=True),
-                    "Obriši": st.column_config.CheckboxColumn("Obriši", default=False),
-                    "Izvezi PDF": st.column_config.CheckboxColumn("Izvezi PDF", default=False)
+                    "Obriši": st.column_config.CheckboxColumn("Obriši"),
+                    "Izvezi PDF": st.column_config.CheckboxColumn("Izvezi PDF"),
                 },
                 hide_index=True,
                 use_container_width=True,
@@ -562,29 +564,32 @@ if st.session_state.stranica == "godisnji":
     except Exception as e:
         st.error(f"Greška pri sumiranju: {str(e)}")
 
-# Log tablica – SAMO ADMIN vidi
-            if tip_korisnika == "administrator":
-                st.subheader("Log izmjena i brisanja")
-                try:
-                    log_response = supabase.table("log_odmori")\
-                        .select("*")\
-                        .order("created_at", desc=True)\
-                        .execute()
-                    df_log = pd.DataFrame(log_response.data or [])
-                    if not df_log.empty:
-                        if 'old_data' in df_log.columns:
-                            df_log['old_data'] = df_log['old_data'].apply(lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x))
-                        if 'new_data' in df_log.columns:
-                            df_log['new_data'] = df_log['new_data'].apply(lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x))
-                        st.dataframe(
-                            df_log[["action", "unio_korisnik", "old_data", "new_data", "created_at"]],
-                            use_container_width=True,
-                            hide_index=True
-                        )
-                    else:
-                        st.info("Još nema log zapisa.")
-                except Exception as e:
-                    st.error(f"Greška pri dohvaćanju loga: {str(e)}")
+    # Log tablica
+    st.subheader("Log izmjena i brisanja")
+    try:
+        log_response = supabase.table("log_odmori")\
+            .select("*")\
+            .order("created_at", desc=True)\
+            .execute()
+        df_log = pd.DataFrame(log_response.data or [])
+        if not df_log.empty:
+            if 'old_data' in df_log.columns:
+                df_log['old_data'] = df_log['old_data'].apply(
+                    lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
+                )
+            if 'new_data' in df_log.columns:
+                df_log['new_data'] = df_log['new_data'].apply(
+                    lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
+                )
+            st.dataframe(
+                df_log[["action", "unio_korisnik", "old_data", "new_data", "created_at"]],
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("Još nema log zapisa.")
+    except Exception as e:
+        st.error(f"Greška pri dohvaćanju loga: {str(e)}")
 
     # Kalendar preklapanja
     st.subheader("Kalendar preklapanja")
