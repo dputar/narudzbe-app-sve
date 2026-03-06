@@ -389,7 +389,7 @@ if st.session_state.stranica == "godisnji":
                 except Exception as e:
                     st.error(f"Greška pri konverziji: {str(e)}")
 
-    # Prikaz i uređivanje/brisanje unosa + IZVOZ PDF
+    # TABLICA UNOSA + UREĐIVANJE + PDF
     st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
     try:
         odmori_response = supabase.table("odmori")\
