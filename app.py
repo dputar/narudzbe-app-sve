@@ -10,6 +10,7 @@ import calendar
 import matplotlib.pyplot as plt
 from datetime import timedelta
 from datetime import date
+import bcrypt
 
 st.set_page_config(page_title="Sustav narudžbi", layout="wide")
 
