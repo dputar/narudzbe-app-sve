@@ -278,15 +278,20 @@ if st.session_state.stranica == "narudzbe":
                 st.rerun()
         with col2:
             if st.button("Izvezi pregled u Excel"):
-                output = io.BytesIO()
-                edited_df.drop(columns=["Obriši"]).to_excel(output, index=False, sheet_name="Narudžbe")
-                output.seek(0)
-                st.download_button(
-                    label="Preuzmi .xlsx",
-                    data=output,
-                    file_name=f"narudzbe_pregled_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+                try:
+                    output = io.BytesIO()
+                    # Ukloni checkbox stupac prije exporta
+                    export_df = edited_df.drop(columns=["Obriši"], errors='ignore')
+                    export_df.to_excel(output, index=False, sheet_name="Narudžbe")
+                    output.seek(0)
+                    st.download_button(
+                        label="Preuzmi .xlsx",
+                        data=output,
+                        file_name=f"narudzbe_pregled_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                except Exception as e:
+                    st.error(f"Greška pri exportu u Excel: {str(e)}")
         with col3:
             st.button("➕ Nova narudžba", type="primary", on_click=lambda: st.session_state.update({"stranica": "nova"}))
         with col4:
