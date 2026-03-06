@@ -90,7 +90,7 @@ if st.session_state.stranica == "login":
                 user = authenticate_user(username, password)
                 if user:
                     st.session_state.user = user
-                    st.session_state.stranica = "godisnji"  # početna stranica
+                    st.session_state.stranica = "godisnji"  # početna stranica nakon logina
                     st.success("Uspješna prijava!")
                     time.sleep(1)
                     st.rerun()
