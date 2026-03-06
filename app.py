@@ -123,7 +123,7 @@ if st.session_state.stranica == "godisnji":
     st.title("🏖️ Godišnji odmor i slobodni dani")
 
     # ────────────────────────────────────────────────
-    # TVOJ ORIGINALNI BLOK ZA GODIŠNJI ODMOR – VRATILI SMO GA U CIJELOSTI
+    # TVOJ PUNI ORIGINALNI BLOK – SVE FUNKCIONALNOSTI (kalendar, log, PDF, preklapanja, admin radnje...)
     # ────────────────────────────────────────────────
     from datetime import datetime, timedelta
     import io
@@ -141,7 +141,7 @@ if st.session_state.stranica == "godisnji":
             current += timedelta(days=1)
         return count
 
-    # Funkcija za pronalazak prvog radnog dana nakon završetka
+    # Prvi radni dan nakon završetka
     def find_next_working_day(end_date_str, holidays):
         end = datetime.fromisoformat(end_date_str).date()
         current = end + timedelta(days=1)
