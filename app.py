@@ -176,10 +176,8 @@ if st.session_state.stranica == "narudzbe":
         )
     if st.button("🔄 Osvježi", key="pregled_osvjezi"):
         st.rerun()
-
     response = supabase.table("main_orders").select("*").order("datum", desc=True).execute()
     df = pd.DataFrame(response.data or [])
-
     if not df.empty:
         df = df.fillna("")
         df = df.loc[:, ~df.columns.duplicated()]
