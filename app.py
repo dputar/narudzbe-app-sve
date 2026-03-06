@@ -194,6 +194,11 @@ if st.session_state.stranica == "narudzbe":
     df = pd.DataFrame(response.data or [])
 
     if not df.empty:
+        # Pretvori datetime stupce u timezone-unaware prije exporta i prikaza
+        for col in df.columns:
+            if pd.api.types.is_datetime64_any_dtype(df[col]):
+                df[col] = df[col].dt.tz_localize(None)  # ukloni timezone
+
         df = df.fillna("")
         df = df.loc[:, ~df.columns.duplicated()]
         if "reprezentacija" in df.columns:
@@ -261,7 +266,7 @@ if st.session_state.stranica == "narudzbe":
                             if pd.isna(v) or (isinstance(v, float) and np.isnan(v)):
                                 update_data[k] = None
                             elif isinstance(v, pd.Timestamp):
-                                update_data[k] = v.isoformat()
+                                update_data[k] = v.tz_localize(None).isoformat()  # ukloni timezone
                             elif isinstance(v, datetime):
                                 update_data[k] = v.isoformat()
                             elif isinstance(v, str) and v.strip() == "":
@@ -282,12 +287,16 @@ if st.session_state.stranica == "narudzbe":
                     output = io.BytesIO()
                     # Ukloni checkbox stupac prije exporta
                     export_df = edited_df.drop(columns=["Obriši"], errors='ignore')
+                    # Ukloni timezone iz svih datetime stupaca prije exporta
+                    for col in export_df.columns:
+                        if pd.api.types.is_datetime64_any_dtype(export_df[col]):
+                            export_df[col] = export_df[col].dt.tz_localize(None)
                     export_df.to_excel(output, index=False, sheet_name="Narudžbe")
                     output.seek(0)
                     st.download_button(
                         label="Preuzmi .xlsx",
                         data=output,
-                        file_name=f"narudzbe_pregled_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
+                        file_name=f"narudzbe_pregled_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
                 except Exception as e:
