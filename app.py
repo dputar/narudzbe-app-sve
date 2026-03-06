@@ -56,25 +56,29 @@ def authenticate_user(username, password):
         user = user_response.data
         
         if not user:
-            st.error("Korisnik nije pronađen u tablici korisnici")
+            st.error("Korisnik nije pronađen")
             return None
         
-        stored = user['lozinka'].strip()
+        stored_hash = user['lozinka'].strip()
         
-        # Pokušaj bcrypt provjeru (za hashirane lozinke)
+        # DEBUG ISPIS – OVO JE PRIVREMENO
+        st.write("DEBUG: Korisničko ime pronađeno:", user["korisničko_ime"])
+        st.write("DEBUG: Dužina hasha u bazi:", len(stored_hash))
+        st.write("DEBUG: Prvih 10 znakova hasha:", stored_hash[:10])
+        st.write("DEBUG: Unesena lozinka (stripped):", password.strip())
+        
+        # Pokušaj bcrypt
         try:
-            if bcrypt.checkpw(password.strip().encode('utf-8'), stored.encode('utf-8')):
+            if bcrypt.checkpw(password.strip().encode('utf-8'), stored_hash.encode('utf-8')):
+                st.success("DEBUG: Bcrypt provjera prošla!")
                 return user
-        except:
-            pass  # ako nije bcrypt → ide na plain provjeru
-        
-        # Fallback za plain text (ostavi dok ne hashiraš sve)
-        if stored == password.strip():
-            return user
-        
-        st.error("Lozinka se ne podudara")
-        return None
-        
+            else:
+                st.error("DEBUG: Bcrypt provjera NE prolazi")
+                return None
+        except Exception as bcrypt_err:
+            st.error(f"DEBUG: Bcrypt exception: {str(bcrypt_err)}")
+            return None
+            
     except Exception as e:
         st.error(f"Greška pri autentifikaciji: {str(e)}")
         return None
