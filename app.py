@@ -158,6 +158,9 @@ if st.sidebar.button("Odjavi se"):
 # ────────────────────────────────────────────────
 # NARUDŽBE
 # ────────────────────────────────────────────────
+# ────────────────────────────────────────────────
+# GLAVNI SADRŽAJ – OVISNO O ODABRANOJ STRANICI
+# ────────────────────────────────────────────────
 if st.session_state.stranica == "narudzbe":
     st.title("Pregled narudžbi")
     col1, col2 = st.columns([6, 4])
@@ -173,8 +176,10 @@ if st.session_state.stranica == "narudzbe":
         )
     if st.button("🔄 Osvježi", key="pregled_osvjezi"):
         st.rerun()
+
     response = supabase.table("main_orders").select("*").order("datum", desc=True).execute()
     df = pd.DataFrame(response.data or [])
+
     if not df.empty:
         df = df.fillna("")
         df = df.loc[:, ~df.columns.duplicated()]
@@ -188,11 +193,11 @@ if st.session_state.stranica == "narudzbe":
             elif df[col].dtype in ["float64", "int64"]:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
         df_display = df.copy()
-        if st.session_state.get("narudzbe_search", ""):
-            search_term = str(st.session_state.narudzbe_search).strip().lower()
+        search_term = str(st.session_state.get("narudzbe_search", "")).strip().lower()
+        if search_term:
             mask = df_display.astype(str).apply(lambda x: x.str.lower().str.contains(search_term), axis=1).any(axis=1)
             df_display = df_display[mask]
-        if df_display.empty and st.session_state.get("narudzbe_search", ""):
+        if df_display.empty and search_term:
             st.info("Ništa nije pronađeno po traženom pojmu.")
         elif df_display.empty:
             st.info("Još nema narudžbi.")
@@ -347,13 +352,13 @@ if st.session_state.stranica == "narudzbe":
                 except Exception as e:
                     st.error(f"Greška pri čitanju Excela: {e}")
                     st.error("Provjeri format datoteke – stupac 'broj_narudzbe' može biti prazan (dodaje se kao None).")
-        else:
-            st.info("Još nema narudžbi.")
+    else:
+        st.info("Još nema narudžbi.")
 
     # ────────────────────────────────────────────────
     # NOVA NARUDŽBA
     # ────────────────────────────────────────────────
-        elif st.session_state.stranica == "nova":
+    elif st.session_state.stranica == "nova":
         col_naslov, col_natrag = st.columns([5, 1])
         with col_naslov:
             st.title("Nova narudžba")
