@@ -558,7 +558,7 @@ if st.session_state.stranica == "godisnji":
                                 mime="application/pdf",
                                 key=f"pdf_download_{row['id']}"
                             )
-    else:
+else:
         st.info("Još nema unosa.")
 
 elif st.session_state.stranica == "korisnici":
