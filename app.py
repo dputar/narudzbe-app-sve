@@ -59,7 +59,7 @@ def authenticate_user(username, password):
             st.error("Korisnik nije pronađen")
             return None
         
-        # Uzmi prvog korisnika (trebao bi biti samo jedan)
+        # Uzmi prvog (trebao bi biti samo jedan)
         user = users[0]
         
         stored = user.get('lozinka', '').strip()
