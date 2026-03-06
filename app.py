@@ -173,7 +173,6 @@ if st.session_state.stranica == "godisnji":
 
     holidays_dict = {
         2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
-        2027: [date(2027, 1, 1), date(2027, 1, 6), date(2027, 3, 28), date(2027, 3, 29), date(2027, 5, 1), date(2027, 5, 27), date(2027, 6, 22), date(2027, 8, 15), date(2027, 11, 1), date(2027, 11, 18), date(2027, 12, 25), date(2027, 12, 26)],
         # Dodaj ostale godine po potrebi
     }
 
@@ -425,6 +424,9 @@ if st.session_state.stranica == "godisnji":
                 except Exception as e:
                     st.error(f"Greška pri konverziji: {str(e)}")
 
+    # ────────────────────────────────────────────────
+    # TABLICA UNOSA + UREĐIVANJE + PDF (OVDJE JE ISPRAVLJEN BALANS)
+    # ────────────────────────────────────────────────
     st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
     try:
         odmori_response = supabase.table("odmori")\
@@ -521,13 +523,13 @@ if st.session_state.stranica == "godisnji":
                                 # Dohvati broj dana prije promjene (bez ovog unosa)
                                 used_before = get_used_days_for_user(original_row["korisnik_id"], exclude_id=row["id"])
 
-                                # Dohvati broj dana nakon promjene
+                                # Dohvati broj dana nakon promjene (s novim unosom)
                                 used_after = get_used_days_for_user(original_row["korisnik_id"])
 
                                 # Razlika = koliko je sad više/manje dana zauzeto
-                                razlika = used_after - used_before
+                                razlika = used_after - used_before  # >0 = dodatni dani (oduzmi), <0 = manje dana (vrati)
 
-                                # Dohvati trenutni saldo nakon promjene
+                                # Dohvati **najnoviji** saldo iz baze nakon ažuriranja unosa
                                 korisnik_response = supabase.table("korisnici")\
                                     .select("godisnji_dani,slobodni_dani")\
                                     .eq("id", original_row["korisnik_id"])\
