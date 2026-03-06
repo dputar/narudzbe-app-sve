@@ -135,63 +135,29 @@ if st.sidebar.button("Odjavi se"):
     st.session_state.stranica = "login"
     st.rerun()
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ────────────────────────────────────────────────
 # GLAVNI SADRŽAJ – OVISNO O ODABRANOJ STRANICI
 # ────────────────────────────────────────────────
 if st.session_state.stranica == "narudzbe":
     # OVDJE IDE CIJELI TVOJ KOD ZA PREGLED NARUDŽBI (kopiraj ga iz stare verzije)
-    st.title("Pregled narudžbi")
-    # ... zalijepi svoj kod za pregled, search, data_editor, spremanje, upload Excela itd.
-
-elif st.session_state.stranica == "proizvodi":
-    st.title("Proizvodi")
-    # ... zalijepi svoj kod za proizvode (ako ga imaš)
-
-elif st.session_state.stranica == "dobavljaci":
-    st.title("Dobavljači")
-    # ... zalijepi svoj kod za dobavljače
-
-elif st.session_state.stranica == "korisnici":
-    st.title("Korisnici")
-    # ... zalijepi svoj kod za korisnike
-
-elif st.session_state.stranica == "dokumenti":
-    st.title("Godišnji odmor i slobodni dani")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # ────────────────────────────────────────────────
-    # POČETNA
-    # ────────────────────────────────────────────────
-    if st.session_state.stranica == "početna":
-        st.title("Početna")
-        st.markdown("### Dobrodošli u sustav narudžbi!")
-        st.info("Ovdje će biti dashboard, statistike...")
-
-
-
-
-
-
-
-
-
-
-
-
+    #  st.title("Pregled narudžbi")
     # ────────────────────────────────────────────────
     # NARUDŽBE – pregled
     # ────────────────────────────────────────────────
@@ -496,6 +462,57 @@ elif st.session_state.stranica == "dokumenti":
                     if st.form_submit_button("Odustani", key="dodaj_odustani"):
                         st.session_state.show_dodaj_proizvod = False
                         st.rerun()
+
+
+elif st.session_state.stranica == "proizvodi":
+    st.title("Proizvodi")
+    # ... zalijepi svoj kod za proizvode (ako ga imaš)
+
+elif st.session_state.stranica == "dobavljaci":
+    st.title("Dobavljači")
+    # ... zalijepi svoj kod za dobavljače
+
+elif st.session_state.stranica == "korisnici":
+    st.title("Korisnici")
+    # ... zalijepi svoj kod za korisnike
+
+elif st.session_state.stranica == "dokumenti":
+    st.title("Godišnji odmor i slobodni dani")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # ────────────────────────────────────────────────
+    # POČETNA
+    # ────────────────────────────────────────────────
+    if st.session_state.stranica == "početna":
+        st.title("Početna")
+        st.markdown("### Dobrodošli u sustav narudžbi!")
+        st.info("Ovdje će biti dashboard, statistike...")
+
+
+
+
+
+
+
+
+
+
+
+
 
     # ────────────────────────────────────────────────
     # ADMINISTRACIJA → DOBAVLJAČI
