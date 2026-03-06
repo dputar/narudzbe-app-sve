@@ -171,9 +171,6 @@ def on_korisnici_search_change():
 # ────────────────────────────────────────────────
 # NARUDŽBE
 # ────────────────────────────────────────────────
-# ────────────────────────────────────────────────
-# GLAVNI SADRŽAJ – OVISNO O ODABRANOJ STRANICI
-# ────────────────────────────────────────────────
 if st.session_state.stranica == "narudzbe":
     st.title("Pregled narudžbi")
     col1, col2 = st.columns([6, 4])
@@ -194,7 +191,7 @@ if st.session_state.stranica == "narudzbe":
     df = pd.DataFrame(response.data or [])
 
     if not df.empty:
-        # Pretvori datetime stupce u timezone-unaware prije exporta i prikaza
+        # Ukloni timezone iz svih datetime stupaca prije prikaza i exporta
         for col in df.columns:
             if pd.api.types.is_datetime64_any_dtype(df[col]):
                 df[col] = df[col].dt.tz_localize(None)  # ukloni timezone
@@ -285,9 +282,8 @@ if st.session_state.stranica == "narudzbe":
             if st.button("Izvezi pregled u Excel"):
                 try:
                     output = io.BytesIO()
-                    # Ukloni checkbox stupac prije exporta
                     export_df = edited_df.drop(columns=["Obriši"], errors='ignore')
-                    # Ukloni timezone iz svih datetime stupaca prije exporta
+                    # Ukloni timezone iz svih datum stupaca prije exporta
                     for col in export_df.columns:
                         if pd.api.types.is_datetime64_any_dtype(export_df[col]):
                             export_df[col] = export_df[col].dt.tz_localize(None)
@@ -302,7 +298,9 @@ if st.session_state.stranica == "narudzbe":
                 except Exception as e:
                     st.error(f"Greška pri exportu u Excel: {str(e)}")
         with col3:
-            st.button("➕ Nova narudžba", type="primary", on_click=lambda: st.session_state.update({"stranica": "nova"}))
+            if st.button("➕ Nova narudžba", type="primary"):
+                st.session_state.stranica = "nova"
+                st.rerun()
         with col4:
             st.subheader("Upload narudžbi iz Excela")
             uploaded_file = st.file_uploader("Odaberi .xlsx datoteku", type=["xlsx"], key="upload_narudzbe")
@@ -431,6 +429,7 @@ if st.session_state.stranica == "narudzbe":
                 st.info("Još nema proizvoda.")
             if st.button("➕ Dodaj proizvod", key="nova_dodaj_gumb", type="primary"):
                 st.session_state.show_dodaj_proizvod = True
+                st.rerun()
             if st.session_state.get("show_dodaj_proizvod", False):
                 with st.form("dodaj_proizvod_form", clear_on_submit=True):
                     col1, col2 = st.columns(2)
