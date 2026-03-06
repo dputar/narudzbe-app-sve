@@ -299,7 +299,6 @@ if st.session_state.stranica == "godisnji":
                         "created_at": datetime.now(TZ).isoformat()
                     }
                     supabase.table("odmori").insert(novi).execute()
-                    # Ažuriraj saldo (svježe stanje)
                     korisnik_response = supabase.table("korisnici")\
                         .select("godisnji_dani,slobodni_dani")\
                         .eq("id", korisnik_id)\
@@ -319,7 +318,6 @@ if st.session_state.stranica == "godisnji":
             except Exception as e:
                 st.error(f"Greška pri provjeri/spremanju: {str(e)}")
 
-    # Potvrda preklapanja
     if st.session_state.temp_odmor:
         try:
             odmori_response = supabase.table("odmori").select("*").execute()
@@ -353,7 +351,6 @@ if st.session_state.stranica == "godisnji":
                 }
                 supabase.table("odmori").insert(novi).execute()
                 broj_dana = st.session_state.temp_odmor["broj_dana"]
-                # Svježi saldo nakon dodavanja
                 korisnik_response = supabase.table("korisnici")\
                     .select("godisnji_dani,slobodni_dani")\
                     .eq("id", korisnik_id)\
@@ -382,7 +379,6 @@ if st.session_state.stranica == "godisnji":
         st.session_state.form_reset = False
         st.rerun()
 
-    # Administrativne radnje
     if tip_korisnika == "administrator":
         st.subheader("Administrativne radnje")
         col1, col2 = st.columns(2)
@@ -429,7 +425,6 @@ if st.session_state.stranica == "godisnji":
                 except Exception as e:
                     st.error(f"Greška pri konverziji: {str(e)}")
 
-    # Prikaz unosa + uređivanje + PDF
     st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
     try:
         odmori_response = supabase.table("odmori")\
@@ -709,7 +704,6 @@ if st.session_state.stranica == "godisnji":
         st.error(f"Greška pri prikazu kalendara: {str(e)}")
 
 elif st.session_state.stranica == "korisnici":
-    # Tvoj blok za korisnike (ostaje isti)
     st.title("Administracija - Korisnici")
     if "edit_korisnik_id" not in st.session_state:
         st.session_state.edit_korisnik_id = None
