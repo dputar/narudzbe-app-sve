@@ -161,7 +161,7 @@ if st.session_state.stranica == "narudzbe":
     # ────────────────────────────────────────────────
     # NARUDŽBE – pregled
     # ────────────────────────────────────────────────
-    elif st.session_state.stranica == "narudzbe":
+   # elif st.session_state.stranica == "narudzbe":
         st.title("Pregled narudžbi")
 
         col1, col2 = st.columns([6, 4])
