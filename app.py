@@ -173,6 +173,7 @@ if st.session_state.stranica == "godisnji":
 
     holidays_dict = {
         2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
+        2027: [date(2027, 1, 1), date(2027, 1, 6), date(2027, 3, 28), date(2027, 3, 29), date(2027, 5, 1), date(2027, 5, 27), date(2027, 6, 22), date(2027, 8, 15), date(2027, 11, 1), date(2027, 11, 18), date(2027, 12, 25), date(2027, 12, 26)],
         # Dodaj ostale godine po potrebi
     }
 
@@ -506,6 +507,7 @@ if st.session_state.stranica == "godisnji":
                                 }
 
                         if changed_fields:
+                            # Prvo ažuriraj unos u bazi
                             update_data = {k: row[k] for k in changed_fields}
                             supabase.table("odmori").update(update_data).eq("id", row["id"]).execute()
 
