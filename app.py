@@ -161,6 +161,7 @@ if st.sidebar.button("Odjavi se"):
 # ────────────────────────────────────────────────
 # GLAVNI SADRŽAJ – OVISNO O ODABRANOJ STRANICI
 # ────────────────────────────────────────────────
+
 if st.session_state.stranica == "narudzbe":
     st.title("Pregled narudžbi")
     col1, col2 = st.columns([6, 4])
@@ -176,8 +177,10 @@ if st.session_state.stranica == "narudzbe":
         )
     if st.button("🔄 Osvježi", key="pregled_osvjezi"):
         st.rerun()
+
     response = supabase.table("main_orders").select("*").order("datum", desc=True).execute()
     df = pd.DataFrame(response.data or [])
+
     if not df.empty:
         df = df.fillna("")
         df = df.loc[:, ~df.columns.duplicated()]
@@ -350,13 +353,7 @@ if st.session_state.stranica == "narudzbe":
                 except Exception as e:
                     st.error(f"Greška pri čitanju Excela: {e}")
                     st.error("Provjeri format datoteke – stupac 'broj_narudzbe' može biti prazan (dodaje se kao None).")
-    else:
-        st.info("Još nema narudžbi.")
-
-    # ────────────────────────────────────────────────
-    # NOVA NARUDŽBA
-    # ────────────────────────────────────────────────
-elif st.session_state.stranica == "nova":
+    elif st.session_state.stranica == "nova":
         col_naslov, col_natrag = st.columns([5, 1])
         with col_naslov:
             st.title("Nova narudžba")
