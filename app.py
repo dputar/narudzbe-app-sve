@@ -353,7 +353,7 @@ if st.session_state.stranica == "narudzbe":
     # ────────────────────────────────────────────────
     # NOVA NARUDŽBA
     # ────────────────────────────────────────────────
-    elif st.session_state.stranica == "nova":
+        elif st.session_state.stranica == "nova":
         col_naslov, col_natrag = st.columns([5, 1])
         with col_naslov:
             st.title("Nova narudžba")
