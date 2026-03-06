@@ -111,7 +111,7 @@ if st.session_state.stranica == "login":
 # ────────────────────────────────────────────────
 st.sidebar.title(f"Dobro došli, {st.session_state.user.get('ime_prezime', 'Nepoznato')}")
 
-stranice = ["Narudzbe", "Proizvodi", "Dobavljaci", "Korisnici", "Dokumenti"]
+stranice = ["Narudzbe", "Proizvodi", "Dobavljaci", "Korisnici", "Godišnji"]
 izbor = st.sidebar.selectbox("Odaberi stranicu", stranice)
 
 if izbor == "Narudzbe":
@@ -122,7 +122,7 @@ elif izbor == "Dobavljaci":
     st.session_state.stranica = "dobavljaci"
 elif izbor == "Korisnici":
     st.session_state.stranica = "korisnici"
-elif izbor == "Dokumenti":
+elif izbor == "Godišnji":
     st.session_state.stranica = "dokumenti"
 
 if st.sidebar.button("Odjavi se"):
