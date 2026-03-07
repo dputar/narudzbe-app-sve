@@ -478,7 +478,8 @@ if st.session_state.stranica == "godisnji":
                                 mime="application/pdf",
                                 key=f"pdf_download_{row['id']}"
                             )
-	else:
+# ... (ostatak koda za spremanje izmjena, brisanje, PDF itd. ostaje isti)
+        else:
             st.info("Još nema unosa.")
     except Exception as e:
         st.error(f"Greška pri dohvaćanju unosa: {str(e)}")
