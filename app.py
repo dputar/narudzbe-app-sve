@@ -14,20 +14,27 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.colors import black
 from pypdf import PdfReader, PdfWriter
-import os
-SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
-# Supabase konekcija
+# Supabase konekcija – PRIVREMENO koristimo service_role key (bypass RLS)
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
-#SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
-#supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
-SUPABASE_SERVICE_KEYY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAzMzI5NywiZXhwIjoyMDg3NjA5Mjk3fQ.Gz683u3oZE5x_NoFeeRJA_VaSb0uf3G1aLUX1uE2CfA"
+
+# OVDJE zalijepi TOČAN service_role ključ iz Supabase dashboarda
+# Settings → API → Project API keys → service_role (cijeli eyJhbGciOi... string)
+SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAzMzI5NywiZXhwIjoyMDg3NjA5Mjk3fQ.Gz683u3oZE5x_NoFeeRJA_VaSb0uf3G1aLUX1uE2CfA"
+
+# Provjera da ključ nije prazan (debug)
+if not SUPABASE_SERVICE_KEY or len(SUPABASE_SERVICE_KEY) < 50:
+    st.error("SUPABASE_SERVICE_KEY je prazan ili prekratak – provjeri da si zalijepio cijeli ključ!")
+    st.stop()
+
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-
 TZ = ZoneInfo("Europe/Zagreb")
+
+# Ostatak tvog koda ostaje isti...
+# (session state, authenticate_user funkcija, login stranica, sidebar, funkcije itd.)
 
 # Session state inicijalizacija
 if "user" not in st.session_state:
