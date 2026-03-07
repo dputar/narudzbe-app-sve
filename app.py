@@ -22,39 +22,18 @@ import jwt  # pip install pyjwt
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
-# Supabase konekcija – ANON KEY + custom JWT
+# Supabase konekcija – ANON KEY za aplikaciju
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+# Poseban klijent samo za login (service_role – puna prava)
+SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAzMzI5NywiZXhwIjoyMDg3NjA5Mjk3fQ.Gz683u3oZE5x_NoFeeRJA_VaSb0uf3G1aLUX1uE2CfA"
+supabase_login = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
 # JWT Secret – uzmi iz Supabase → Settings → API → JWT Settings → JWT Secret
-# ČUVAJ TAJNO! Ne commitaj u git!
-JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← PROMIJENI OVO OBAVEZNO!
-
-TZ = ZoneInfo("Europe/Zagreb")
-
-# Session state inicijalizacija
-if "user" not in st.session_state:
-    st.session_state.user = None
-if "stranica" not in st.session_state:
-    st.session_state.stranica = "login"
-if "temp_odmor" not in st.session_state:
-    st.session_state.temp_odmor = None
-if "form_reset" not in st.session_state:
-    st.session_state.form_reset = False
-if "edit_korisnik_id" not in st.session_state:
-    st.session_state.edit_korisnik_id = None
-if "novi_korisnik_form_shown" not in st.session_state:
-    st.session_state.novi_korisnik_form_shown = False
-if "korisnici_search" not in st.session_state:
-    st.session_state.korisnici_search = ""
-if "auth_token" not in st.session_state:
-    st.session_state.auth_token = None
-
-# Callback za search
-def on_korisnici_search_change():
-    st.session_state.korisnici_search = st.session_state.korisnici_search_input
+JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← PROMIJENI OVO!
 
 # JWT generiranje
 def generate_supabase_jwt(user):
@@ -64,105 +43,63 @@ def generate_supabase_jwt(user):
         "aud": "authenticated",
         "role": "authenticated",
         "iat": int(time.time()),
-        "exp": int(time.time()) + 3600 * 24 * 7,  # 7 dana
+        "exp": int(time.time()) + 3600 * 24 * 7,
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
+# Funkcija za autentifikaciju – koristi service_role za provjeru
 def authenticate_user(username, password):
     try:
         username_clean = username.strip()
-        password_clean = password.strip()
-
         print("=== DEBUG PRIJAVA START ===")
-        print("Korisničko ime uneseno:", repr(username))  # repr pokazuje skrivene znakove
-        print("Korisničko ime nakon strip():", repr(username_clean))
-        print("Lozinka unesena (maskirano):", '*' * len(password_clean))
+        print("Korisničko ime:", repr(username_clean))
+        print("Lozinka (dužina):", len(password))
 
-        response = supabase.table("korisnici")\
+        # Koristi service_role za dohvat (pun pristup, bez RLS-a)
+        response = supabase_login.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username_clean)\
             .execute()
 
-        print("Status odgovora:", response.status_code if hasattr(response, 'status_code') else "nema status_code")
-        print("Broj pronađenih redaka:", len(response.data or []))
-        print("Sirovi rezultat:", response.data)
-
         users = response.data or []
+        print("Pronađeno korisnika:", len(users))
+        print("Sirovi rezultat:", users)
 
         if not users:
-            print("Nije pronađen korisnik s korisničkim imenom:", repr(username_clean))
             st.error("Korisnik nije pronađen")
             return None
 
         user = users[0]
-        print("Pronađen korisnik:", user)
-
         stored = user.get('lozinka', '').strip()
-        print("Spremljena lozinka iz baze (maskirano):", '*' * len(stored))
-        print("Dužina spremljene lozinke:", len(stored))
-        print("Prvih 10 znakova spremljene lozinke (za debug):", stored[:10])
 
         # Provjera bcrypt hash-a
         try:
-            print("Pokušavam bcrypt provjeru...")
-            password_bytes = password_clean.encode('utf-8')
-            stored_bytes = stored.encode('utf-8')
-            if bcrypt.checkpw(password_bytes, stored_bytes):
-                print("BCRYPT USPJEŠNO – lozinka se podudara!")
+            if bcrypt.checkpw(password.encode('utf-8'), stored.encode('utf-8')):
                 token = generate_supabase_jwt(user)
                 st.session_state.auth_token = token
-                supabase.postgrest.auth(token)
+                supabase.postgrest.auth(token)  # postavi token za anon klijent
+                print("Prijava uspjela – bcrypt")
                 return user
-            else:
-                print("BCRYPT NE USPJEŠNO – lozinka se NE podudara")
-        except ValueError as ve:
-            print("BCRYPT ValueError:", str(ve))
+        except ValueError:
             pass
 
-        # Fallback za plain lozinku (ako je lozinka u bazi plain tekst)
-        print("Pokušavam plain tekst provjeru...")
-        if stored == password_clean:
-            print("PLAIN USPJEŠNO – lozinka se podudara!")
+        # Fallback za plain lozinku
+        if stored == password:
             token = generate_supabase_jwt(user)
             st.session_state.auth_token = token
             supabase.postgrest.auth(token)
+            print("Prijava uspjela – plain")
             return user
-        else:
-            print("PLAIN NE USPJEŠNO – lozinka se NE podudara")
 
         st.error("Lozinka se ne podudara")
         return None
 
     except Exception as e:
-        print("=== KRITIČNA GREŠKA U AUTENTIFIKACIJI ===")
-        print("Poruka greške:", str(e))
         st.error(f"Greška pri autentifikaciji: {str(e)}")
+        print("Detaljna greška:", e)
         return None
     finally:
         print("=== DEBUG PRIJAVA END ===\n")
-# Login stranica
-if st.session_state.stranica == "login":
-    st.title("Prijava u sustav zahtjeva")
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        username = st.text_input("Korisničko ime").strip()
-        password = st.text_input("Lozinka", type="password").strip()
-        if st.button("Prijavi se"):
-            if not username or not password:
-                st.error("Unesite korisničko ime i lozinku!")
-            else:
-                user = authenticate_user(username, password)
-                if user:
-                    st.session_state.user = user
-                    st.session_state.stranica = "godisnji"
-                    st.success("Uspješna prijava!")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error("Korisničko ime ne postoji ili lozinka nije ispravna.")
-   
-    st.stop()
-
 # ────────────────────────────────────────────────
 # SIDEBAR – PRAVA PRISTUPA
 # ────────────────────────────────────────────────
