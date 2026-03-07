@@ -71,53 +71,47 @@ def generate_supabase_jwt(user):
 def authenticate_user(username, password):
     try:
         username_clean = username.strip()
-        print("=== DEBUG PRIJAVA START ===")
-        print("Korisničko ime uneseno:", username)
-        print("Korisničko ime nakon strip():", username_clean)
-        print("Lozinka unesena (maskirano):", '*' * len(password))
+        password_clean = password.strip()
 
-        # Dohvat korisnika
-        print("Izvršavam upit: SELECT * FROM korisnici WHERE korisničko_ime =", username_clean)
+        print("=== DEBUG PRIJAVA START ===")
+        print("Korisničko ime uneseno:", repr(username))  # repr pokazuje skrivene znakove
+        print("Korisničko ime nakon strip():", repr(username_clean))
+        print("Lozinka unesena (maskirano):", '*' * len(password_clean))
+
         response = supabase.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username_clean)\
             .execute()
 
-        # Debug odgovor iz baze
         print("Status odgovora:", response.status_code if hasattr(response, 'status_code') else "nema status_code")
         print("Broj pronađenih redaka:", len(response.data or []))
-        print("Sirovi rezultat (response.data):", response.data)
+        print("Sirovi rezultat:", response.data)
 
         users = response.data or []
 
         if not users:
-            print("Nije pronađen nijedan korisnik s tim korisničkim imenom")
+            print("Nije pronađen korisnik s korisničkim imenom:", repr(username_clean))
             st.error("Korisnik nije pronađen")
             return None
 
         user = users[0]
-        print("Pronađen korisnik (prvi redak):")
-        print("  - Tip podatka:", type(user))
-        print("  - Sadržaj:", user)
-
-        if not isinstance(user, dict):
-            print("GREŠKA: Dohvaćeni korisnik NIJE dictionary!")
-            st.error("Greška: Dohvaćeni korisnik nije dictionary!")
-            return None
+        print("Pronađen korisnik:", user)
 
         stored = user.get('lozinka', '').strip()
         print("Spremljena lozinka iz baze (maskirano):", '*' * len(stored))
         print("Dužina spremljene lozinke:", len(stored))
+        print("Prvih 10 znakova spremljene lozinke (za debug):", stored[:10])
 
         # Provjera bcrypt hash-a
         try:
             print("Pokušavam bcrypt provjeru...")
-            if bcrypt.checkpw(password.strip().encode('utf-8'), stored.encode('utf-8')):
+            password_bytes = password_clean.encode('utf-8')
+            stored_bytes = stored.encode('utf-8')
+            if bcrypt.checkpw(password_bytes, stored_bytes):
                 print("BCRYPT USPJEŠNO – lozinka se podudara!")
                 token = generate_supabase_jwt(user)
                 st.session_state.auth_token = token
                 supabase.postgrest.auth(token)
-                print("JWT generiran i postavljen")
                 return user
             else:
                 print("BCRYPT NE USPJEŠNO – lozinka se NE podudara")
@@ -125,14 +119,13 @@ def authenticate_user(username, password):
             print("BCRYPT ValueError:", str(ve))
             pass
 
-        # Fallback za plain lozinku
+        # Fallback za plain lozinku (ako je lozinka u bazi plain tekst)
         print("Pokušavam plain tekst provjeru...")
-        if stored == password.strip():
+        if stored == password_clean:
             print("PLAIN USPJEŠNO – lozinka se podudara!")
             token = generate_supabase_jwt(user)
             st.session_state.auth_token = token
             supabase.postgrest.auth(token)
-            print("JWT generiran i postavljen")
             return user
         else:
             print("PLAIN NE USPJEŠNO – lozinka se NE podudara")
