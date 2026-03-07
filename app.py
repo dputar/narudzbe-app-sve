@@ -198,13 +198,18 @@ if st.session_state.stranica == "godisnji":
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
         korisnik_options = {}
 
+# Dohvat trenutnog korisnika – bez .single()
     try:
         user_response = supabase.table("korisnici")\
             .select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini")\
             .eq("id", st.session_state.user.get("id"))\
-            .single()\
             .execute()
-        user_data = user_response.data
+        
+        if user_response.data:
+            user_data = user_response.data[0]
+        else:
+            user_data = None
+            st.warning("Nije pronađen tvoj profil u tablici korisnici. Neki podaci neće biti prikazani.")
     except Exception as e:
         user_data = None
         st.error(f"Greška pri dohvaćanju podataka korisnika: {str(e)}")
