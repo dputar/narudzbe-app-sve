@@ -633,8 +633,8 @@ elif st.session_state.stranica == "korisnici":
         elif df_display.empty:
             st.info("Još nema korisnika u bazi.")
         else:
-            # ISPRAVLJENO: fiksni column_config sa svim mogućim ključevima
-            # Streamlit će ignorirati ključeve koji ne postoje u df-u
+            # Fiksni column_config – svi ključevi su definirani odmah
+            # Streamlit će preskočiti one koji ne postoje u df_display
             st.dataframe(
                 df_display,
                 use_container_width=True,
@@ -794,7 +794,7 @@ elif st.session_state.stranica == "korisnici":
                         if st.form_submit_button("Odustani", key=f"odust_{korisnik['id']}"):
                             st.rerun()
         else:
-            pass
+            pass  # ne prikazuj expander za druge korisnike
 
     # Dodatni gumbi – svi vide
     col_export, col_refresh = st.columns(2)
