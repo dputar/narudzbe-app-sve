@@ -67,22 +67,26 @@ def generate_supabase_jwt(user):
 # Funkcija za autentifikaciju + JWT postavljanje
 def authenticate_user(username, password):
     try:
+        print("Pokušaj prijave za korisnika:", username.strip())  # DEBUG
+
         response = supabase.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username.strip())\
             .execute()
 
         users = response.data or []
-	print("Upit za korisničko ime:", username.strip())
-	print("Odgovor iz baze:", response.data)
-	print("Status koda:", response.status_code if hasattr(response, 'status_code') else "nema statusa")
-
+        print("Pronađeno korisnika:", len(users))  # DEBUG
 
         if not users:
             st.error("Korisnik nije pronađen")
             return None
 
         user = users[0]
+        print("User tip:", type(user), "sadržaj:", user)  # DEBUG – vidi što je user
+
+        if not isinstance(user, dict):
+            st.error("Greška: Dohvaćeni korisnik nije dictionary!")
+            return None
 
         stored = user.get('lozinka', '').strip()
 
@@ -92,8 +96,10 @@ def authenticate_user(username, password):
                 token = generate_supabase_jwt(user)
                 st.session_state.auth_token = token
                 supabase.postgrest.auth(token)  # postavi token za buduće upite
+                print("Prijava uspjela – bcrypt")  # DEBUG
                 return user
-        except ValueError:
+        except ValueError as ve:
+            print("Bcrypt greška:", ve)  # DEBUG
             pass
 
         # Fallback za plain lozinku
@@ -101,6 +107,7 @@ def authenticate_user(username, password):
             token = generate_supabase_jwt(user)
             st.session_state.auth_token = token
             supabase.postgrest.auth(token)
+            print("Prijava uspjela – plain")  # DEBUG
             return user
 
         st.error("Lozinka se ne podudara")
@@ -108,6 +115,7 @@ def authenticate_user(username, password):
 
     except Exception as e:
         st.error(f"Greška pri autentifikaciji: {str(e)}")
+        print("Detaljna greška:", e)  # DEBUG
         return None
 
 # Login stranica
