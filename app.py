@@ -14,7 +14,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.colors import black
 from pypdf import PdfReader, PdfWriter
-import jwt  # ← OVO DODAJ – pip install pyjwt
+import jwt  # pip install pyjwt
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
@@ -25,10 +25,8 @@ SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 # JWT Secret – uzmi iz Supabase → Settings → API → JWT Settings → JWT Secret
-# ČUVAJ GA TAJNO! Ne commitaj u git!
-JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← OVDJE PROMIJENI!
-
-
+# ČUVAJ TAJNO! Ne commitaj u git!
+JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← PROMIJENI OVO!
 
 TZ = ZoneInfo("Europe/Zagreb")
 
@@ -52,10 +50,11 @@ if "korisnici_search" not in st.session_state:
 def on_korisnici_search_change():
     st.session_state.korisnici_search = st.session_state.korisnici_search_input
 
-# JWT generiranje – ključno za RLS
-def generate_supabase_jwt(user_id):
+# JWT generiranje
+def generate_supabase_jwt(user):
     payload = {
-        "sub": str(user_id),  # mora biti string UUID iz korisnici.id
+        "sub": str(user["id"]),  # ostavi za kompatibilnost
+        "korisničko_ime": user["korisničko_ime"],  # ← OVO JE KLJUČNO za RLS!
         "aud": "authenticated",
         "role": "authenticated",
         "iat": int(time.time()),
@@ -84,16 +83,15 @@ def authenticate_user(username, password):
         # Provjera bcrypt hash-a
         try:
             if bcrypt.checkpw(password.strip().encode('utf-8'), stored.encode('utf-8')):
-                # Uspješno – generiraj i postavi JWT
                 token = generate_supabase_jwt(user["id"])
                 supabase.auth.set_auth(token)
                 return user
         except ValueError:
-            pass  # nije bcrypt hash
+            pass
        
-        # Fallback za plain lozinku (ako još imaš stare unose)
+        # Fallback za plain lozinku
         if stored == password.strip():
-            token = generate_supabase_jwt(user["id"])
+            token = generate_supabase_jwt(user)
             supabase.auth.set_auth(token)
             return user
        
@@ -204,7 +202,7 @@ if st.session_state.stranica == "godisnji":
         user_response = supabase.table("korisnici")\
             .select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini")\
             .eq("id", st.session_state.user.get("id"))\
-            .single()\
+            #.single()\
             .execute()
         user_data = user_response.data
     except Exception as e:
