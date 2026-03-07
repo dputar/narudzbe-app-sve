@@ -592,7 +592,7 @@ if st.session_state.stranica == "godisnji":
 # ────────────────────────────────────────────────
 # KORISNICI – SAMO ZA ADMINA
 # ────────────────────────────────────────────────
-elif st.session_state.stranica == "korisnici" and tip_korisnika == "administrator":
+elif st.session_state.stranica == "korisnici":
     st.title("Administracija - Korisnici")
     if "edit_korisnik_id" not in st.session_state:
         st.session_state.edit_korisnik_id = None
