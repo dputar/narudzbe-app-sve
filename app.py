@@ -639,7 +639,7 @@ elif st.session_state.stranica == "korisnici":
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "id": None,  # sakrij ako ne treba
+                    "id": None,  # sakrij ID ako ne treba
                     "created_at": st.column_config.DateTimeColumn("Kreiran", format="DD.MM.YYYY HH:mm"),
                     "updated_at": st.column_config.DateTimeColumn("Ažurirano", format="DD.MM.YYYY HH:mm"),
                     "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
@@ -765,7 +765,6 @@ elif st.session_state.stranica == "korisnici":
                             if edit_lozinka:
                                 update_data["lozinka"] = bcrypt.hashpw(edit_lozinka.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-                            # Dodaj ostala polja SAMO ako je administrator
                             if is_admin:
                                 update_data.update({
                                     "ime_prezime": edit_ime_prezime,
@@ -793,7 +792,9 @@ elif st.session_state.stranica == "korisnici":
         else:
             pass  # ne prikazuj expander za druge korisnike ako nije admin ili svoj profil
 
-    # Dodatni gumbi (export, osvježi) – svi vide
+    # ────────────────────────────────────────────────
+    # Dodatni gumbi – svi vide
+    # ────────────────────────────────────────────────
     col_export, col_refresh = st.columns(2)
     with col_export:
         if st.button("Izvezi sve korisnike u Excel"):
