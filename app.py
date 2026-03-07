@@ -122,11 +122,14 @@ if st.session_state.stranica == "login":
 # ────────────────────────────────────────────────
 # SIDEBAR – PRAVA PRISTUPA
 # ────────────────────────────────────────────────
-#tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik") if st.session_state.user else None
+tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik") if st.session_state.user else None
 
-#stranice = ["Godišnji odmor"]
-#if tip_korisnika == "administrator":
-#    stranice.append("Korisnici")
+stranice = ["Godišnji odmor"]
+# Popis uloga koje smiju vidjeti stranicu Korisnici
+dozvoljene_za_korisnike = ["administrator", "ured"]
+
+if tip_korisnika in dozvoljene_za_korisnike:
+    stranice.append("Korisnici")
 
 st.sidebar.title(f"Dobro došli, {st.session_state.user.get('ime_prezime', 'Nepoznato') if st.session_state.user else 'Neprijavljen'}")
 izbor = st.sidebar.selectbox("Odaberi stranicu", stranice)
