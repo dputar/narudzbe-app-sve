@@ -65,41 +65,53 @@ def generate_supabase_jwt(user):
 # Funkcija za autentifikaciju + JWT postavljanje
 def authenticate_user(username, password):
     try:
+        print(f"Pokušaj prijave za korisnika: {username}")  # DEBUG
+
         response = supabase.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username.strip())\
             .execute()
-       
+
         users = response.data or []
-       
+        print(f"Pronađeno korisnika: {len(users)}")  # DEBUG
+
         if not users:
             st.error("Korisnik nije pronađen")
             return None
-       
+
         user = users[0]
-       
+        print(f"User tip: {type(user)}, sadržaj: {user}")  # DEBUG – vidi što je user
+
+        if not isinstance(user, dict):
+            st.error("Greška: Dohvaćeni korisnik nije dictionary!")
+            return None
+
         stored = user.get('lozinka', '').strip()
-       
+
         # Provjera bcrypt hash-a
         try:
             if bcrypt.checkpw(password.strip().encode('utf-8'), stored.encode('utf-8')):
-                token = generate_supabase_jwt(user["id"])
+                token = generate_supabase_jwt(user)
                 supabase.auth.set_auth(token)
+                print("Prijava uspjela – bcrypt")  # DEBUG
                 return user
-        except ValueError:
+        except ValueError as ve:
+            print(f"Bcrypt greška: {ve}")  # DEBUG
             pass
-       
-        # Fallback za plain lozinku
+
+        # Fallback za plain lozinku (ako još imaš stare unose)
         if stored == password.strip():
             token = generate_supabase_jwt(user)
             supabase.auth.set_auth(token)
+            print("Prijava uspjela – plain")  # DEBUG
             return user
-       
+
         st.error("Lozinka se ne podudara")
         return None
-       
+
     except Exception as e:
         st.error(f"Greška pri autentifikaciji: {str(e)}")
+        print(f"Detaljna greška: {e}")  # DEBUG
         return None
 
 # Login stranica
