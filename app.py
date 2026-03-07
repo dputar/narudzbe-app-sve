@@ -344,7 +344,7 @@ if st.session_state.stranica == "godisnji":
         st.session_state.form_reset = False
         st.rerun()
 
-# TABLICA UNOSA – FILTRIRANA ZA NE-ADMINA
+    # TABLICA UNOSA – FILTRIRANA ZA NE-ADMINA
     st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
     try:
         query = supabase.table("odmori").select("*, korisnici!inner(ime_prezime)").order("datum_od", desc=True)
@@ -372,7 +372,6 @@ if st.session_state.stranica == "godisnji":
                 num_rows="fixed",
                 key="odmori_editor"
             )
-
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Spremi izmjene i obriši označene"):
@@ -456,8 +455,7 @@ if st.session_state.stranica == "godisnji":
                             c.drawCentredString(width / 2 - 45*mm, height - 129*mm, ime_prezime)
                             c.drawCentredString(width / 2 - 5*mm, height - 144*mm, broj_dana)
                             c.drawCentredString(width / 2 - 4*mm, height - 164*mm, datum_od)
-                            c.drawCentredString(width / 2 - 60*mm, height - 184*mm, datum_do)
-                            c.drawCentredString(width / 2 + 44*mm, height - 184*mm, prvi_radni_dan)
+                            c.drawCentredString(width / 2 + 44*mm, height - 184*mm, datum_do)
                             c.drawCentredString(width / 2 - 60*mm, height - 211*mm, datum_podnosenja)
                             c.save()
                             overlay_buffer.seek(0)
@@ -478,7 +476,6 @@ if st.session_state.stranica == "godisnji":
                                 mime="application/pdf",
                                 key=f"pdf_download_{row['id']}"
                             )
-# ... (ostatak koda za spremanje izmjena, brisanje, PDF itd. ostaje isti)
         else:
             st.info("Još nema unosa.")
     except Exception as e:
