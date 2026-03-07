@@ -598,7 +598,7 @@ elif st.session_state.stranica == "korisnici":
     tip_korisnika = st.session_state.user.get("tip_korisnika", "nema uloge")
     trenutni_id = st.session_state.user.get("id")
 
-    # 1. Dohvat svih korisnika (svi vide sve)
+    # 1. Dohvat svih korisnika
     try:
         response = supabase.table("korisnici").select("*").execute()
         korisnici_data = response.data or []
@@ -609,7 +609,10 @@ elif st.session_state.stranica == "korisnici":
     # 2. Search i prikaz tablice
     if korisnici_data:
         df = pd.DataFrame(korisnici_data)
-        df["lozinka"] = "******"  # maskiranje lozinke
+
+        # Maskiraj lozinku u prikazu
+        if "lozinka" in df.columns:
+            df["lozinka"] = "******"
 
         search_term = st.text_input(
             "Pretraži po svim stupcima",
@@ -630,34 +633,36 @@ elif st.session_state.stranica == "korisnici":
         elif df_display.empty:
             st.info("Još nema korisnika u bazi.")
         else:
-            # ISPRAVLJENI column_config – koristimo točna imena stupaca iz baze
+            # Sigurna column_config – provjeravamo postoji li stupac
+            column_config_dict = {
+                "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
+                "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
+                "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
+                "lozinka": st.column_config.TextColumn("Lozinka", disabled=True),
+                "aktivan": st.column_config.CheckboxColumn("Aktivan"),
+                "godisnji_dani": st.column_config.NumberColumn("Godišnji dani"),
+                "slobodni_dani": st.column_config.NumberColumn("Slobodni dani"),
+            }
+
+            # Dodaj datume samo ako postoje u df
+            if "created_at" in df_display.columns:
+                column_config_dict["created_at"] = st.column_config.DateTimeColumn(
+                    "Kreiran",
+                    format="DD.MM.YYYY HH:mm",
+                    disabled=True
+                )
+            if "updated_at" in df_display.columns:
+                column_config_dict["updated_at"] = st.column_config.DateTimeColumn(
+                    "Ažurirano",
+                    format="DD.MM.YYYY HH:mm",
+                    disabled=True
+                )
+
             st.dataframe(
                 df_display,
                 use_container_width=True,
                 hide_index=True,
-                column_config={
-                    "id": None,  # sakrij ID
-                    "created_at": st.column_config.DateTimeColumn(
-                        "Kreiran",
-                        format="DD.MM.YYYY HH:mm",
-                        disabled=True
-                    ),
-                    "updated_at": st.column_config.DateTimeColumn(
-                        "Ažurirano",
-                        format="DD.MM.YYYY HH:mm",
-                        disabled=True
-                    ),
-                    "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
-                    "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
-                    "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
-                    "lozinka": st.column_config.TextColumn("Lozinka", disabled=True),
-                    "aktivan": st.column_config.CheckboxColumn("Aktivan"),
-                    "godisnji_dani": st.column_config.NumberColumn("Godišnji dani"),
-                    "slobodni_dani": st.column_config.NumberColumn("Slobodni dani"),
-                    # ako imaš prava i skladišta kao JSON/ARRAY
-                    "prava": st.column_config.TextColumn("Prava"),
-                    "skladišta": st.column_config.TextColumn("Skladišta"),
-                }
+                column_config=column_config_dict
             )
     else:
         st.info("Nema korisnika u bazi.")
