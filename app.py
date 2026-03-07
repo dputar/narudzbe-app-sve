@@ -9,6 +9,10 @@ import json
 import calendar
 import matplotlib.pyplot as plt
 import bcrypt
+lozinka = "test123"  # zamijeni sa stvarnom lozinkom
+hashed = bcrypt.hashpw(lozinka.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+print(hashed)  # zalijepi ovo u polje lozinka u bazi
+
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
