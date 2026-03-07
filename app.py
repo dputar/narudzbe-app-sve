@@ -633,15 +633,16 @@ elif st.session_state.stranica == "korisnici":
         elif df_display.empty:
             st.info("Još nema korisnika u bazi.")
         else:
-            # FIKSNI column_config – nema dinamičkog dodavanja
+            # FIKSNI column_config – nema dinamičkog dodavanja!
+            # Streamlit će preskočiti ključeve koji ne postoje u df_display
             st.dataframe(
                 df_display,
                 use_container_width=True,
                 hide_index=True,
                 column_config={
                     "id": None,
-                    "created_at": st.column_config.DateTimeColumn("created_at", format="DD.MM.YYYY HH:mm"),
-                    "updated_at": st.column_config.DateTimeColumn("updated_at", format="DD.MM.YYYY HH:mm"),
+                    "created_at": st.column_config.DateTimeColumn("Kreiran", format="DD.MM.YYYY HH:mm"),
+                    "updated_at": st.column_config.DateTimeColumn("Ažurirano", format="DD.MM.YYYY HH:mm"),
                     "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
                     "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
                     "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
