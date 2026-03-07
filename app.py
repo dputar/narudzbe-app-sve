@@ -18,15 +18,14 @@ import jwt  # pip install pyjwt
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
-# Supabase konekcija – sada sa ANON KEY + custom JWT
+# Supabase konekcija – ANON KEY + custom JWT
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 # JWT Secret – uzmi iz Supabase → Settings → API → JWT Settings → JWT Secret
-# ČUVAJ TAJNO! Ne commitaj u git!
-JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← PROMIJENI OVO!
+JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← PROMIJENI OVO OBAVEZNO!
 
 TZ = ZoneInfo("Europe/Zagreb")
 
@@ -45,6 +44,8 @@ if "novi_korisnik_form_shown" not in st.session_state:
     st.session_state.novi_korisnik_form_shown = False
 if "korisnici_search" not in st.session_state:
     st.session_state.korisnici_search = ""
+if "auth_token" not in st.session_state:
+    st.session_state.auth_token = None
 
 # Callback za search
 def on_korisnici_search_change():
@@ -53,8 +54,8 @@ def on_korisnici_search_change():
 # JWT generiranje
 def generate_supabase_jwt(user):
     payload = {
-        "sub": str(user["id"]),  # ostavi za kompatibilnost
-        "korisničko_ime": user["korisničko_ime"],  # ← OVO JE KLJUČNO za RLS!
+        "sub": str(user["id"]),
+        "korisničko_ime": user["korisničko_ime"],
         "aud": "authenticated",
         "role": "authenticated",
         "iat": int(time.time()),
@@ -65,26 +66,18 @@ def generate_supabase_jwt(user):
 # Funkcija za autentifikaciju + JWT postavljanje
 def authenticate_user(username, password):
     try:
-        print(f"Pokušaj prijave za korisnika: {username}")  # DEBUG
-
         response = supabase.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username.strip())\
             .execute()
 
         users = response.data or []
-        print(f"Pronađeno korisnika: {len(users)}")  # DEBUG
 
         if not users:
             st.error("Korisnik nije pronađen")
             return None
 
         user = users[0]
-        print(f"User tip: {type(user)}, sadržaj: {user}")  # DEBUG – vidi što je user
-
-        if not isinstance(user, dict):
-            st.error("Greška: Dohvaćeni korisnik nije dictionary!")
-            return None
 
         stored = user.get('lozinka', '').strip()
 
@@ -92,18 +85,17 @@ def authenticate_user(username, password):
         try:
             if bcrypt.checkpw(password.strip().encode('utf-8'), stored.encode('utf-8')):
                 token = generate_supabase_jwt(user)
-                supabase.auth.set_auth(token)
-                print("Prijava uspjela – bcrypt")  # DEBUG
+                st.session_state.auth_token = token
+                supabase.postgrest.auth(token)  # postavi token za buduće upite
                 return user
-        except ValueError as ve:
-            print(f"Bcrypt greška: {ve}")  # DEBUG
+        except ValueError:
             pass
 
-        # Fallback za plain lozinku (ako još imaš stare unose)
+        # Fallback za plain lozinku (ako imaš stare unose)
         if stored == password.strip():
             token = generate_supabase_jwt(user)
             st.session_state.auth_token = token
-            print("Prijava uspjela – plain")  # DEBUG
+            supabase.postgrest.auth(token)
             return user
 
         st.error("Lozinka se ne podudara")
@@ -111,9 +103,7 @@ def authenticate_user(username, password):
 
     except Exception as e:
         st.error(f"Greška pri autentifikaciji: {str(e)}")
-        print(f"Detaljna greška: {e}")  # DEBUG
         return None
-
 
 # Login stranica
 if st.session_state.stranica == "login":
@@ -160,40 +150,7 @@ if st.sidebar.button("Odjavi se"):
     st.rerun()
 
 # ────────────────────────────────────────────────
-# FUNKCIJE
-# ────────────────────────────────────────────────
-def calculate_working_days(start_str, end_str, holidays):
-    start = datetime.fromisoformat(start_str).date()
-    end = datetime.fromisoformat(end_str).date()
-    count = 0
-    current = start
-    while current <= end:
-        if current.weekday() < 5 and current not in holidays:
-            count += 1
-        current += timedelta(days=1)
-    return count
-
-def find_next_working_day(end_date_str, holidays):
-    end = datetime.fromisoformat(end_date_str).date()
-    current = end + timedelta(days=1)
-    while current.weekday() >= 5 or current in holidays:
-        current += timedelta(days=1)
-    return current.strftime("%d.%m.%Y.")
-
-def get_current_saldo(korisnik_id):
-    try:
-        response = supabase.table("korisnici")\
-            .select("godisnji_dani,slobodni_dani")\
-            .eq("id", korisnik_id)\
-            .single()\
-            .execute()
-        data = response.data
-        return data.get("godisnji_dani", 0), data.get("slobodni_dani", 0)
-    except:
-        return 0, 0
-
-# ────────────────────────────────────────────────
-# GODIŠNJI ODMOR
+# GODIŠNJI ODMOR (ispravljeno bez .single())
 # ────────────────────────────────────────────────
 if st.session_state.stranica == "godisnji":
     st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -203,6 +160,7 @@ if st.session_state.stranica == "godisnji":
         # Dodaj ostale godine po potrebi
     }
 
+    # Dohvat svih korisnika za admina
     try:
         korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini").eq("aktivan", True).execute()
         korisnici = korisnici_response.data or []
@@ -211,7 +169,7 @@ if st.session_state.stranica == "godisnji":
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
         korisnik_options = {}
 
-# Dohvat trenutnog korisnika – bez .single()
+    # Dohvat trenutnog korisnika – bez .single()
     try:
         user_response = supabase.table("korisnici")\
             .select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini")\
@@ -245,12 +203,17 @@ if st.session_state.stranica == "godisnji":
         st.text_input("Korisnik", value=korisnik_ime, disabled=True)
 
     # Dohvati saldo
-    preostalo_godisnje, preostalo_slobodnih = get_current_saldo(korisnik_id)
+    if user_data:
+        preostalo_godisnje = user_data.get("godisnji_dani", 0)
+        preostalo_slobodnih = user_data.get("slobodni_dani", 0)
+    else:
+        preostalo_godisnje = 0
+        preostalo_slobodnih = 0
 
     st.markdown(f"**Preostalo godišnjih dana za {tekuca_godina} ({korisnik_ime}): {preostalo_godisnje}**")
     st.markdown(f"**Preostalo slobodnih dana ({korisnik_ime}): {preostalo_slobodnih}**")
 
-    # Forma za dodavanje – svi vide
+    # Forma za dodavanje
     with st.form("dodaj_odmor_form", clear_on_submit=True):
         st.subheader("Dodaj novi unos godišnjeg / slobodnog dana")
         col1, col2 = st.columns(2)
