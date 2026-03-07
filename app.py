@@ -598,7 +598,7 @@ elif st.session_state.stranica == "korisnici":
     tip_korisnika = st.session_state.user.get("tip_korisnika", "nema uloge")
     trenutni_id = st.session_state.user.get("id")
 
-    # 1. Dohvat svih korisnika
+    # 1. Dohvat svih korisnika (svi vide sve)
     try:
         response = supabase.table("korisnici").select("*").execute()
         korisnici_data = response.data or []
@@ -630,15 +630,23 @@ elif st.session_state.stranica == "korisnici":
         elif df_display.empty:
             st.info("Još nema korisnika u bazi.")
         else:
-            # ISPRAVLJENI column_config – ključevi moraju biti TOČNO ime stupca iz df
+            # ISPRAVLJENI column_config – koristimo točna imena stupaca iz baze
             st.dataframe(
                 df_display,
                 use_container_width=True,
                 hide_index=True,
                 column_config={
                     "id": None,  # sakrij ID
-                    "created_at": st.column_config.DateTimeColumn("Kreiran", format="DD.MM.YYYY HH:mm"),
-                    "updated_at": st.column_config.DateTimeColumn("Ažurirano", format="DD.MM.YYYY HH:mm"),
+                    "created_at": st.column_config.DateTimeColumn(
+                        "Kreiran",
+                        format="DD.MM.YYYY HH:mm",
+                        disabled=True
+                    ),
+                    "updated_at": st.column_config.DateTimeColumn(
+                        "Ažurirano",
+                        format="DD.MM.YYYY HH:mm",
+                        disabled=True
+                    ),
                     "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
                     "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
                     "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
@@ -646,6 +654,9 @@ elif st.session_state.stranica == "korisnici":
                     "aktivan": st.column_config.CheckboxColumn("Aktivan"),
                     "godisnji_dani": st.column_config.NumberColumn("Godišnji dani"),
                     "slobodni_dani": st.column_config.NumberColumn("Slobodni dani"),
+                    # ako imaš prava i skladišta kao JSON/ARRAY
+                    "prava": st.column_config.TextColumn("Prava"),
+                    "skladišta": st.column_config.TextColumn("Skladišta"),
                 }
             )
     else:
@@ -719,7 +730,6 @@ elif st.session_state.stranica == "korisnici":
         is_admin = tip_korisnika == "administrator"
         is_own = korisnik["id"] == trenutni_id
 
-        # Prikazuj expander SAMO ako je admin ILI svoj profil
         if is_admin or is_own:
             with st.expander(f"Uređivanje korisnika: {korisnik['korisničko_ime']} ({korisnik['ime_prezime']})", expanded=is_own):
                 with st.form(f"edit_form_{korisnik['id']}", clear_on_submit=False):
@@ -781,7 +791,7 @@ elif st.session_state.stranica == "korisnici":
                         if st.form_submit_button("Odustani", key=f"odust_{korisnik['id']}"):
                             st.rerun()
         else:
-            pass  # ne prikazuj expander za druge korisnike
+            pass
 
     # Dodatni gumbi – svi vide
     col_export, col_refresh = st.columns(2)
