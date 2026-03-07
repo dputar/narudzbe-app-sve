@@ -114,6 +114,12 @@ def authenticate_user(username, password):
         print(f"Detaljna greška: {e}")  # DEBUG
         return None
 
+# Nakon uspješne prijave (u authenticate_user)
+if bcrypt.checkpw(...) or stored == ...:
+    token = generate_supabase_jwt(user)
+    st.session_state.auth_token = token  # ← spremi token u session
+    return user
+
 # Login stranica
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav zahtjeva")
