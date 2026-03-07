@@ -136,7 +136,7 @@ izbor = st.sidebar.selectbox("Odaberi stranicu", stranice)
 
 if izbor == "Godišnji odmor":
     st.session_state.stranica = "godisnji"
-elif izbor == "Korisnici" and tip_korisnika == "administrator":
+elif izbor == "Korisnici":
     st.session_state.stranica = "korisnici"
 
 if st.sidebar.button("Odjavi se"):
