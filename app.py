@@ -19,8 +19,11 @@ st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
 # Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
-supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+#SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
+#supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+SUPABASE_SERVICE_KEYY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAzMzI5NywiZXhwIjoyMDg3NjA5Mjk3fQ.Gz683u3oZE5x_NoFeeRJA_VaSb0uf3G1aLUX1uE2CfA"
+supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
 
 TZ = ZoneInfo("Europe/Zagreb")
 
