@@ -71,11 +71,12 @@ def authenticate_user(username, password):
             .select("*")\
             .eq("korisničko_ime", username.strip())\
             .execute()
-		print("Upit za korisničko ime:", username.strip())
-		print("Odgovor iz baze:", response.data)
-		print("Status koda:", response.status_code if hasattr(response, 'status_code') else "nema statusa")
 
         users = response.data or []
+	print("Upit za korisničko ime:", username.strip())
+	print("Odgovor iz baze:", response.data)
+	print("Status koda:", response.status_code if hasattr(response, 'status_code') else "nema statusa")
+
 
         if not users:
             st.error("Korisnik nije pronađen")
