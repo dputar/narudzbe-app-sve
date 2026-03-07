@@ -202,7 +202,7 @@ if st.session_state.stranica == "godisnji":
         user_response = supabase.table("korisnici")\
             .select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini")\
             .eq("id", st.session_state.user.get("id"))\
-            #.single()\
+            .single()\
             .execute()
         user_data = user_response.data
     except Exception as e:
