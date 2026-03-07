@@ -102,7 +102,7 @@ def authenticate_user(username, password):
         # Fallback za plain lozinku (ako još imaš stare unose)
         if stored == password.strip():
             token = generate_supabase_jwt(user)
-            supabase.auth.set_auth(token)
+            st.session_state.auth_token = token
             print("Prijava uspjela – plain")  # DEBUG
             return user
 
@@ -114,11 +114,6 @@ def authenticate_user(username, password):
         print(f"Detaljna greška: {e}")  # DEBUG
         return None
 
-# Nakon uspješne prijave (u authenticate_user)
-if bcrypt.checkpw(...) or stored == ...:
-    token = generate_supabase_jwt(user)
-    st.session_state.auth_token = token  # ← spremi token u session
-    return user
 
 # Login stranica
 if st.session_state.stranica == "login":
