@@ -598,7 +598,7 @@ elif st.session_state.stranica == "korisnici":
     tip_korisnika = st.session_state.user.get("tip_korisnika", "nema uloge")
     trenutni_id = st.session_state.user.get("id")
 
-    # 1. Dohvat svih korisnika (svi vide sve)
+    # 1. Dohvat svih korisnika
     try:
         response = supabase.table("korisnici").select("*").execute()
         korisnici_data = response.data or []
@@ -633,43 +633,34 @@ elif st.session_state.stranica == "korisnici":
         elif df_display.empty:
             st.info("Još nema korisnika u bazi.")
         else:
-            # ISPRAVLJENO: column_config sa fiksnim ključevima – Streamlit ignorira nepostojeće
-            column_config = {
-                "id": None,
-                "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
-                "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
-                "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
-                "lozinka": st.column_config.TextColumn("Lozinka", disabled=True),
-                "aktivan": st.column_config.CheckboxColumn("Aktivan"),
-                "godisnji_dani": st.column_config.NumberColumn("Godišnji dani"),
-                "slobodni_dani": st.column_config.NumberColumn("Slobodni dani"),
-            }
-
-            # Dodaj datume SAMO ako postoje u DataFrame-u
-            if "created_at" in df_display.columns:
-                column_config["created_at"] = st.column_config.DateTimeColumn(
-                    "Kreiran",
-                    format="DD.MM.YYYY HH:mm",
-                    disabled=True
-                )
-            if "updated_at" in df_display.columns:
-                column_config["updated_at"] = st.column_config.DateTimeColumn(
-                    "Ažurirano",
-                    format="DD.MM.YYYY HH:mm",
-                    disabled=True
-                )
-
-            # Dodaj JSON/ARRAY stupce ako postoje
-            if "prava" in df_display.columns:
-                column_config["prava"] = st.column_config.TextColumn("Prava")
-            if "skladišta" in df_display.columns:
-                column_config["skladišta"] = st.column_config.TextColumn("Skladišta")
-
+            # ISPRAVLJENO: fiksni column_config sa svim mogućim ključevima
+            # Streamlit će ignorirati ključeve koji ne postoje u df-u
             st.dataframe(
                 df_display,
                 use_container_width=True,
                 hide_index=True,
-                column_config=column_config
+                column_config={
+                    "id": None,
+                    "created_at": st.column_config.DateTimeColumn(
+                        "Kreiran",
+                        format="DD.MM.YYYY HH:mm",
+                        disabled=True
+                    ),
+                    "updated_at": st.column_config.DateTimeColumn(
+                        "Ažurirano",
+                        format="DD.MM.YYYY HH:mm",
+                        disabled=True
+                    ),
+                    "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
+                    "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
+                    "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
+                    "lozinka": st.column_config.TextColumn("Lozinka", disabled=True),
+                    "aktivan": st.column_config.CheckboxColumn("Aktivan"),
+                    "godisnji_dani": st.column_config.NumberColumn("Godišnji dani"),
+                    "slobodni_dani": st.column_config.NumberColumn("Slobodni dani"),
+                    "prava": st.column_config.TextColumn("Prava"),
+                    "skladišta": st.column_config.TextColumn("Skladišta"),
+                }
             )
     else:
         st.info("Nema korisnika u bazi.")
@@ -803,7 +794,7 @@ elif st.session_state.stranica == "korisnici":
                         if st.form_submit_button("Odustani", key=f"odust_{korisnik['id']}"):
                             st.rerun()
         else:
-            pass  # ne prikazuj expander za druge korisnike
+            pass
 
     # Dodatni gumbi – svi vide
     col_export, col_refresh = st.columns(2)
