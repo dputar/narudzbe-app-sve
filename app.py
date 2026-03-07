@@ -598,7 +598,7 @@ elif st.session_state.stranica == "korisnici":
     tip_korisnika = st.session_state.user.get("tip_korisnika", "nema uloge")
     trenutni_id = st.session_state.user.get("id")
 
-    # 1. Dohvat svih korisnika
+    # 1. Dohvat svih korisnika (svi vide sve)
     try:
         response = supabase.table("korisnici").select("*").execute()
         korisnici_data = response.data or []
@@ -633,26 +633,43 @@ elif st.session_state.stranica == "korisnici":
         elif df_display.empty:
             st.info("Još nema korisnika u bazi.")
         else:
-            # ISPRAVLJENO: column_config sa SVIM mogućim ključevima – Streamlit ignorira one koji ne postoje u df
+            # ISPRAVLJENO: column_config sa fiksnim ključevima – Streamlit ignorira nepostojeće
+            column_config = {
+                "id": None,
+                "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
+                "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
+                "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
+                "lozinka": st.column_config.TextColumn("Lozinka", disabled=True),
+                "aktivan": st.column_config.CheckboxColumn("Aktivan"),
+                "godisnji_dani": st.column_config.NumberColumn("Godišnji dani"),
+                "slobodni_dani": st.column_config.NumberColumn("Slobodni dani"),
+            }
+
+            # Dodaj datume SAMO ako postoje u DataFrame-u
+            if "created_at" in df_display.columns:
+                column_config["created_at"] = st.column_config.DateTimeColumn(
+                    "Kreiran",
+                    format="DD.MM.YYYY HH:mm",
+                    disabled=True
+                )
+            if "updated_at" in df_display.columns:
+                column_config["updated_at"] = st.column_config.DateTimeColumn(
+                    "Ažurirano",
+                    format="DD.MM.YYYY HH:mm",
+                    disabled=True
+                )
+
+            # Dodaj JSON/ARRAY stupce ako postoje
+            if "prava" in df_display.columns:
+                column_config["prava"] = st.column_config.TextColumn("Prava")
+            if "skladišta" in df_display.columns:
+                column_config["skladišta"] = st.column_config.TextColumn("Skladišta")
+
             st.dataframe(
                 df_display,
                 use_container_width=True,
                 hide_index=True,
-                column_config={
-                    "id": None,
-                    "created_at": st.column_config.DateTimeColumn("Kreiran", format="DD.MM.YYYY HH:mm"),
-                    "updated_at": st.column_config.DateTimeColumn("Ažurirano", format="DD.MM.YYYY HH:mm"),
-                    "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
-                    "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
-                    "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
-                    "lozinka": st.column_config.TextColumn("Lozinka", disabled=True),
-                    "aktivan": st.column_config.CheckboxColumn("Aktivan"),
-                    "godisnji_dani": st.column_config.NumberColumn("Godišnji dani"),
-                    "slobodni_dani": st.column_config.NumberColumn("Slobodni dani"),
-                    # ako imaš ove stupce – oni će se pojaviti, ako ne – Streamlit ih preskoči
-                    "prava": st.column_config.TextColumn("Prava"),
-                    "skladišta": st.column_config.TextColumn("Skladišta"),
-                }
+                column_config=column_config
             )
     else:
         st.info("Nema korisnika u bazi.")
@@ -672,7 +689,9 @@ elif st.session_state.stranica == "korisnici":
                 ime_prezime = st.text_input("Ime i prezime", key="ime_prezime_novi")
                 korisničko_ime = st.text_input("Korisničko ime", key="korisničko_ime_novi")
                 lozinka = st.text_input("Lozinka", type="password", key="lozinka_novi")
-                tip_korisnika_novi = st.selectbox("Tip korisnika", ["administrator", "ured", "skladištar", "terenac", "gost"], key="tip_korisnika_novi")
+                tip_korisnika_novi = st.selectbox("Tip korisnika", [
+                    "administrator", "ured", "skladištar", "terenac", "gost"
+                ], key="tip_korisnika_novi")
                 godisnji_dani = st.number_input("Godišnji dani (po godini)", value=20, min_value=0, key="god_dani_novi")
                 slobodni_dani = st.number_input("Slobodni dani", value=0, min_value=0, key="slob_dani_novi")
             with col2:
