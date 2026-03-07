@@ -14,27 +14,23 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.colors import black
 from pypdf import PdfReader, PdfWriter
+import jwt  # ← OVO DODAJ – pip install pyjwt
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
-# Supabase konekcija – PRIVREMENO koristimo service_role key (bypass RLS)
+# Supabase konekcija – sada sa ANON KEY + custom JWT
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
-# OVDJE zalijepi TOČAN service_role ključ iz Supabase dashboarda
-# Settings → API → Project API keys → service_role (cijeli eyJhbGciOi... string)
-SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAzMzI5NywiZXhwIjoyMDg3NjA5Mjk3fQ.Gz683u3oZE5x_NoFeeRJA_VaSb0uf3G1aLUX1uE2CfA"
+supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-# Provjera da ključ nije prazan (debug)
-if not SUPABASE_SERVICE_KEY or len(SUPABASE_SERVICE_KEY) < 50:
-    st.error("SUPABASE_SERVICE_KEY je prazan ili prekratak – provjeri da si zalijepio cijeli ključ!")
-    st.stop()
+# JWT Secret – uzmi iz Supabase → Settings → API → JWT Settings → JWT Secret
+# ČUVAJ GA TAJNO! Ne commitaj u git!
+JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← OVDJE PROMIJENI!
 
-supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
 
 TZ = ZoneInfo("Europe/Zagreb")
-
-# Ostatak tvog koda ostaje isti...
-# (session state, authenticate_user funkcija, login stranica, sidebar, funkcije itd.)
 
 # Session state inicijalizacija
 if "user" not in st.session_state:
@@ -52,44 +48,58 @@ if "novi_korisnik_form_shown" not in st.session_state:
 if "korisnici_search" not in st.session_state:
     st.session_state.korisnici_search = ""
 
-# Callback funkcije za search
+# Callback za search
 def on_korisnici_search_change():
     st.session_state.korisnici_search = st.session_state.korisnici_search_input
 
-# Funkcija za autentifikaciju
+# JWT generiranje – ključno za RLS
+def generate_supabase_jwt(user_id):
+    payload = {
+        "sub": str(user_id),  # mora biti string UUID iz korisnici.id
+        "aud": "authenticated",
+        "role": "authenticated",
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 3600 * 24 * 7,  # 7 dana
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+
+# Funkcija za autentifikaciju + JWT postavljanje
 def authenticate_user(username, password):
     try:
-        # Dohvati BEZ .single() – dozvoli 0 ili 1 redak
         response = supabase.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username.strip())\
             .execute()
-        
+       
         users = response.data or []
-        
+       
         if not users:
             st.error("Korisnik nije pronađen")
             return None
-        
-        # Uzmi prvog (trebao bi biti samo jedan)
+       
         user = users[0]
-        
+       
         stored = user.get('lozinka', '').strip()
-        
-        # Provjeri bcrypt hash (ako postoji)
+       
+        # Provjera bcrypt hash-a
         try:
             if bcrypt.checkpw(password.strip().encode('utf-8'), stored.encode('utf-8')):
+                # Uspješno – generiraj i postavi JWT
+                token = generate_supabase_jwt(user["id"])
+                supabase.auth.set_auth(token)
                 return user
         except ValueError:
-            # Ako nije bcrypt – provjeri plain tekst (stari način)
-            pass
-        
+            pass  # nije bcrypt hash
+       
+        # Fallback za plain lozinku (ako još imaš stare unose)
         if stored == password.strip():
+            token = generate_supabase_jwt(user["id"])
+            supabase.auth.set_auth(token)
             return user
-        
+       
         st.error("Lozinka se ne podudara")
         return None
-        
+       
     except Exception as e:
         st.error(f"Greška pri autentifikaciji: {str(e)}")
         return None
@@ -97,12 +107,10 @@ def authenticate_user(username, password):
 # Login stranica
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav zahtjeva")
-
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         username = st.text_input("Korisničko ime").strip()
         password = st.text_input("Lozinka", type="password").strip()
-
         if st.button("Prijavi se"):
             if not username or not password:
                 st.error("Unesite korisničko ime i lozinku!")
@@ -116,24 +124,20 @@ if st.session_state.stranica == "login":
                     st.rerun()
                 else:
                     st.error("Korisničko ime ne postoji ili lozinka nije ispravna.")
-    
+   
     st.stop()
 
 # ────────────────────────────────────────────────
 # SIDEBAR – PRAVA PRISTUPA
 # ────────────────────────────────────────────────
 tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik") if st.session_state.user else None
-
 stranice = ["Godišnji odmor"]
-# Popis uloga koje smiju vidjeti stranicu Korisnici
 dozvoljene_za_korisnike = ["administrator", "ured"]
-
 if tip_korisnika in dozvoljene_za_korisnike:
     stranice.append("Korisnici")
 
 st.sidebar.title(f"Dobro došli, {st.session_state.user.get('ime_prezime', 'Nepoznato') if st.session_state.user else 'Neprijavljen'}")
 izbor = st.sidebar.selectbox("Odaberi stranicu", stranice)
-
 if izbor == "Godišnji odmor":
     st.session_state.stranica = "godisnji"
 elif izbor == "Korisnici":
