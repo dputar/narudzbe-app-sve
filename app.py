@@ -35,6 +35,30 @@ supabase_login = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 # JWT Secret – uzmi iz Supabase → Settings → API → JWT Settings → JWT Secret
 JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← PROMIJENI OVO!
 
+TZ = ZoneInfo("Europe/Zagreb")
+
+# Session state inicijalizacija
+if "user" not in st.session_state:
+    st.session_state.user = None
+if "stranica" not in st.session_state:
+    st.session_state.stranica = "login"
+if "temp_odmor" not in st.session_state:
+    st.session_state.temp_odmor = None
+if "form_reset" not in st.session_state:
+    st.session_state.form_reset = False
+if "edit_korisnik_id" not in st.session_state:
+    st.session_state.edit_korisnik_id = None
+if "novi_korisnik_form_shown" not in st.session_state:
+    st.session_state.novi_korisnik_form_shown = False
+if "korisnici_search" not in st.session_state:
+    st.session_state.korisnici_search = ""
+if "auth_token" not in st.session_state:
+    st.session_state.auth_token = None
+
+# Callback za search
+def on_korisnici_search_change():
+    st.session_state.korisnici_search = st.session_state.korisnici_search_input
+
 # JWT generiranje
 def generate_supabase_jwt(user):
     payload = {
@@ -43,7 +67,7 @@ def generate_supabase_jwt(user):
         "aud": "authenticated",
         "role": "authenticated",
         "iat": int(time.time()),
-        "exp": int(time.time()) + 3600 * 24 * 7,
+        "exp": int(time.time()) + 3600 * 24 * 7,  # 7 dana
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
@@ -100,6 +124,29 @@ def authenticate_user(username, password):
         return None
     finally:
         print("=== DEBUG PRIJAVA END ===\n")
+# Login stranica
+if st.session_state.stranica == "login":
+    st.title("Prijava u sustav zahtjeva")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        username = st.text_input("Korisničko ime").strip()
+        password = st.text_input("Lozinka", type="password").strip()
+        if st.button("Prijavi se"):
+            if not username or not password:
+                st.error("Unesite korisničko ime i lozinku!")
+            else:
+                user = authenticate_user(username, password)
+                if user:
+                    st.session_state.user = user
+                    st.session_state.stranica = "godisnji"
+                    st.success("Uspješna prijava!")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("Korisničko ime ne postoji ili lozinka nije ispravna.")
+   
+    st.stop()
+
 # ────────────────────────────────────────────────
 # SIDEBAR – PRAVA PRISTUPA
 # ────────────────────────────────────────────────
