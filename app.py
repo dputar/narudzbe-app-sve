@@ -640,8 +640,8 @@ elif st.session_state.stranica == "korisnici":
                 hide_index=True,
                 column_config={
                     "id": None,
-                    "created_at": st.column_config.DateTimeColumn("Kreiran", format="DD.MM.YYYY HH:mm"),
-                    "updated_at": st.column_config.DateTimeColumn("Ažurirano", format="DD.MM.YYYY HH:mm"),
+                    "created_at": st.column_config.DateTimeColumn("created_at", format="DD.MM.YYYY HH:mm"),
+                    "updated_at": st.column_config.DateTimeColumn("updated_at", format="DD.MM.YYYY HH:mm"),
                     "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
                     "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
                     "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
