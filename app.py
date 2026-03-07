@@ -610,7 +610,7 @@ elif st.session_state.stranica == "korisnici":
     if korisnici_data:
         df = pd.DataFrame(korisnici_data)
 
-        # Maskiraj lozinku u prikazu
+        # Maskiraj lozinku ako postoji
         if "lozinka" in df.columns:
             df["lozinka"] = "******"
 
@@ -633,36 +633,26 @@ elif st.session_state.stranica == "korisnici":
         elif df_display.empty:
             st.info("Još nema korisnika u bazi.")
         else:
-            # Sigurna column_config – provjeravamo postoji li stupac
-            column_config_dict = {
-                "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
-                "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
-                "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
-                "lozinka": st.column_config.TextColumn("Lozinka", disabled=True),
-                "aktivan": st.column_config.CheckboxColumn("Aktivan"),
-                "godisnji_dani": st.column_config.NumberColumn("Godišnji dani"),
-                "slobodni_dani": st.column_config.NumberColumn("Slobodni dani"),
-            }
-
-            # Dodaj datume samo ako postoje u df
-            if "created_at" in df_display.columns:
-                column_config_dict["created_at"] = st.column_config.DateTimeColumn(
-                    "Kreiran",
-                    format="DD.MM.YYYY HH:mm",
-                    disabled=True
-                )
-            if "updated_at" in df_display.columns:
-                column_config_dict["updated_at"] = st.column_config.DateTimeColumn(
-                    "Ažurirano",
-                    format="DD.MM.YYYY HH:mm",
-                    disabled=True
-                )
-
+            # ISPRAVLJENO: column_config sa SVIM mogućim ključevima – Streamlit ignorira one koji ne postoje u df
             st.dataframe(
                 df_display,
                 use_container_width=True,
                 hide_index=True,
-                column_config=column_config_dict
+                column_config={
+                    "id": None,
+                    "created_at": st.column_config.DateTimeColumn("Kreiran", format="DD.MM.YYYY HH:mm"),
+                    "updated_at": st.column_config.DateTimeColumn("Ažurirano", format="DD.MM.YYYY HH:mm"),
+                    "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
+                    "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
+                    "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
+                    "lozinka": st.column_config.TextColumn("Lozinka", disabled=True),
+                    "aktivan": st.column_config.CheckboxColumn("Aktivan"),
+                    "godisnji_dani": st.column_config.NumberColumn("Godišnji dani"),
+                    "slobodni_dani": st.column_config.NumberColumn("Slobodni dani"),
+                    # ako imaš ove stupce – oni će se pojaviti, ako ne – Streamlit ih preskoči
+                    "prava": st.column_config.TextColumn("Prava"),
+                    "skladišta": st.column_config.TextColumn("Skladišta"),
+                }
             )
     else:
         st.info("Nema korisnika u bazi.")
@@ -682,9 +672,7 @@ elif st.session_state.stranica == "korisnici":
                 ime_prezime = st.text_input("Ime i prezime", key="ime_prezime_novi")
                 korisničko_ime = st.text_input("Korisničko ime", key="korisničko_ime_novi")
                 lozinka = st.text_input("Lozinka", type="password", key="lozinka_novi")
-                tip_korisnika_novi = st.selectbox("Tip korisnika", [
-                    "administrator", "ured", "skladištar", "terenac", "gost"
-                ], key="tip_korisnika_novi")
+                tip_korisnika_novi = st.selectbox("Tip korisnika", ["administrator", "ured", "skladištar", "terenac", "gost"], key="tip_korisnika_novi")
                 godisnji_dani = st.number_input("Godišnji dani (po godini)", value=20, min_value=0, key="god_dani_novi")
                 slobodni_dani = st.number_input("Slobodni dani", value=0, min_value=0, key="slob_dani_novi")
             with col2:
@@ -796,7 +784,7 @@ elif st.session_state.stranica == "korisnici":
                         if st.form_submit_button("Odustani", key=f"odust_{korisnik['id']}"):
                             st.rerun()
         else:
-            pass
+            pass  # ne prikazuj expander za druge korisnike
 
     # Dodatni gumbi – svi vide
     col_export, col_refresh = st.columns(2)
