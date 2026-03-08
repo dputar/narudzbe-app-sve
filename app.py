@@ -26,7 +26,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 # JWT Secret – uzmi iz Supabase → Settings → API → JWT Settings → JWT Secret
 # ČUVAJ TAJNO! Ne commitaj u git!
-JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw"  # ← PROMIJENI OVO OBAVEZNO!
+JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← PROMIJENI OVO OBAVEZNO!
 
 TZ = ZoneInfo("Europe/Zagreb")
 
@@ -69,7 +69,6 @@ def generate_supabase_jwt(user):
     return token
 
 # Funkcija za autentifikaciju + JWT postavljanje
-# Funkcija za autentifikaciju + JWT postavljanje
 def authenticate_user(username, password):
     try:
         username_clean = username.strip()
@@ -79,7 +78,8 @@ def authenticate_user(username, password):
         print("Korisničko ime:", repr(username_clean))
         print("Lozinka (dužina):", len(password_clean))
 
-        response = supabase.table("korisnici")\
+        # Koristi service_role za login (pun pristup, bez RLS-a)
+        response = supabase_login.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username_clean)\
             .execute()
@@ -95,16 +95,13 @@ def authenticate_user(username, password):
         user = users[0]
         stored = user.get('lozinka', '').strip()
 
-        print("Spremljena lozinka iz baze (dužina):", len(stored))
-        print("Prvih 10 znakova spremljene lozinke:", stored[:10])
-
         # Provjera bcrypt hash-a
         try:
             if bcrypt.checkpw(password_clean.encode('utf-8'), stored.encode('utf-8')):
                 token = generate_supabase_jwt(user)
                 st.session_state.auth_token = token
                 
-                # PRINT JWT DECODED (da vidimo što je stvarno u tokenu)
+                # Debug JWT-a
                 import jwt
                 decoded = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
                 print("JWT DECODED (bcrypt put):", decoded)
@@ -120,7 +117,7 @@ def authenticate_user(username, password):
             token = generate_supabase_jwt(user)
             st.session_state.auth_token = token
             
-            # PRINT JWT DECODED (da vidimo što je stvarno u tokenu)
+            # Debug JWT-a
             import jwt
             decoded = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
             print("JWT DECODED (plain put):", decoded)
