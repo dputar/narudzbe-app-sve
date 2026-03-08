@@ -27,6 +27,12 @@ SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+# Postavi JWT za sve buduće upite ako postoji u sesiji
+if "auth_token" in st.session_state and st.session_state.auth_token:
+    supabase.headers.update({
+        "Authorization": f"Bearer {st.session_state.auth_token}",
+        "apikey": SUPABASE_ANON_KEY
+    })
 
 # Poseban klijent samo za login (service_role – puna prava)
 SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAzMzI5NywiZXhwIjoyMDg3NjA5Mjk3fQ.Gz683u3oZE5x_NoFeeRJA_VaSb0uf3G1aLUX1uE2CfA"
@@ -112,7 +118,12 @@ def authenticate_user(username, password):
         if stored == password:
             token = generate_supabase_jwt(user)
             st.session_state.auth_token = token
-            supabase.postgrest.auth(token)
+            #supabase.postgrest.auth(token)
+            supabase.headers.update({
+		
+    		"Authorization": f"Bearer {token}",
+    		"apikey": SUPABASE_ANON_KEY
+
             print("Prijava uspjela – plain")
             return user
 
