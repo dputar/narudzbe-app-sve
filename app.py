@@ -598,7 +598,7 @@ elif st.session_state.stranica == "korisnici":
     tip_korisnika = st.session_state.user.get("tip_korisnika", "nema uloge")
     trenutni_id = st.session_state.user.get("id")
 
-    # Dohvat svih korisnika
+    # 1. Dohvat svih korisnika (svi vide sve)
     try:
         response = supabase.table("korisnici").select("*").execute()
         korisnici_data = response.data or []
@@ -606,10 +606,13 @@ elif st.session_state.stranica == "korisnici":
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
         korisnici_data = []
 
-    # Search i prikaz tablice
+    # 2. Search i prikaz tablice
     if korisnici_data:
         df = pd.DataFrame(korisnici_data)
-        df["lozinka"] = "******"
+
+        # Maskiraj lozinku ako postoji
+        if "lozinka" in df.columns:
+            df["lozinka"] = "******"
 
         search_term = st.text_input(
             "Pretraži po svim stupcima",
@@ -630,14 +633,15 @@ elif st.session_state.stranica == "korisnici":
         elif df_display.empty:
             st.info("Još nema korisnika u bazi.")
         else:
+            # FIKSNI column_config – koristimo ispravna imena i format (bez DateTimeColumn greške)
             st.dataframe(
                 df_display,
                 use_container_width=True,
                 hide_index=True,
                 column_config={
                     "id": None,
-                    "created_at": st.column_config.DateTimeColumn("Kreiran", format="DD.MM.YYYY HH:mm"),
-                    "updated_at": st.column_config.DateTimeColumn("Ažurirano", format="DD.MM.YYYY HH:mm"),
+                    "created_at": st.column_config.DateColumn("Kreiran", format="DD.MM.YYYY HH:mm"),
+                    "updated_at": st.column_config.DateColumn("Ažurirano", format="DD.MM.YYYY HH:mm"),
                     "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
                     "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
                     "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
@@ -650,13 +654,13 @@ elif st.session_state.stranica == "korisnici":
     else:
         st.info("Nema korisnika u bazi.")
 
-    # Gumb za novog korisnika – SAMO ADMIN
+    # 3. Gumb za novog korisnika – SAMO ADMIN
     if tip_korisnika == "administrator":
         if st.button("➕ Novi korisnik", type="primary"):
             st.session_state.novi_korisnik_form_shown = True
             st.rerun()
 
-    # Forma za novog korisnika (samo admin)
+    # 4. Forma za novog korisnika (samo admin)
     if st.session_state.get("novi_korisnik_form_shown", False) and tip_korisnika == "administrator":
         with st.form("novi_korisnik_form", clear_on_submit=False):
             st.markdown("**Novi korisnik**")
@@ -779,7 +783,7 @@ elif st.session_state.stranica == "korisnici":
                         if st.form_submit_button("Odustani", key=f"odust_{korisnik['id']}"):
                             st.rerun()
         else:
-            pass
+            pass  # ne prikazuj expander za druge korisnike
 
     # Dodatni gumbi – svi vide
     col_export, col_refresh = st.columns(2)
