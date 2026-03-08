@@ -64,7 +64,7 @@ def generate_supabase_jwt(user):
     payload = {
         "sub": str(user["id"]),
         "korisničko_ime": user["korisničko_ime"],
-        "tip_korisnika": user["tip_korisnika"],
+        #"tip_korisnika": user["tip_korisnika"],
 	"aud": "authenticated",
         "role": "authenticated",
         "iat": int(time.time()),
