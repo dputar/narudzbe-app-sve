@@ -600,15 +600,29 @@ if st.session_state.stranica == "godisnji":
     except Exception as e:
         st.error(f"Greška pri prikazu kalendara: {str(e)}")
 
+
+
+
+
+
+
+
+
 elif st.session_state.stranica == "korisnici":
     st.title("Administracija - Korisnici")
 
     tip_korisnika = st.session_state.user.get("tip_korisnika", "nema uloge")
     trenutni_id = st.session_state.user.get("id")
 
+    # JWT headers za sve upite (koristimo token iz sesije ako postoji)
+    auth_headers = {
+        "Authorization": f"Bearer {st.session_state.get('auth_token', '')}",
+        "apikey": SUPABASE_ANON_KEY
+    }
+
     # 1. Dohvat svih korisnika (svi vide sve)
     try:
-        response = supabase.table("korisnici").select("*").execute()
+        response = supabase.table("korisnici").select("*").execute(headers=auth_headers)
         korisnici_data = response.data or []
     except Exception as e:
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
@@ -641,7 +655,6 @@ elif st.session_state.stranica == "korisnici":
         elif df_display.empty:
             st.info("Još nema korisnika u bazi.")
         else:
-            # FIKSNI column_config – koristimo ispravna imena i format
             st.dataframe(
                 df_display,
                 width="stretch",
@@ -710,7 +723,8 @@ elif st.session_state.stranica == "korisnici":
                             "slobodni_dani": slobodni_dani
                         }
                         try:
-                            response = supabase.table("korisnici").insert(novi).execute()
+                            # Dodaj headers i za INSERT
+                            response = supabase.table("korisnici").insert(novi).execute(headers=auth_headers)
                             st.success(f"Korisnik dodan! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
                             st.session_state.novi_korisnik_form_shown = False
                             st.rerun()
@@ -781,7 +795,8 @@ elif st.session_state.stranica == "korisnici":
                                     update_data["skladišta"] = edit_skladišta
 
                             if update_data:
-                                supabase.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute()
+                                # Dodaj headers i za UPDATE
+                                supabase.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute(headers=auth_headers)
                                 st.success("Promjene spremljene!")
                                 st.rerun()
                             else:
