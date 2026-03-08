@@ -84,7 +84,7 @@ def authenticate_user(username, password):
         print("Korisničko ime:", repr(username_clean))
         print("Lozinka (dužina):", len(password_clean))
 
-        # Koristi service_role za login (pun pristup, bez RLS-a)
+        # Koristi service_role za dohvat (pun pristup, bez RLS-a)
         response = supabase_login.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username_clean)\
