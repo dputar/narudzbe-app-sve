@@ -59,6 +59,7 @@ def generate_supabase_jwt(user):
         "korisničko_ime": user["korisničko_ime"],
         "tip_korisnika": user["tip_korisnika"],  # obavezno za RLS provjere
         "aud": "authenticated",  # ← OVO JE KLJUČNO! Supabase to zahtijeva
+        "iss": "supabase",  # ← DODAJ OVO – Supabase ga očekuje
         "role": "authenticated",
         "iat": int(time.time()),
         "exp": int(time.time()) + 3600 * 24 * 7,  # 7 dana
