@@ -32,7 +32,7 @@ supabase_login = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 # JWT Secret – uzmi iz Supabase → Settings → API → JWT Settings → JWT Secret
 # ČUVAJ TAJNO! Ne commitaj u git!
-JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← PROMIJENI OVO OBAVEZNO!
+JWT_SECRET = "d23e9023-d5eb-4341-a79f-80ebf59765f2"  # ← PROMIJENI OVO OBAVEZNO!
 
 TZ = ZoneInfo("Europe/Zagreb")
 
