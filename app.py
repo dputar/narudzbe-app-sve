@@ -82,9 +82,11 @@ def generate_supabase_jwt(user):
 def authenticate_user(username, password):
     try:
         username_clean = username.strip()
+        password_clean = password.strip()
+
         print("=== DEBUG PRIJAVA START ===")
         print("Korisničko ime:", repr(username_clean))
-        print("Lozinka (dužina):", len(password))
+        print("Lozinka (dužina):", len(password_clean))
 
         # Koristi service_role za dohvat (pun pristup, bez RLS-a)
         response = supabase_login.table("korisnici")\
@@ -103,27 +105,32 @@ def authenticate_user(username, password):
         user = users[0]
         stored = user.get('lozinka', '').strip()
 
+        print("Spremljena lozinka iz baze (dužina):", len(stored))
+        print("Prvih 10 znakova spremljene lozinke:", stored[:10])
+
         # Provjera bcrypt hash-a
         try:
-            if bcrypt.checkpw(password.encode('utf-8'), stored.encode('utf-8')):
+            if bcrypt.checkpw(password_clean.encode('utf-8'), stored.encode('utf-8')):
                 token = generate_supabase_jwt(user)
                 st.session_state.auth_token = token
-                supabase.postgrest.auth(token)  # postavi token za anon klijent
+                supabase.headers.update({
+                    "Authorization": f"Bearer {token}",
+                    "apikey": SUPABASE_ANON_KEY
+                })
                 print("Prijava uspjela – bcrypt")
                 return user
-        except ValueError:
+        except ValueError as ve:
+            print("Bcrypt greška:", str(ve))
             pass
 
         # Fallback za plain lozinku
-        if stored == password:
+        if stored == password_clean:
             token = generate_supabase_jwt(user)
             st.session_state.auth_token = token
-            #supabase.postgrest.auth(token)
             supabase.headers.update({
-		
-    		"Authorization": f"Bearer {token}",
-    		"apikey": SUPABASE_ANON_KEY
-
+                "Authorization": f"Bearer {token}",
+                "apikey": SUPABASE_ANON_KEY
+            })
             print("Prijava uspjela – plain")
             return user
 
@@ -134,8 +141,14 @@ def authenticate_user(username, password):
         st.error(f"Greška pri autentifikaciji: {str(e)}")
         print("Detaljna greška:", e)
         return None
+
     finally:
         print("=== DEBUG PRIJAVA END ===\n")
+
+
+
+
+
 # Login stranica
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav zahtjeva")
