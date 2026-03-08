@@ -9,10 +9,6 @@ import json
 import calendar
 import matplotlib.pyplot as plt
 import bcrypt
-lozinka = "test123"  # zamijeni sa stvarnom lozinkom
-hashed = bcrypt.hashpw(lozinka.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-print(hashed)  # zalijepi ovo u polje lozinka u bazi
-
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
@@ -22,24 +18,15 @@ import jwt  # pip install pyjwt
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
-# Supabase konekcija – ANON KEY za aplikaciju
+# Supabase konekcija – ANON KEY + custom JWT
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
-# Postavi JWT za sve buduće upite ako postoji u sesiji
-if "auth_token" in st.session_state and st.session_state.auth_token:
-    supabase.headers.update({
-        "Authorization": f"Bearer {st.session_state.auth_token}",
-        "apikey": SUPABASE_ANON_KEY
-    })
-
-# Poseban klijent samo za login (service_role – puna prava)
-SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAzMzI5NywiZXhwIjoyMDg3NjA5Mjk3fQ.Gz683u3oZE5x_NoFeeRJA_VaSb0uf3G1aLUX1uE2CfA"
-supabase_login = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 # JWT Secret – uzmi iz Supabase → Settings → API → JWT Settings → JWT Secret
-JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← PROMIJENI OVO!
+# ČUVAJ TAJNO! Ne commitaj u git!
+JWT_SECRET = "tvoj_jwt_secret_iz_supabase_dashboarda_ovdje"  # ← PROMIJENI OVO OBAVEZNO!
 
 TZ = ZoneInfo("Europe/Zagreb")
 
@@ -70,15 +57,14 @@ def generate_supabase_jwt(user):
     payload = {
         "sub": str(user["id"]),
         "korisničko_ime": user["korisničko_ime"],
-        #"tip_korisnika": user["tip_korisnika"],
-	"aud": "authenticated",
+        "aud": "authenticated",
         "role": "authenticated",
         "iat": int(time.time()),
         "exp": int(time.time()) + 3600 * 24 * 7,  # 7 dana
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
-# Funkcija za autentifikaciju – koristi service_role za provjeru
+# Funkcija za autentifikaciju + JWT postavljanje
 def authenticate_user(username, password):
     try:
         username_clean = username.strip()
@@ -88,8 +74,7 @@ def authenticate_user(username, password):
         print("Korisničko ime:", repr(username_clean))
         print("Lozinka (dužina):", len(password_clean))
 
-        # Koristi service_role za dohvat (pun pristup, bez RLS-a)
-        response = supabase_login.table("korisnici")\
+        response = supabase.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username_clean)\
             .execute()
@@ -112,7 +97,8 @@ def authenticate_user(username, password):
                 st.session_state.auth_token = token
                 print("Prijava uspjela – bcrypt")
                 return user
-        except ValueError:
+        except ValueError as ve:
+            print("Bcrypt greška:", str(ve))
             pass
 
         # Fallback za plain lozinku
@@ -131,9 +117,6 @@ def authenticate_user(username, password):
         return None
     finally:
         print("=== DEBUG PRIJAVA END ===\n")
-
-
-
 
 # Login stranica
 if st.session_state.stranica == "login":
@@ -180,37 +163,42 @@ if st.sidebar.button("Odjavi se"):
     st.rerun()
 
 # ────────────────────────────────────────────────
-# GODIŠNJI ODMOR (ispravljeno bez .single())
+# GODIŠNJI ODMOR
 # ────────────────────────────────────────────────
 if st.session_state.stranica == "godisnji":
     st.title("🏖️ Godišnji odmor i slobodni dani")
 
     holidays_dict = {
         2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
-        # Dodaj ostale godine po potrebi
+    }
+
+    # JWT headers za sve upite
+    auth_headers = {
+        "Authorization": f"Bearer {st.session_state.get('auth_token', '')}",
+        "apikey": SUPABASE_ANON_KEY
     }
 
     # Dohvat svih korisnika za admina
     try:
-        korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini").eq("aktivan", True).execute()
+        korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini").eq("aktivan", True).execute(headers=auth_headers)
         korisnici = korisnici_response.data or []
         korisnik_options = {k["ime_prezime"]: k for k in korisnici}
     except Exception as e:
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
         korisnik_options = {}
 
-    # Dohvat trenutnog korisnika – bez .single()
+    # Dohvat trenutnog korisnika
     try:
         user_response = supabase.table("korisnici")\
             .select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini")\
             .eq("korisničko_ime", st.session_state.user.get("korisničko_ime"))\
-            .execute()
+            .execute(headers=auth_headers)
         
         if user_response.data:
             user_data = user_response.data[0]
         else:
             user_data = None
-            st.warning("Nije pronađen tvoj profil u tablici korisnici. Neki podaci neće biti prikazani.")
+            st.warning("Nije pronađen tvoj profil u tablici korisnici.")
     except Exception as e:
         user_data = None
         st.error(f"Greška pri dohvaćanju podataka korisnika: {str(e)}")
@@ -267,7 +255,7 @@ if st.session_state.stranica == "godisnji":
                 st.error(f"Premašuješ preostale slobodne dane! Preostalo: {preostalo_slobodnih}")
             else:
                 try:
-                    odmori_response = supabase.table("odmori").select("*").execute()
+                    odmori_response = supabase.table("odmori").select("*").execute(headers=auth_headers)
                     df_odmori = pd.DataFrame(odmori_response.data or [])
                     preklapanja = 0
                     preklapanja_ista_osoba = 0
@@ -303,14 +291,14 @@ if st.session_state.stranica == "godisnji":
                             "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
                             "created_at": datetime.now(TZ).isoformat()
                         }
-                        supabase.table("odmori").insert(novi).execute()
+                        supabase.table("odmori").insert(novi).execute(headers=auth_headers)
                         preostalo_godisnje, preostalo_slobodnih = get_current_saldo(korisnik_id)
                         if tip_odmora == "Godišnji odmor":
                             novi_saldo = preostalo_godisnje - broj_dana
-                            supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
+                            supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute(headers=auth_headers)
                         elif tip_odmora == "Slobodni dan":
                             novi_slobodni = preostalo_slobodnih - broj_dana
-                            supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
+                            supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute(headers=auth_headers)
                         st.success("Unos dodan!")
                         st.session_state.form_reset = True
                         st.rerun()
