@@ -14,7 +14,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.colors import black
 from pypdf import PdfReader, PdfWriter
-import jwt  # pip install pyjwt ako nemaš
+import jwt  # pip install pyjwt
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
@@ -48,13 +48,9 @@ if "korisnici_search" not in st.session_state:
 if "auth_token" not in st.session_state:
     st.session_state.auth_token = None
 
-# Funkcija za headers sa JWT tokenom (koristi se u svakom upitu)
-def get_auth_headers():
-    token = st.session_state.get('auth_token', '')
-    return {
-        "Authorization": f"Bearer {token}",
-        "apikey": SUPABASE_ANON_KEY
-    }
+# Callback za search
+def on_korisnici_search_change():
+    st.session_state.korisnici_search = st.session_state.korisnici_search_input
 
 # JWT generiranje
 def generate_supabase_jwt(user):
@@ -176,7 +172,10 @@ if st.session_state.stranica == "godisnji":
         2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
     }
 
-    auth_headers = get_auth_headers()
+    auth_headers = {
+        "Authorization": f"Bearer {st.session_state.get('auth_token', '')}",
+        "apikey": SUPABASE_ANON_KEY
+    }
 
     # Dohvat svih korisnika za admina
     try:
