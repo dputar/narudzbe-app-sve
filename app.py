@@ -57,12 +57,15 @@ def generate_supabase_jwt(user):
     payload = {
         "sub": str(user["id"]),
         "korisničko_ime": user["korisničko_ime"],
-        "aud": "authenticated",
+        "tip_korisnika": user["tip_korisnika"],  # obavezno za RLS provjere
+        "aud": "authenticated",  # ← OVO JE KLJUČNO! Supabase to zahtijeva
         "role": "authenticated",
         "iat": int(time.time()),
         "exp": int(time.time()) + 3600 * 24 * 7,  # 7 dana
     }
-    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+    token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+    print("Generirani JWT payload:", payload)  # debug
+    return token
 
 # Funkcija za autentifikaciju + JWT postavljanje
 def authenticate_user(username, password):
@@ -90,14 +93,20 @@ def authenticate_user(username, password):
         user = users[0]
         stored = user.get('lozinka', '').strip()
 
+        print("Spremljena lozinka iz baze (dužina):", len(stored))
+        print("Prvih 10 znakova spremljene lozinke:", stored[:10])
+
         # Provjera bcrypt hash-a
         try:
             if bcrypt.checkpw(password_clean.encode('utf-8'), stored.encode('utf-8')):
                 token = generate_supabase_jwt(user)
                 st.session_state.auth_token = token
+                
+                # PRINT JWT DECODED (da vidimo što je stvarno u tokenu)
                 import jwt
                 decoded = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
                 print("JWT DECODED (bcrypt put):", decoded)
+                
                 print("Prijava uspjela – bcrypt")
                 return user
         except ValueError as ve:
@@ -108,9 +117,12 @@ def authenticate_user(username, password):
         if stored == password_clean:
             token = generate_supabase_jwt(user)
             st.session_state.auth_token = token
+            
+            # PRINT JWT DECODED (da vidimo što je stvarno u tokenu)
             import jwt
             decoded = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
             print("JWT DECODED (plain put):", decoded)
+            
             print("Prijava uspjela – plain")
             return user
 
@@ -121,6 +133,7 @@ def authenticate_user(username, password):
         st.error(f"Greška pri autentifikaciji: {str(e)}")
         print("Detaljna greška:", e)
         return None
+
     finally:
         print("=== DEBUG PRIJAVA END ===\n")
 
