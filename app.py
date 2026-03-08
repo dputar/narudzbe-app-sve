@@ -14,25 +14,14 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.colors import black
 from pypdf import PdfReader, PdfWriter
-import jwt  # pip install pyjwt
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
-# Supabase konekcija – ANON KEY + custom JWT
+# Supabase konekcija – ANON KEY (JWT ne radi u tvojoj verziji biblioteke)
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
-
-# Service role klijent SAMO za login (pun pristup, ignorira RLS)
-SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAzMzI5NywiZXhwIjoyMDg3NjA5Mjk3fQ.Gz683u3oZE5x_NoFeeRJA_VaSb0uf3G1aLUX1uE2CfA"
-
-supabase_login = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-
-
-# JWT Secret – uzmi iz Supabase → Settings → API → JWT Settings → JWT Secret
-# ČUVAJ TAJNO! Ne commitaj u git!
-JWT_SECRET = "d23e9023-d5eb-4341-a79f-80ebf59765f2"  # ← PROMIJENI OVO OBAVEZNO!
 
 TZ = ZoneInfo("Europe/Zagreb")
 
@@ -51,30 +40,12 @@ if "novi_korisnik_form_shown" not in st.session_state:
     st.session_state.novi_korisnik_form_shown = False
 if "korisnici_search" not in st.session_state:
     st.session_state.korisnici_search = ""
-if "auth_token" not in st.session_state:
-    st.session_state.auth_token = None
 
 # Callback za search
 def on_korisnici_search_change():
     st.session_state.korisnici_search = st.session_state.korisnici_search_input
 
-# JWT generiranje
-def generate_supabase_jwt(user):
-    payload = {
-        "sub": str(user["id"]),
-        "korisničko_ime": user["korisničko_ime"],
-        "tip_korisnika": user["tip_korisnika"],  # obavezno za RLS provjere
-        "aud": "authenticated",  # ← OVO JE KLJUČNO! Supabase to zahtijeva
-        "iss": "supabase",  # ← DODAJ OVO – Supabase ga očekuje
-        "role": "authenticated",
-        "iat": int(time.time()),
-        "exp": int(time.time()) + 3600 * 24 * 7,  # 7 dana
-    }
-    token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
-    print("Generirani JWT payload:", payload)  # debug
-    return token
-
-# Funkcija za autentifikaciju + JWT postavljanje
+# Funkcija za autentifikaciju (bez JWT-a – koristi anon key)
 def authenticate_user(username, password):
     try:
         username_clean = username.strip()
@@ -84,8 +55,7 @@ def authenticate_user(username, password):
         print("Korisničko ime:", repr(username_clean))
         print("Lozinka (dužina):", len(password_clean))
 
-        # Koristi service_role za login (pun pristup, bez RLS-a)
-        response = supabase_login.table("korisnici")\
+        response = supabase.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username_clean)\
             .execute()
@@ -104,30 +74,13 @@ def authenticate_user(username, password):
         # Provjera bcrypt hash-a
         try:
             if bcrypt.checkpw(password_clean.encode('utf-8'), stored.encode('utf-8')):
-                token = generate_supabase_jwt(user)
-                st.session_state.auth_token = token
-                
-                # Debug JWT-a
-                import jwt
-                decoded = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-                print("JWT DECODED (bcrypt put):", decoded)
-                
                 print("Prijava uspjela – bcrypt")
                 return user
-        except ValueError as ve:
-            print("Bcrypt greška:", str(ve))
+        except ValueError:
             pass
 
         # Fallback za plain lozinku
         if stored == password_clean:
-            token = generate_supabase_jwt(user)
-            st.session_state.auth_token = token
-            
-            # Debug JWT-a
-            import jwt
-            decoded = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-            print("JWT DECODED (plain put):", decoded)
-            
             print("Prijava uspjela – plain")
             return user
 
@@ -138,7 +91,6 @@ def authenticate_user(username, password):
         st.error(f"Greška pri autentifikaciji: {str(e)}")
         print("Detaljna greška:", e)
         return None
-
     finally:
         print("=== DEBUG PRIJAVA END ===\n")
 
@@ -187,7 +139,7 @@ if st.sidebar.button("Odjavi se"):
     st.rerun()
 
 # ────────────────────────────────────────────────
-# GODIŠNJI ODMOR (ispravljeno sa headers=)
+# GODIŠNJI ODMOR
 # ────────────────────────────────────────────────
 if st.session_state.stranica == "godisnji":
     st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -196,14 +148,9 @@ if st.session_state.stranica == "godisnji":
         2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
     }
 
-    auth_headers = {
-        "Authorization": f"Bearer {st.session_state.get('auth_token', '')}",
-        "apikey": SUPABASE_ANON_KEY
-    }
-
     # Dohvat svih korisnika za admina
     try:
-        korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini").eq("aktivan", True).execute(headers=auth_headers)
+        korisnici_response = supabase.table("korisnici").select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini").eq("aktivan", True).execute()
         korisnici = korisnici_response.data or []
         korisnik_options = {k["ime_prezime"]: k for k in korisnici}
     except Exception as e:
@@ -215,7 +162,7 @@ if st.session_state.stranica == "godisnji":
         user_response = supabase.table("korisnici")\
             .select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini")\
             .eq("korisničko_ime", st.session_state.user.get("korisničko_ime"))\
-            .execute(headers=auth_headers)
+            .execute()
         
         if user_response.data:
             user_data = user_response.data[0]
@@ -278,7 +225,7 @@ if st.session_state.stranica == "godisnji":
                 st.error(f"Premašuješ preostale slobodne dane! Preostalo: {preostalo_slobodnih}")
             else:
                 try:
-                    odmori_response = supabase.table("odmori").select("*").execute(headers=auth_headers)
+                    odmori_response = supabase.table("odmori").select("*").execute()
                     df_odmori = pd.DataFrame(odmori_response.data or [])
                     preklapanja = 0
                     preklapanja_ista_osoba = 0
@@ -314,14 +261,14 @@ if st.session_state.stranica == "godisnji":
                             "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
                             "created_at": datetime.now(TZ).isoformat()
                         }
-                        supabase.table("odmori").insert(novi).execute(headers=auth_headers)
+                        supabase.table("odmori").insert(novi).execute()
                         preostalo_godisnje, preostalo_slobodnih = get_current_saldo(korisnik_id)
                         if tip_odmora == "Godišnji odmor":
                             novi_saldo = preostalo_godisnje - broj_dana
-                            supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute(headers=auth_headers)
+                            supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
                         elif tip_odmora == "Slobodni dan":
                             novi_slobodni = preostalo_slobodnih - broj_dana
-                            supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute(headers=auth_headers)
+                            supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
                         st.success("Unos dodan!")
                         st.session_state.form_reset = True
                         st.rerun()
@@ -331,7 +278,7 @@ if st.session_state.stranica == "godisnji":
     # Potvrda preklapanja
     if st.session_state.temp_odmor:
         try:
-            odmori_response = supabase.table("odmori").select("*").execute(headers=auth_headers)
+            odmori_response = supabase.table("odmori").select("*").execute()
             df_odmori = pd.DataFrame(odmori_response.data or [])
             preklapanja = 0
             preklapanja_ista_osoba = 0
@@ -360,15 +307,15 @@ if st.session_state.stranica == "godisnji":
                     "unio_korisnik": st.session_state.temp_odmor["unio_korisnik"],
                     "created_at": datetime.now(TZ).isoformat()
                 }
-                supabase.table("odmori").insert(novi).execute(headers=auth_headers)
+                supabase.table("odmori").insert(novi).execute()
                 broj_dana = st.session_state.temp_odmor["broj_dana"]
                 preostalo_godisnje, preostalo_slobodnih = get_current_saldo(korisnik_id)
                 if st.session_state.temp_odmor["tip"] == "Godišnji odmor":
                     novi_saldo = preostalo_godisnje - broj_dana
-                    supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute(headers=auth_headers)
+                    supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
                 elif st.session_state.temp_odmor["tip"] == "Slobodni dan":
                     novi_slobodni = preostalo_slobodnih - broj_dana
-                    supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute(headers=auth_headers)
+                    supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
                 st.success("Unos dodan sa preklapanjem!")
                 st.session_state.temp_odmor = None
                 st.session_state.form_reset = True
@@ -387,11 +334,10 @@ if st.session_state.stranica == "godisnji":
     # TABLICA UNOSA – FILTRIRANA ZA NE-ADMINA
     st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
     try:
-        auth_headers = get_auth_headers()
         query = supabase.table("odmori").select("*, korisnici!inner(ime_prezime)").order("datum_od", desc=True)
         if tip_korisnika != "administrator":
             query = query.eq("korisnik_id", prijavljeni_korisnik_id)
-        odmori_response = query.execute(headers=auth_headers)
+        odmori_response = query.execute()
         df_odmori = pd.DataFrame(odmori_response.data or [])
         if not df_odmori.empty:
             df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) else "Nepoznato")
@@ -427,20 +373,20 @@ if st.session_state.stranica == "godisnji":
                                 "old_data": original_row[["datum_od", "datum_do", "tip", "napomena"]].to_json(),
                                 "created_at": datetime.now(TZ).isoformat()
                             }
-                            supabase.table("log_odmori").insert(log).execute(headers=auth_headers)
+                            supabase.table("log_odmori").insert(log).execute()
                             broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                             preostalo_godisnje, preostalo_slobodnih = get_current_saldo(original_row["korisnik_id"])
                             if original_row["tip"] == "Godišnji odmor":
-                                supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + broj_dana}).eq("id", original_row["korisnik_id"]).execute(headers=auth_headers)
+                                supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + broj_dana}).eq("id", original_row["korisnik_id"]).execute()
                             elif original_row["tip"] == "Slobodni dan":
-                                supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + broj_dana}).eq("id", original_row["korisnik_id"]).execute(headers=auth_headers)
+                                supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + broj_dana}).eq("id", original_row["korisnik_id"]).execute()
                             continue
                         changed_fields = {}
                         for field in ["datum_od", "datum_do", "tip", "napomena"]:
                             if row[field] != original_row[field]:
                                 changed_fields[field] = row[field]
                         if changed_fields:
-                            supabase.table("odmori").update(changed_fields).eq("id", row["id"]).execute(headers=auth_headers)
+                            supabase.table("odmori").update(changed_fields).eq("id", row["id"]).execute()
                             log = {
                                 "action": "update",
                                 "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
@@ -448,7 +394,7 @@ if st.session_state.stranica == "godisnji":
                                 "new_data": row[["datum_od", "datum_do", "tip", "napomena"]].to_json(),
                                 "created_at": datetime.now(TZ).isoformat()
                             }
-                            supabase.table("log_odmori").insert(log).execute(headers=auth_headers)
+                            supabase.table("log_odmori").insert(log).execute()
                             if "datum_od" in changed_fields or "datum_do" in changed_fields or "tip" in changed_fields:
                                 stari_broj = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                                 novi_broj = calculate_working_days(row["datum_od"], row["datum_do"], holidays_dict.get(tekuca_godina, []))
@@ -456,22 +402,22 @@ if st.session_state.stranica == "godisnji":
                                 if original_row["tip"] == row["tip"]:
                                     if original_row["tip"] == "Godišnji odmor":
                                         razlika = stari_broj - novi_broj
-                                        supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + razlika}).eq("id", original_row["korisnik_id"]).execute(headers=auth_headers)
+                                        supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + razlika}).eq("id", original_row["korisnik_id"]).execute()
                                     elif original_row["tip"] == "Slobodni dan":
                                         razlika = stari_broj - novi_broj
-                                        supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + razlika}).eq("id", original_row["korisnik_id"]).execute(headers=auth_headers)
+                                        supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + razlika}).eq("id", original_row["korisnik_id"]).execute()
                                 else:
                                     if original_row["tip"] == "Godišnji odmor":
-                                        supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + stari_broj}).eq("id", original_row["korisnik_id"]).execute(headers=auth_headers)
+                                        supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
                                     elif original_row["tip"] == "Slobodni dan":
-                                        supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + stari_broj}).eq("id", original_row["korisnik_id"]).execute(headers=auth_headers)
+                                        supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
                                     if row["tip"] == "Godišnji odmor":
-                                        supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje - novi_broj}).eq("id", original_row["korisnik_id"]).execute(headers=auth_headers)
+                                        supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje - novi_broj}).eq("id", original_row["korisnik_id"]).execute()
                                     elif row["tip"] == "Slobodni dan":
-                                        supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih - novi_broj}).eq("id", original_row["korisnik_id"]).execute(headers=auth_headers)
+                                        supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih - novi_broj}).eq("id", original_row["korisnik_id"]).execute()
                     if to_delete:
                         for rec_id in to_delete:
-                            supabase.table("odmori").delete().eq("id", rec_id).execute(headers=auth_headers)
+                            supabase.table("odmori").delete().eq("id", rec_id).execute()
                     st.success("Izmjene spremljene! Saldo ažuriran.")
                     st.rerun()
             with col2:
@@ -528,11 +474,11 @@ if st.session_state.stranica == "godisnji":
         query = supabase.table("odmori").select("*, korisnici!inner(ime_prezime)")
         if tip_korisnika != "administrator":
             query = query.eq("korisnik_id", prijavljeni_korisnik_id)
-        df_odmori = pd.DataFrame(query.execute(headers=auth_headers).data or [])
+        df_odmori = pd.DataFrame(query.execute().data or [])
         if not df_odmori.empty:
             df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) else "Nepoznato")
             df_odmori = df_odmori.drop(columns=["korisnici"])
-            praznici_response = supabase.table("praznici").select("datum").execute(headers=auth_headers)
+            praznici_response = supabase.table("praznici").select("datum").execute()
             holidays = {datetime.fromisoformat(p["datum"]).date() for p in praznici_response.data or []}
             df_odmori["broj_dana"] = df_odmori.apply(lambda row: calculate_working_days(row["datum_od"], row["datum_do"], holidays), axis=1)
             summary = df_odmori.groupby("korisnik_ime").agg(
@@ -551,7 +497,7 @@ if st.session_state.stranica == "godisnji":
     try:
         odmori_response = supabase.table("odmori")\
             .select("*, korisnici!inner(ime_prezime)")\
-            .execute(headers=auth_headers)
+            .execute()
         df_odmori = pd.DataFrame(odmori_response.data or [])
         if not df_odmori.empty:
             df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) else "Nepoznato")
@@ -612,7 +558,7 @@ if st.session_state.stranica == "godisnji":
         st.error(f"Greška pri prikazu kalendara: {str(e)}")
 
 # ────────────────────────────────────────────────
-# KORISNICI – SAMO ZA ADMINA (ispravljeno sa headers=)
+# KORISNICI – SAMO ZA ADMINA (s kodskim ograničenjima za "ured")
 # ────────────────────────────────────────────────
 elif st.session_state.stranica == "korisnici":
     st.title("Administracija - Korisnici")
@@ -620,11 +566,9 @@ elif st.session_state.stranica == "korisnici":
     tip_korisnika = st.session_state.user.get("tip_korisnika", "nema uloge")
     trenutni_id = st.session_state.user.get("id")
 
-    auth_headers = get_auth_headers()
-
-    # 1. Dohvat svih korisnika (svi vide sve)
+    # Dohvat svih korisnika (svi vide sve ako RLS dozvoljava)
     try:
-        response = supabase.table("korisnici").select("*").execute(headers=auth_headers)
+        response = supabase.table("korisnici").select("*").execute()
         korisnici_data = response.data or []
     except Exception as e:
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
@@ -725,7 +669,7 @@ elif st.session_state.stranica == "korisnici":
                             "slobodni_dani": slobodni_dani
                         }
                         try:
-                            response = supabase.table("korisnici").insert(novi).execute(headers=auth_headers)
+                            response = supabase.table("korisnici").insert(novi).execute()
                             st.success(f"Korisnik dodan! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
                             st.session_state.novi_korisnik_form_shown = False
                             st.rerun()
@@ -796,7 +740,7 @@ elif st.session_state.stranica == "korisnici":
                                     update_data["skladišta"] = edit_skladišta
 
                             if update_data:
-                                supabase.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute(headers=auth_headers)
+                                supabase.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute()
                                 st.success("Promjene spremljene!")
                                 st.rerun()
                             else:
