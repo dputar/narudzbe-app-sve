@@ -48,9 +48,13 @@ if "korisnici_search" not in st.session_state:
 if "auth_token" not in st.session_state:
     st.session_state.auth_token = None
 
-# Callback za search
-def on_korisnici_search_change():
-    st.session_state.korisnici_search = st.session_state.korisnici_search_input
+# Funkcija za headers sa JWT tokenom (koristi se u svakom upitu)
+def get_auth_headers():
+    token = st.session_state.get('auth_token', '')
+    return {
+        "Authorization": f"Bearer {token}",
+        "apikey": SUPABASE_ANON_KEY
+    }
 
 # JWT generiranje
 def generate_supabase_jwt(user):
@@ -172,10 +176,7 @@ if st.session_state.stranica == "godisnji":
         2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
     }
 
-    auth_headers = {
-        "Authorization": f"Bearer {st.session_state.get('auth_token', '')}",
-        "apikey": SUPABASE_ANON_KEY
-    }
+    auth_headers = get_auth_headers()
 
     # Dohvat svih korisnika za admina
     try:
@@ -363,7 +364,7 @@ if st.session_state.stranica == "godisnji":
     # TABLICA UNOSA – FILTRIRANA ZA NE-ADMINA
     st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
     try:
-        auth_headers = get_auth_headers()  # JWT headers
+        auth_headers = get_auth_headers()
         query = supabase.table("odmori").select("*, korisnici!inner(ime_prezime)").order("datum_od", desc=True)
         if tip_korisnika != "administrator":
             query = query.eq("korisnik_id", prijavljeni_korisnik_id)
@@ -596,11 +597,7 @@ elif st.session_state.stranica == "korisnici":
     tip_korisnika = st.session_state.user.get("tip_korisnika", "nema uloge")
     trenutni_id = st.session_state.user.get("id")
 
-    # JWT headers za sve upite
-    auth_headers = {
-        "Authorization": f"Bearer {st.session_state.get('auth_token', '')}",
-        "apikey": SUPABASE_ANON_KEY
-    }
+    auth_headers = get_auth_headers()
 
     # 1. Dohvat svih korisnika (svi vide sve)
     try:
