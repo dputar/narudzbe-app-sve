@@ -103,8 +103,6 @@ def authenticate_user(username, password):
                 st.session_state.auth_token = token
                 supabase.postgrest.auth(token)  # postavi token za anon klijent
                 print("Prijava uspjela – bcrypt")
-		print("JWT token postavljen:", st.session_state.auth_token)
-		print("JWT duljina:", len(st.session_state.auth_token))
                 return user
         except ValueError:
             pass
