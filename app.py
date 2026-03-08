@@ -17,7 +17,7 @@ from pypdf import PdfReader, PdfWriter
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
-# Supabase konekcija – ANON KEY (JWT ne radi u tvojoj verziji biblioteke)
+# Supabase konekcija – ANON KEY
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
@@ -44,6 +44,32 @@ if "korisnici_search" not in st.session_state:
 # Callback za search
 def on_korisnici_search_change():
     st.session_state.korisnici_search = st.session_state.korisnici_search_input
+
+# Funkcija za računanje radnih dana (popravljena greška)
+def calculate_working_days(start_date_str, end_date_str, holidays=[]):
+    try:
+        start = datetime.fromisoformat(start_date_str).date()
+        end = datetime.fromisoformat(end_date_str).date()
+    except Exception:
+        return 0
+
+    if start > end:
+        return 0
+
+    count = 0
+    current = start
+    while current <= end:
+        if current.weekday() < 5 and current not in holidays:
+            count += 1
+        current += timedelta(days=1)
+
+    return count
+
+def find_next_working_day(start_date, holidays=[]):
+    current = start_date + timedelta(days=1)
+    while current.weekday() >= 5 or current in holidays:
+        current += timedelta(days=1)
+    return current
 
 # Funkcija za autentifikaciju (bez JWT-a – koristi anon key)
 def authenticate_user(username, password):
@@ -437,7 +463,7 @@ if st.session_state.stranica == "godisnji":
                             broj_dana = str(calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, [])))
                             datum_od = datetime.fromisoformat(original_row["datum_od"]).strftime("%d.%m.%Y.")
                             datum_do = datetime.fromisoformat(original_row["datum_do"]).strftime("%d.%m.%Y.")
-                            prvi_radni_dan = find_next_working_day(original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
+                            prvi_radni_dan = find_next_working_day(datetime.fromisoformat(original_row["datum_do"]).date(), holidays_dict.get(tekuca_godina, []))
                             datum_podnosenja = datetime.now(TZ).strftime("%d.%m.%Y.")
                             c.drawCentredString(width / 2 - 45*mm, height - 129*mm, ime_prezime)
                             c.drawCentredString(width / 2 - 5*mm, height - 144*mm, broj_dana)
