@@ -105,32 +105,20 @@ def authenticate_user(username, password):
         user = users[0]
         stored = user.get('lozinka', '').strip()
 
-        print("Spremljena lozinka iz baze (dužina):", len(stored))
-        print("Prvih 10 znakova spremljene lozinke:", stored[:10])
-
         # Provjera bcrypt hash-a
         try:
             if bcrypt.checkpw(password_clean.encode('utf-8'), stored.encode('utf-8')):
                 token = generate_supabase_jwt(user)
                 st.session_state.auth_token = token
-                supabase.headers.update({
-                    "Authorization": f"Bearer {token}",
-                    "apikey": SUPABASE_ANON_KEY
-                })
                 print("Prijava uspjela – bcrypt")
                 return user
-        except ValueError as ve:
-            print("Bcrypt greška:", str(ve))
+        except ValueError:
             pass
 
         # Fallback za plain lozinku
         if stored == password_clean:
             token = generate_supabase_jwt(user)
             st.session_state.auth_token = token
-            supabase.headers.update({
-                "Authorization": f"Bearer {token}",
-                "apikey": SUPABASE_ANON_KEY
-            })
             print("Prijava uspjela – plain")
             return user
 
@@ -141,10 +129,8 @@ def authenticate_user(username, password):
         st.error(f"Greška pri autentifikaciji: {str(e)}")
         print("Detaljna greška:", e)
         return None
-
     finally:
         print("=== DEBUG PRIJAVA END ===\n")
-
 
 
 
@@ -614,9 +600,6 @@ if st.session_state.stranica == "godisnji":
     except Exception as e:
         st.error(f"Greška pri prikazu kalendara: {str(e)}")
 
-# ────────────────────────────────────────────────
-# KORISNICI – SAMO ZA ADMINA (ispravljeno)
-# ────────────────────────────────────────────────
 elif st.session_state.stranica == "korisnici":
     st.title("Administracija - Korisnici")
 
@@ -658,10 +641,10 @@ elif st.session_state.stranica == "korisnici":
         elif df_display.empty:
             st.info("Još nema korisnika u bazi.")
         else:
-            # FIKSNI column_config – koristimo ispravna imena i format (bez DateTimeColumn greške)
+            # FIKSNI column_config – koristimo ispravna imena i format
             st.dataframe(
                 df_display,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 column_config={
                     "id": None,
