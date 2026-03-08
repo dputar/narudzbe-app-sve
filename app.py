@@ -68,6 +68,7 @@ def generate_supabase_jwt(user):
     return token
 
 # Funkcija za autentifikaciju + JWT postavljanje
+# Funkcija za autentifikaciju + JWT postavljanje
 def authenticate_user(username, password):
     try:
         username_clean = username.strip()
