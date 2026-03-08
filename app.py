@@ -14,7 +14,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.colors import black
 from pypdf import PdfReader, PdfWriter
-import jwt  # pip install pyjwt
+import jwt  # pip install pyjwt ako nemaš
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
@@ -26,7 +26,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 # JWT Secret – uzmi iz Supabase → Settings → API → JWT Settings → JWT Secret
 # ČUVAJ TAJNO! Ne commitaj u git!
-JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← PROMIJENI OVO OBAVEZNO!
+JWT_SECRET = "tvoj_jwt_secret_iz_supabase_dashboarda_ovdje"  # ← PROMIJENI OVO OBAVEZNO!
 
 TZ = ZoneInfo("Europe/Zagreb")
 
