@@ -45,7 +45,7 @@ if "korisnici_search" not in st.session_state:
 def on_korisnici_search_change():
     st.session_state.korisnici_search = st.session_state.korisnici_search_input
 
-# Funkcija za računanje radnih dana (popravljena greška)
+# Funkcija za računanje radnih dana
 def calculate_working_days(start_date_str, end_date_str, holidays=[]):
     try:
         start = datetime.fromisoformat(start_date_str).date()
@@ -65,13 +65,22 @@ def calculate_working_days(start_date_str, end_date_str, holidays=[]):
 
     return count
 
+# Funkcija za sljedeći radni dan
 def find_next_working_day(start_date, holidays=[]):
     current = start_date + timedelta(days=1)
     while current.weekday() >= 5 or current in holidays:
         current += timedelta(days=1)
     return current
 
-# Funkcija za autentifikaciju (bez JWT-a – koristi anon key)
+# Dohvat salda za korisnika
+def get_current_saldo(korisnik_id):
+    try:
+        user = supabase.table("korisnici").select("godisnji_dani,slobodni_dani").eq("id", korisnik_id).execute().data[0]
+        return user["godisnji_dani"], user["slobodni_dani"]
+    except:
+        return 0, 0
+
+# Funkcija za autentifikaciju (bez JWT-a)
 def authenticate_user(username, password):
     try:
         username_clean = username.strip()
