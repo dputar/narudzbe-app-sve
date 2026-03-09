@@ -10,9 +10,9 @@ import calendar
 import matplotlib.pyplot as plt
 import bcrypt
 from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import mm
-from reportlab.lib.colors import black
+from reportlab.pdfgen = canvas
+from reportlab.lib.units = mm
+from reportlab.lib.colors = black
 from pypdf import PdfReader, PdfWriter
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
@@ -22,6 +22,10 @@ SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+# Service role za admin akcije (da zaobiđe RLS)
+SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAzMzI5NywiZXhwIjoyMDg3NjA5Mjk3fQ.Gz683u3oZE5x_NoFeeRJA_VaSb0uf3G1aLUX1uE2CfA"  # Zamijeni sa stvarnim key-em iz dashboarda
+supabase_admin = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 TZ = ZoneInfo("Europe/Zagreb")
 
@@ -614,6 +618,33 @@ if st.session_state.stranica == "godisnji":
             st.info("Nema unosa za prikaz kalendara.")
     except Exception as e:
         st.error(f"Greška pri prikazu kalendara: {str(e)}")
+
+    # Log tablica
+    st.subheader("Log izmjena i brisanja")
+    try:
+        log_response = supabase.table("log_odmori")\
+            .select("*")\
+            .order("created_at", desc=True)\
+            .execute()
+        df_log = pd.DataFrame(log_response.data or [])
+        if not df_log.empty:
+            if 'old_data' in df_log.columns:
+                df_log['old_data'] = df_log['old_data'].apply(
+                    lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
+                )
+            if 'new_data' in df_log.columns:
+                df_log['new_data'] = df_log['new_data'].apply(
+                    lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
+                )
+            st.dataframe(
+                df_log[["action", "unio_korisnik", "old_data", "new_data", "created_at"]],
+                width="stretch",
+                hide_index=True
+            )
+        else:
+            st.info("Još nema log zapisa.")
+    except Exception as e:
+        st.error(f"Greška pri dohvaćanju loga: {str(e)}")
 
 # ────────────────────────────────────────────────
 # KORISNICI – SAMO ZA ADMINA (s kodskim ograničenjima za "ured")
