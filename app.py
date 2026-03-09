@@ -9,10 +9,6 @@ import json
 import calendar
 import matplotlib.pyplot as plt
 import bcrypt
-lozinka = "test123"  # zamijeni sa stvarnom lozinkom
-hashed = bcrypt.hashpw(lozinka.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-print(hashed)  # zalijepi ovo u polje lozinka u bazi
-
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
@@ -22,18 +18,15 @@ import jwt  # pip install pyjwt
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
-# Supabase konekcija – ANON KEY za aplikaciju
+# Supabase konekcija – ANON KEY + custom JWT
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-# Poseban klijent samo za login (service_role – puna prava)
-SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAzMzI5NywiZXhwIjoyMDg3NjA5Mjk3fQ.Gz683u3oZE5x_NoFeeRJA_VaSb0uf3G1aLUX1uE2CfA"
-supabase_login = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-
 # JWT Secret – uzmi iz Supabase → Settings → API → JWT Settings → JWT Secret
-JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← PROMIJENI OVO!
+# ČUVAJ TAJNO! Ne commitaj u git!
+JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← PROMIJENI OVO OBAVEZNO!
 
 TZ = ZoneInfo("Europe/Zagreb")
 
@@ -64,56 +57,46 @@ def generate_supabase_jwt(user):
     payload = {
         "sub": str(user["id"]),
         "korisničko_ime": user["korisničko_ime"],
-        #"tip_korisnika": user["tip_korisnika"],
-	"aud": "authenticated",
+        "aud": "authenticated",
         "role": "authenticated",
         "iat": int(time.time()),
         "exp": int(time.time()) + 3600 * 24 * 7,  # 7 dana
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
-# Funkcija za autentifikaciju – koristi service_role za provjeru
+# Funkcija za autentifikaciju + JWT postavljanje
 def authenticate_user(username, password):
     try:
-        username_clean = username.strip()
-        print("=== DEBUG PRIJAVA START ===")
-        print("Korisničko ime:", repr(username_clean))
-        print("Lozinka (dužina):", len(password))
-
-        # Koristi service_role za dohvat (pun pristup, bez RLS-a)
-        response = supabase_login.table("korisnici")\
+        response = supabase.table("korisnici")\
             .select("*")\
-            .eq("korisničko_ime", username_clean)\
+            .eq("korisničko_ime", username.strip())\
             .execute()
 
         users = response.data or []
-        print("Pronađeno korisnika:", len(users))
-        print("Sirovi rezultat:", users)
 
         if not users:
             st.error("Korisnik nije pronađen")
             return None
 
         user = users[0]
+
         stored = user.get('lozinka', '').strip()
 
         # Provjera bcrypt hash-a
         try:
-            if bcrypt.checkpw(password.encode('utf-8'), stored.encode('utf-8')):
+            if bcrypt.checkpw(password.strip().encode('utf-8'), stored.encode('utf-8')):
                 token = generate_supabase_jwt(user)
                 st.session_state.auth_token = token
-                supabase.postgrest.auth(token)  # postavi token za anon klijent
-                print("Prijava uspjela – bcrypt")
+                supabase.postgrest.auth(token)  # postavi token za buduće upite
                 return user
         except ValueError:
             pass
 
         # Fallback za plain lozinku
-        if stored == password:
+        if stored == password.strip():
             token = generate_supabase_jwt(user)
             st.session_state.auth_token = token
             supabase.postgrest.auth(token)
-            print("Prijava uspjela – plain")
             return user
 
         st.error("Lozinka se ne podudara")
@@ -121,10 +104,8 @@ def authenticate_user(username, password):
 
     except Exception as e:
         st.error(f"Greška pri autentifikaciji: {str(e)}")
-        print("Detaljna greška:", e)
         return None
-    finally:
-        print("=== DEBUG PRIJAVA END ===\n")
+
 # Login stranica
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav zahtjeva")
@@ -363,7 +344,7 @@ if st.session_state.stranica == "godisnji":
         st.session_state.form_reset = False
         st.rerun()
 
-    # TABLICA UNOSA – FILTRIRANA ZA NE-ADMINA
+# TABLICA UNOSA – FILTRIRANA ZA NE-ADMINA
     st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
     try:
         query = supabase.table("odmori").select("*, korisnici!inner(ime_prezime)").order("datum_od", desc=True)
@@ -391,6 +372,7 @@ if st.session_state.stranica == "godisnji":
                 num_rows="fixed",
                 key="odmori_editor"
             )
+
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Spremi izmjene i obriši označene"):
@@ -474,7 +456,8 @@ if st.session_state.stranica == "godisnji":
                             c.drawCentredString(width / 2 - 45*mm, height - 129*mm, ime_prezime)
                             c.drawCentredString(width / 2 - 5*mm, height - 144*mm, broj_dana)
                             c.drawCentredString(width / 2 - 4*mm, height - 164*mm, datum_od)
-                            c.drawCentredString(width / 2 + 44*mm, height - 184*mm, datum_do)
+                            c.drawCentredString(width / 2 - 60*mm, height - 184*mm, datum_do)
+                            c.drawCentredString(width / 2 + 44*mm, height - 184*mm, prvi_radni_dan)
                             c.drawCentredString(width / 2 - 60*mm, height - 211*mm, datum_podnosenja)
                             c.save()
                             overlay_buffer.seek(0)
@@ -495,6 +478,7 @@ if st.session_state.stranica == "godisnji":
                                 mime="application/pdf",
                                 key=f"pdf_download_{row['id']}"
                             )
+# ... (ostatak koda za spremanje izmjena, brisanje, PDF itd. ostaje isti)
         else:
             st.info("Još nema unosa.")
     except Exception as e:
@@ -599,7 +583,7 @@ elif st.session_state.stranica == "korisnici":
     tip_korisnika = st.session_state.user.get("tip_korisnika", "nema uloge")
     trenutni_id = st.session_state.user.get("id")
 
-    # 1. Dohvat svih korisnika (svi vide sve)
+    # Dohvat svih korisnika
     try:
         response = supabase.table("korisnici").select("*").execute()
         korisnici_data = response.data or []
@@ -607,13 +591,10 @@ elif st.session_state.stranica == "korisnici":
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
         korisnici_data = []
 
-    # 2. Search i prikaz tablice
+    # Search i prikaz tablice
     if korisnici_data:
         df = pd.DataFrame(korisnici_data)
-
-        # Maskiraj lozinku ako postoji
-        if "lozinka" in df.columns:
-            df["lozinka"] = "******"
+        df["lozinka"] = "******"
 
         search_term = st.text_input(
             "Pretraži po svim stupcima",
@@ -634,15 +615,14 @@ elif st.session_state.stranica == "korisnici":
         elif df_display.empty:
             st.info("Još nema korisnika u bazi.")
         else:
-            # FIKSNI column_config – koristimo ispravna imena i format (bez DateTimeColumn greške)
             st.dataframe(
                 df_display,
                 use_container_width=True,
                 hide_index=True,
                 column_config={
                     "id": None,
-                    "created_at": st.column_config.DateColumn("Kreiran", format="DD.MM.YYYY HH:mm"),
-                    "updated_at": st.column_config.DateColumn("Ažurirano", format="DD.MM.YYYY HH:mm"),
+                    "created_at": st.column_config.DateTimeColumn("Kreiran", format="DD.MM.YYYY HH:mm"),
+                    "updated_at": st.column_config.DateTimeColumn("Ažurirano", format="DD.MM.YYYY HH:mm"),
                     "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
                     "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
                     "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
@@ -655,13 +635,13 @@ elif st.session_state.stranica == "korisnici":
     else:
         st.info("Nema korisnika u bazi.")
 
-    # 3. Gumb za novog korisnika – SAMO ADMIN
+    # Gumb za novog korisnika – SAMO ADMIN
     if tip_korisnika == "administrator":
         if st.button("➕ Novi korisnik", type="primary"):
             st.session_state.novi_korisnik_form_shown = True
             st.rerun()
 
-    # 4. Forma za novog korisnika (samo admin)
+    # Forma za novog korisnika (samo admin)
     if st.session_state.get("novi_korisnik_form_shown", False) and tip_korisnika == "administrator":
         with st.form("novi_korisnik_form", clear_on_submit=False):
             st.markdown("**Novi korisnik**")
@@ -784,7 +764,7 @@ elif st.session_state.stranica == "korisnici":
                         if st.form_submit_button("Odustani", key=f"odust_{korisnik['id']}"):
                             st.rerun()
         else:
-            pass  # ne prikazuj expander za druge korisnike
+            pass
 
     # Dodatni gumbi – svi vide
     col_export, col_refresh = st.columns(2)
