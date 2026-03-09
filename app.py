@@ -243,7 +243,7 @@ if st.session_state.stranica == "godisnji":
         korisnik_ime = prijavljeni_korisnik_ime
         st.text_input("Korisnik", value=korisnik_ime, disabled=True)
 
-    # Dohvati saldo (poziva se svaki put kad se stranica učita ili reruna)
+# Dohvati saldo (poziva se svaki put kad se stranica učita ili reruna)
     preostalo_godisnje, preostalo_slobodnih = get_current_saldo(korisnik_id)
 
     st.markdown(f"**Preostalo godišnjih dana za {tekuca_godina} ({korisnik_ime}): {preostalo_godisnje}**")
