@@ -72,7 +72,7 @@ def find_next_working_day(start_date, holidays=[]):
         current += timedelta(days=1)
     return current
 
-# Dohvat salda za korisnika (popravljeno)
+# Dohvat salda za korisnika (popravljeno – vraća ažurirane vrijednosti)
 def get_current_saldo(korisnik_id):
     try:
         user = supabase.table("korisnici").select("godisnji_dani,slobodni_dani").eq("id", korisnik_id).execute().data
@@ -177,7 +177,7 @@ if st.sidebar.button("Odjavi se"):
     st.rerun()
 
 # ────────────────────────────────────────────────
-# GODIŠNJI ODMOR (s popravljenim saldom)
+# GODIŠNJI ODMOR (s popravljenim saldom i osvježavanjem)
 # ────────────────────────────────────────────────
 if st.session_state.stranica == "godisnji":
     st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -228,7 +228,7 @@ if st.session_state.stranica == "godisnji":
         korisnik_ime = prijavljeni_korisnik_ime
         st.text_input("Korisnik", value=korisnik_ime, disabled=True)
 
-    # Dohvati saldo
+    # Dohvati saldo (poziva se svaki put kad se stranica učita ili reruna)
     preostalo_godisnje, preostalo_slobodnih = get_current_saldo(korisnik_id)
 
     st.markdown(f"**Preostalo godišnjih dana za {tekuca_godina} ({korisnik_ime}): {preostalo_godisnje}**")
@@ -258,6 +258,7 @@ if st.session_state.stranica == "godisnji":
                 st.error(f"Premašuješ preostale slobodne dane! Preostalo: {preostalo_slobodnih}")
             else:
                 try:
+                    # Provjera preklapanja
                     odmori_response = supabase.table("odmori").select("*").execute()
                     df_odmori = pd.DataFrame(odmori_response.data or [])
                     preklapanja = 0
@@ -295,6 +296,7 @@ if st.session_state.stranica == "godisnji":
                             "created_at": datetime.now(TZ).isoformat()
                         }
                         supabase.table("odmori").insert(novi).execute()
+                        # Osvježi saldo nakon inserta
                         preostalo_godisnje, preostalo_slobodnih = get_current_saldo(korisnik_id)
                         if tip_odmora == "Godišnji odmor":
                             novi_saldo = preostalo_godisnje - broj_dana
@@ -307,7 +309,7 @@ if st.session_state.stranica == "godisnji":
                         st.session_state.form_reset = True
                         st.rerun()
                 except Exception as e:
-                    st.error(f"Greška: {str(e)}")
+                    st.error(f"Greška pri dodavanju unosa: {str(e)}")
 
     # Potvrda preklapanja
     if st.session_state.temp_odmor:
@@ -605,7 +607,7 @@ if st.session_state.stranica == "godisnji":
         st.error(f"Greška pri prikazu kalendara: {str(e)}")
 
 # ────────────────────────────────────────────────
-# KORISNICI – SAMO ZA ADMINA (s kodskim ograničenjima za "ured")
+# KORISNICI – SAMO ZA ADMINA (popravljeno spremanje lozinke)
 # ────────────────────────────────────────────────
 elif st.session_state.stranica == "korisnici":
     st.title("Administracija - Korisnici")
@@ -613,7 +615,7 @@ elif st.session_state.stranica == "korisnici":
     tip_korisnika = st.session_state.user.get("tip_korisnika", "nema uloge")
     trenutni_id = st.session_state.user.get("id")
 
-    # Dohvat svih korisnika (svi vide sve ako RLS dozvoljava)
+    # Dohvat svih korisnika
     try:
         response = supabase.table("korisnici").select("*").execute()
         korisnici_data = response.data or []
@@ -621,14 +623,11 @@ elif st.session_state.stranica == "korisnici":
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
         korisnici_data = []
 
-    # 2. Search i prikaz tablice
+    # Prikaz tablice
     if korisnici_data:
         df = pd.DataFrame(korisnici_data)
-
-        # Maskiraj lozinku ako postoji
         if "lozinka" in df.columns:
             df["lozinka"] = "******"
-
         search_term = st.text_input(
             "Pretraži po svim stupcima",
             value=st.session_state.get("korisnici_search", ""),
@@ -636,13 +635,11 @@ elif st.session_state.stranica == "korisnici":
             placeholder="upiši korisničko ime, ime i prezime, tip...",
             on_change=on_korisnici_search_change
         )
-
         df_display = df.copy()
         if search_term:
             search_term = str(search_term).strip().lower()
             mask = df_display.astype(str).apply(lambda x: x.str.lower().str.contains(search_term), axis=1).any(axis=1)
             df_display = df_display[mask]
-
         if df_display.empty and search_term:
             st.info("Ništa nije pronađeno.")
         elif df_display.empty:
@@ -668,13 +665,13 @@ elif st.session_state.stranica == "korisnici":
     else:
         st.info("Nema korisnika u bazi.")
 
-    # 3. Gumb za novog korisnika – SAMO ADMIN
+    # Gumb za novog korisnika – SAMO ADMIN
     if tip_korisnika == "administrator":
         if st.button("➕ Novi korisnik", type="primary"):
             st.session_state.novi_korisnik_form_shown = True
             st.rerun()
 
-    # 4. Forma za novog korisnika (samo admin)
+    # Forma za novog korisnika (samo admin)
     if st.session_state.get("novi_korisnik_form_shown", False) and tip_korisnika == "administrator":
         with st.form("novi_korisnik_form", clear_on_submit=False):
             st.markdown("**Novi korisnik**")
@@ -770,7 +767,8 @@ elif st.session_state.stranica == "korisnici":
                             update_data = {}
 
                             if edit_lozinka:
-                                update_data["lozinka"] = bcrypt.hashpw(edit_lozinka.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                                hashed_new = bcrypt.hashpw(edit_lozinka.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                                update_data["lozinka"] = hashed_new
 
                             if is_admin:
                                 update_data.update({
@@ -787,7 +785,7 @@ elif st.session_state.stranica == "korisnici":
                                     update_data["skladišta"] = edit_skladišta
 
                             if update_data:
-                                response = supabase.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute()
+                                supabase.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute()
                                 st.success("Promjene spremljene! (nova lozinka je ažurirana ako je unesena)")
                                 st.rerun()
                             else:
