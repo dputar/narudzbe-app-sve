@@ -72,11 +72,13 @@ def find_next_working_day(start_date, holidays=[]):
         current += timedelta(days=1)
     return current
 
-# Dohvat salda za korisnika
+# Dohvat salda za korisnika (popravljeno)
 def get_current_saldo(korisnik_id):
     try:
-        user = supabase.table("korisnici").select("godisnji_dani,slobodni_dani").eq("id", korisnik_id).execute().data[0]
-        return user["godisnji_dani"], user["slobodni_dani"]
+        user = supabase.table("korisnici").select("godisnji_dani,slobodni_dani").eq("id", korisnik_id).execute().data
+        if user:
+            return user[0]["godisnji_dani"] or 0, user[0]["slobodni_dani"] or 0
+        return 0, 0
     except Exception as e:
         print("Greška pri dohvaćanju salda:", str(e))
         return 0, 0
@@ -175,7 +177,7 @@ if st.sidebar.button("Odjavi se"):
     st.rerun()
 
 # ────────────────────────────────────────────────
-# GODIŠNJI ODMOR
+# GODIŠNJI ODMOR (s popravljenim saldom)
 # ────────────────────────────────────────────────
 if st.session_state.stranica == "godisnji":
     st.title("🏖️ Godišnji odmor i slobodni dani")
@@ -297,10 +299,11 @@ if st.session_state.stranica == "godisnji":
                         if tip_odmora == "Godišnji odmor":
                             novi_saldo = preostalo_godisnje - broj_dana
                             supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
+                            st.success(f"Unos dodan! Novi saldo godišnjih dana: {novi_saldo}")
                         elif tip_odmora == "Slobodni dan":
                             novi_slobodni = preostalo_slobodnih - broj_dana
                             supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
-                        st.success("Unos dodan!")
+                            st.success(f"Unos dodan! Novi saldo slobodnih dana: {novi_slobodni}")
                         st.session_state.form_reset = True
                         st.rerun()
                 except Exception as e:
@@ -344,10 +347,11 @@ if st.session_state.stranica == "godisnji":
                 if st.session_state.temp_odmor["tip"] == "Godišnji odmor":
                     novi_saldo = preostalo_godisnje - broj_dana
                     supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
+                    st.success(f"Unos dodan! Novi saldo godišnjih dana: {novi_saldo}")
                 elif st.session_state.temp_odmor["tip"] == "Slobodni dan":
                     novi_slobodni = preostalo_slobodnih - broj_dana
                     supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
-                st.success("Unos dodan sa preklapanjem!")
+                    st.success(f"Unos dodan! Novi saldo slobodnih dana: {novi_slobodni}")
                 st.session_state.temp_odmor = None
                 st.session_state.form_reset = True
                 st.rerun()
@@ -408,9 +412,13 @@ if st.session_state.stranica == "godisnji":
                             broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                             preostalo_godisnje, preostalo_slobodnih = get_current_saldo(original_row["korisnik_id"])
                             if original_row["tip"] == "Godišnji odmor":
-                                supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + broj_dana}).eq("id", original_row["korisnik_id"]).execute()
+                                novi_saldo = preostalo_godisnje + broj_dana
+                                supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
+                                st.success(f"Unos obrisan! Saldo godišnjih dana povećan za {broj_dana} (novi saldo: {novi_saldo})")
                             elif original_row["tip"] == "Slobodni dan":
-                                supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + broj_dana}).eq("id", original_row["korisnik_id"]).execute()
+                                novi_slobodni = preostalo_slobodnih + broj_dana
+                                supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+                                st.success(f"Unos obrisan! Saldo slobodnih dana povećan za {broj_dana} (novi saldo: {novi_slobodni})")
                             continue
                         changed_fields = {}
                         for field in ["datum_od", "datum_do", "tip", "napomena"]:
@@ -433,19 +441,27 @@ if st.session_state.stranica == "godisnji":
                                 if original_row["tip"] == row["tip"]:
                                     if original_row["tip"] == "Godišnji odmor":
                                         razlika = stari_broj - novi_broj
-                                        supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + razlika}).eq("id", original_row["korisnik_id"]).execute()
+                                        novi_saldo = preostalo_godisnje + razlika
+                                        supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
+                                        st.success(f"Izmjene spremljene! Saldo godišnjih dana promijenjen za {razlika} (novi saldo: {novi_saldo})")
                                     elif original_row["tip"] == "Slobodni dan":
                                         razlika = stari_broj - novi_broj
-                                        supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + razlika}).eq("id", original_row["korisnik_id"]).execute()
+                                        novi_slobodni = preostalo_slobodnih + razlika
+                                        supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+                                        st.success(f"Izmjene spremljene! Saldo slobodnih dana promijenjen za {razlika} (novi saldo: {novi_slobodni})")
                                 else:
                                     if original_row["tip"] == "Godišnji odmor":
                                         supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
                                     elif original_row["tip"] == "Slobodni dan":
                                         supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
                                     if row["tip"] == "Godišnji odmor":
-                                        supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje - novi_broj}).eq("id", original_row["korisnik_id"]).execute()
+                                        novi_saldo = preostalo_godisnje - novi_broj
+                                        supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
+                                        st.success(f"Izmjene spremljene! Saldo godišnjih dana promijenjen (novi saldo: {novi_saldo})")
                                     elif row["tip"] == "Slobodni dan":
-                                        supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih - novi_broj}).eq("id", original_row["korisnik_id"]).execute()
+                                        novi_slobodni = preostalo_slobodnih - novi_broj
+                                        supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+                                        st.success(f"Izmjene spremljene! Saldo slobodnih dana promijenjen (novi saldo: {novi_slobodni})")
                     if to_delete:
                         for rec_id in to_delete:
                             supabase.table("odmori").delete().eq("id", rec_id).execute()
@@ -771,7 +787,7 @@ elif st.session_state.stranica == "korisnici":
                                     update_data["skladišta"] = edit_skladišta
 
                             if update_data:
-                                supabase.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute()
+                                response = supabase.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute()
                                 st.success("Promjene spremljene! (nova lozinka je ažurirana ako je unesena)")
                                 st.rerun()
                             else:
