@@ -9,19 +9,31 @@ import json
 import calendar
 import matplotlib.pyplot as plt
 import bcrypt
+lozinka = "test123"  # zamijeni sa stvarnom lozinkom
+hashed = bcrypt.hashpw(lozinka.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+print(hashed)  # zalijepi ovo u polje lozinka u bazi
+
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.colors import black
 from pypdf import PdfReader, PdfWriter
+import jwt  # pip install pyjwt
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
-# Supabase konekcija – ANON KEY
+# Supabase konekcija – ANON KEY za aplikaciju
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+# Poseban klijent samo za login (service_role – puna prava)
+SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAzMzI5NywiZXhwIjoyMDg3NjA5Mjk3fQ.Gz683u3oZE5x_NoFeeRJA_VaSb0uf3G1aLUX1uE2CfA"
+supabase_login = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+# JWT Secret – uzmi iz Supabase → Settings → API → JWT Settings → JWT Secret
+JWT_SECRET = "DFkaWx71VHcD2oG7UbazOTF7pXBlGl98cMj2hDlmp1VZq0GruEntV6JWjbDz+UaGJcQW5Ol992pYjQ/kUIbcgw=="  # ← PROMIJENI OVO!
 
 TZ = ZoneInfo("Europe/Zagreb")
 
@@ -40,48 +52,36 @@ if "novi_korisnik_form_shown" not in st.session_state:
     st.session_state.novi_korisnik_form_shown = False
 if "korisnici_search" not in st.session_state:
     st.session_state.korisnici_search = ""
+if "auth_token" not in st.session_state:
+    st.session_state.auth_token = None
 
 # Callback za search
 def on_korisnici_search_change():
     st.session_state.korisnici_search = st.session_state.korisnici_search_input
 
-# Funkcija za računanje radnih dana (popravljena greška)
-def calculate_working_days(start_date_str, end_date_str, holidays=[]):
-    try:
-        start = datetime.fromisoformat(start_date_str).date()
-        end = datetime.fromisoformat(end_date_str).date()
-    except Exception:
-        return 0
+# JWT generiranje
+def generate_supabase_jwt(user):
+    payload = {
+        "sub": str(user["id"]),
+        "korisničko_ime": user["korisničko_ime"],
+        #"tip_korisnika": user["tip_korisnika"],
+	"aud": "authenticated",
+        "role": "authenticated",
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 3600 * 24 * 7,  # 7 dana
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
-    if start > end:
-        return 0
-
-    count = 0
-    current = start
-    while current <= end:
-        if current.weekday() < 5 and current not in holidays:
-            count += 1
-        current += timedelta(days=1)
-
-    return count
-
-def find_next_working_day(start_date, holidays=[]):
-    current = start_date + timedelta(days=1)
-    while current.weekday() >= 5 or current in holidays:
-        current += timedelta(days=1)
-    return current
-
-# Funkcija za autentifikaciju (bez JWT-a – koristi anon key)
+# Funkcija za autentifikaciju – koristi service_role za provjeru
 def authenticate_user(username, password):
     try:
         username_clean = username.strip()
-        password_clean = password.strip()
-
         print("=== DEBUG PRIJAVA START ===")
         print("Korisničko ime:", repr(username_clean))
-        print("Lozinka (dužina):", len(password_clean))
+        print("Lozinka (dužina):", len(password))
 
-        response = supabase.table("korisnici")\
+        # Koristi service_role za dohvat (pun pristup, bez RLS-a)
+        response = supabase_login.table("korisnici")\
             .select("*")\
             .eq("korisničko_ime", username_clean)\
             .execute()
@@ -99,14 +99,20 @@ def authenticate_user(username, password):
 
         # Provjera bcrypt hash-a
         try:
-            if bcrypt.checkpw(password_clean.encode('utf-8'), stored.encode('utf-8')):
+            if bcrypt.checkpw(password.encode('utf-8'), stored.encode('utf-8')):
+                token = generate_supabase_jwt(user)
+                st.session_state.auth_token = token
+                supabase.postgrest.auth(token)  # postavi token za anon klijent
                 print("Prijava uspjela – bcrypt")
                 return user
         except ValueError:
             pass
 
         # Fallback za plain lozinku
-        if stored == password_clean:
+        if stored == password:
+            token = generate_supabase_jwt(user)
+            st.session_state.auth_token = token
+            supabase.postgrest.auth(token)
             print("Prijava uspjela – plain")
             return user
 
@@ -119,7 +125,6 @@ def authenticate_user(username, password):
         return None
     finally:
         print("=== DEBUG PRIJAVA END ===\n")
-
 # Login stranica
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav zahtjeva")
@@ -165,13 +170,14 @@ if st.sidebar.button("Odjavi se"):
     st.rerun()
 
 # ────────────────────────────────────────────────
-# GODIŠNJI ODMOR
+# GODIŠNJI ODMOR (ispravljeno bez .single())
 # ────────────────────────────────────────────────
 if st.session_state.stranica == "godisnji":
     st.title("🏖️ Godišnji odmor i slobodni dani")
 
     holidays_dict = {
         2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
+        # Dodaj ostale godine po potrebi
     }
 
     # Dohvat svih korisnika za admina
@@ -183,7 +189,7 @@ if st.session_state.stranica == "godisnji":
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
         korisnik_options = {}
 
-    # Dohvat trenutnog korisnika
+    # Dohvat trenutnog korisnika – bez .single()
     try:
         user_response = supabase.table("korisnici")\
             .select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini")\
@@ -194,7 +200,7 @@ if st.session_state.stranica == "godisnji":
             user_data = user_response.data[0]
         else:
             user_data = None
-            st.warning("Nije pronađen tvoj profil u tablici korisnici.")
+            st.warning("Nije pronađen tvoj profil u tablici korisnici. Neki podaci neće biti prikazani.")
     except Exception as e:
         user_data = None
         st.error(f"Greška pri dohvaćanju podataka korisnika: {str(e)}")
@@ -381,7 +387,7 @@ if st.session_state.stranica == "godisnji":
                     "Izvezi PDF": st.column_config.CheckboxColumn("Izvezi PDF", default=False)
                 },
                 hide_index=True,
-                width="stretch",
+                use_container_width=True,
                 num_rows="fixed",
                 key="odmori_editor"
             )
@@ -463,7 +469,7 @@ if st.session_state.stranica == "godisnji":
                             broj_dana = str(calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, [])))
                             datum_od = datetime.fromisoformat(original_row["datum_od"]).strftime("%d.%m.%Y.")
                             datum_do = datetime.fromisoformat(original_row["datum_do"]).strftime("%d.%m.%Y.")
-                            prvi_radni_dan = find_next_working_day(datetime.fromisoformat(original_row["datum_do"]).date(), holidays_dict.get(tekuca_godina, []))
+                            prvi_radni_dan = find_next_working_day(original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                             datum_podnosenja = datetime.now(TZ).strftime("%d.%m.%Y.")
                             c.drawCentredString(width / 2 - 45*mm, height - 129*mm, ime_prezime)
                             c.drawCentredString(width / 2 - 5*mm, height - 144*mm, broj_dana)
@@ -511,7 +517,7 @@ if st.session_state.stranica == "godisnji":
                 ukupno_dana=("broj_dana", "sum"),
                 broj_unosa=("id", "count")
             ).reset_index()
-            st.dataframe(summary, width="stretch", hide_index=True)
+            st.dataframe(summary, use_container_width=True, hide_index=True)
             st.info("Napomena: Broj dana isključuje vikende i praznike/blagdane.")
         else:
             st.info("Nema podataka za pregled.")
@@ -521,6 +527,7 @@ if st.session_state.stranica == "godisnji":
     # Kalendar – SVI VIDE SVE UNOSE
     st.subheader("Kalendar preklapanja")
     try:
+        # Bez filtriranja – svi vide sve unose
         odmori_response = supabase.table("odmori")\
             .select("*, korisnici!inner(ime_prezime)")\
             .execute()
@@ -584,7 +591,7 @@ if st.session_state.stranica == "godisnji":
         st.error(f"Greška pri prikazu kalendara: {str(e)}")
 
 # ────────────────────────────────────────────────
-# KORISNICI – SAMO ZA ADMINA (s kodskim ograničenjima za "ured")
+# KORISNICI – SAMO ZA ADMINA (ispravljeno)
 # ────────────────────────────────────────────────
 elif st.session_state.stranica == "korisnici":
     st.title("Administracija - Korisnici")
@@ -592,7 +599,7 @@ elif st.session_state.stranica == "korisnici":
     tip_korisnika = st.session_state.user.get("tip_korisnika", "nema uloge")
     trenutni_id = st.session_state.user.get("id")
 
-    # Dohvat svih korisnika (svi vide sve ako RLS dozvoljava)
+    # 1. Dohvat svih korisnika (svi vide sve)
     try:
         response = supabase.table("korisnici").select("*").execute()
         korisnici_data = response.data or []
@@ -627,9 +634,10 @@ elif st.session_state.stranica == "korisnici":
         elif df_display.empty:
             st.info("Još nema korisnika u bazi.")
         else:
+            # FIKSNI column_config – koristimo ispravna imena i format (bez DateTimeColumn greške)
             st.dataframe(
                 df_display,
-                width="stretch",
+                use_container_width=True,
                 hide_index=True,
                 column_config={
                     "id": None,
@@ -776,7 +784,7 @@ elif st.session_state.stranica == "korisnici":
                         if st.form_submit_button("Odustani", key=f"odust_{korisnik['id']}"):
                             st.rerun()
         else:
-            pass
+            pass  # ne prikazuj expander za druge korisnike
 
     # Dodatni gumbi – svi vide
     col_export, col_refresh = st.columns(2)
