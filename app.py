@@ -72,7 +72,7 @@ def find_next_working_day(start_date, holidays=[]):
         current += timedelta(days=1)
     return current
 
-# Dohvat salda za korisnika (popravljeno – vraća ažuririrane vrijednosti)
+# Dohvat salda za korisnika
 def get_current_saldo(korisnik_id):
     try:
         user = supabase.table("korisnici").select("godisnji_dani,slobodni_dani").eq("id", korisnik_id).execute().data
