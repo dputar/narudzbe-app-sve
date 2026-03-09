@@ -295,21 +295,25 @@ if st.session_state.stranica == "godisnji":
                             "unio_korisnik": st.session_state.user.get("korisničko_ime", "Nepoznato"),
                             "created_at": datetime.now(TZ).isoformat()
                         }
-                        supabase.table("odmori").insert(novi).execute()
-                        # Osvježi saldo nakon inserta
-                        preostalo_godisnje, preostalo_slobodnih = get_current_saldo(korisnik_id)
-                        if tip_odmora == "Godišnji odmor":
-                            novi_saldo = preostalo_godisnje - broj_dana
-                            supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
-                            st.success(f"Unos dodan! Novi saldo godišnjih dana: {novi_saldo}")
-                        elif tip_odmora == "Slobodni dan":
-                            novi_slobodni = preostalo_slobodnih - broj_dana
-                            supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
-                            st.success(f"Unos dodan! Novi saldo slobodnih dana: {novi_slobodni}")
-                        st.session_state.form_reset = True
-                        st.rerun()
+                        insert_response = supabase.table("odmori").insert(novi).execute()
+                        if insert_response.data:
+                            st.success("Unos dodan!")
+                            # Ažuriraj saldo
+                            preostalo_godisnje, preostalo_slobodnih = get_current_saldo(korisnik_id)
+                            if tip_odmora == "Godišnji odmor":
+                                novi_saldo = preostalo_godisnje - broj_dana
+                                supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
+                                st.success(f"Novi saldo godišnjih dana: {novi_saldo}")
+                            elif tip_odmora == "Slobodni dan":
+                                novi_slobodni = preostalo_slobodnih - broj_dana
+                                supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
+                                st.success(f"Novi saldo slobodnih dana: {novi_slobodni}")
+                            st.session_state.form_reset = True
+                            st.rerun()
+                        else:
+                            st.error("Greška pri dodavanju unosa!")
                 except Exception as e:
-                    st.error(f"Greška pri dodavanju unosa: {str(e)}")
+                    st.error(f"Greška: {str(e)}")
 
     # Potvrda preklapanja
     if st.session_state.temp_odmor:
@@ -343,20 +347,25 @@ if st.session_state.stranica == "godisnji":
                     "unio_korisnik": st.session_state.temp_odmor["unio_korisnik"],
                     "created_at": datetime.now(TZ).isoformat()
                 }
-                supabase.table("odmori").insert(novi).execute()
-                broj_dana = st.session_state.temp_odmor["broj_dana"]
-                preostalo_godisnje, preostalo_slobodnih = get_current_saldo(korisnik_id)
-                if st.session_state.temp_odmor["tip"] == "Godišnji odmor":
-                    novi_saldo = preostalo_godisnje - broj_dana
-                    supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", korisnik_id).execute()
-                    st.success(f"Unos dodan! Novi saldo godišnjih dana: {novi_saldo}")
-                elif st.session_state.temp_odmor["tip"] == "Slobodni dan":
-                    novi_slobodni = preostalo_slobodnih - broj_dana
-                    supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", korisnik_id).execute()
-                    st.success(f"Unos dodan! Novi saldo slobodnih dana: {novi_slobodni}")
-                st.session_state.temp_odmor = None
-                st.session_state.form_reset = True
-                st.rerun()
+                insert_response = supabase.table("odmori").insert(novi).execute()
+                if insert_response.data:
+                    st.success("Unos dodan!")
+                    # Ažuriraj saldo
+                    broj_dana = st.session_state.temp_odmor["broj_dana"]
+                    preostalo_godisnje, preostalo_slobodnih = get_current_saldo(st.session_state.temp_odmor["korisnik_id"])
+                    if st.session_state.temp_odmor["tip"] == "Godišnji odmor":
+                        novi_saldo = preostalo_godisnje - broj_dana
+                        supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", st.session_state.temp_odmor["korisnik_id"]).execute()
+                        st.success(f"Novi saldo godišnjih dana: {novi_saldo}")
+                    elif st.session_state.temp_odmor["tip"] == "Slobodni dan":
+                        novi_slobodni = preostalo_slobodnih - broj_dana
+                        supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", st.session_state.temp_odmor["korisnik_id"]).execute()
+                        st.success(f"Novi saldo slobodnih dana: {novi_slobodni}")
+                    st.session_state.temp_odmor = None
+                    st.session_state.form_reset = True
+                    st.rerun()
+                else:
+                    st.error("Greška pri dodavanju unosa!")
             if col2.button("Odustani"):
                 st.session_state.temp_odmor = None
                 st.session_state.form_reset = True
@@ -558,7 +567,7 @@ if st.session_state.stranica == "godisnji":
             month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1,
                                         format_func=lambda m: calendar.month_name[m], key="kal_mj")
             cal = calendar.monthcalendar(year, month)
-            fig, ax = plt.subplots(figsize=(12, 8))
+            fig, ax = plt.subplots(figsize=(12, 8)
             ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)
             ax.axis('off')
             days = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
@@ -607,7 +616,7 @@ if st.session_state.stranica == "godisnji":
         st.error(f"Greška pri prikazu kalendara: {str(e)}")
 
 # ────────────────────────────────────────────────
-# KORISNICI – SAMO ZA ADMINA (popravljeno spremanje lozinke)
+# KORISNICI – SAMO ZA ADMINA (s kodskim ograničenjima za "ured")
 # ────────────────────────────────────────────────
 elif st.session_state.stranica == "korisnici":
     st.title("Administracija - Korisnici")
@@ -767,8 +776,7 @@ elif st.session_state.stranica == "korisnici":
                             update_data = {}
 
                             if edit_lozinka:
-                                hashed_new = bcrypt.hashpw(edit_lozinka.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-                                update_data["lozinka"] = hashed_new
+                                update_data["lozinka"] = bcrypt.hashpw(edit_lozinka.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
                             if is_admin:
                                 update_data.update({
