@@ -77,7 +77,8 @@ def get_current_saldo(korisnik_id):
     try:
         user = supabase.table("korisnici").select("godisnji_dani,slobodni_dani").eq("id", korisnik_id).execute().data[0]
         return user["godisnji_dani"], user["slobodni_dani"]
-    except:
+    except Exception as e:
+        print("Greška pri dohvaćanju salda:", str(e))
         return 0, 0
 
 # Funkcija za autentifikaciju (bez JWT-a)
@@ -226,12 +227,7 @@ if st.session_state.stranica == "godisnji":
         st.text_input("Korisnik", value=korisnik_ime, disabled=True)
 
     # Dohvati saldo
-    if user_data:
-        preostalo_godisnje = user_data.get("godisnji_dani", 0)
-        preostalo_slobodnih = user_data.get("slobodni_dani", 0)
-    else:
-        preostalo_godisnje = 0
-        preostalo_slobodnih = 0
+    preostalo_godisnje, preostalo_slobodnih = get_current_saldo(korisnik_id)
 
     st.markdown(f"**Preostalo godišnjih dana za {tekuca_godina} ({korisnik_ime}): {preostalo_godisnje}**")
     st.markdown(f"**Preostalo slobodnih dana ({korisnik_ime}): {preostalo_slobodnih}**")
@@ -776,7 +772,7 @@ elif st.session_state.stranica == "korisnici":
 
                             if update_data:
                                 supabase.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute()
-                                st.success("Promjene spremljene!")
+                                st.success("Promjene spremljene! (nova lozinka je ažurirana ako je unesena)")
                                 st.rerun()
                             else:
                                 st.info("Nema promjena za spremiti.")
