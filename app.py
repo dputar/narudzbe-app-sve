@@ -631,6 +631,37 @@ if st.session_state.stranica == "godisnji":
         st.error(f"Greška pri prikazu kalendara: {str(e)}")
 
 # ────────────────────────────────────────────────
+# Log tablica (dodana nazad)
+# ────────────────────────────────────────────────
+    st.subheader("Log izmjena i brisanja")
+    try:
+        log_response = supabase.table("log_odmori")\
+            .select("*")\
+            .order("created_at", desc=True)\
+            .execute()
+        df_log = pd.DataFrame(log_response.data or [])
+        if not df_log.empty:
+            if 'old_data' in df_log.columns:
+                df_log['old_data'] = df_log['old_data'].apply(
+                    lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
+                )
+            if 'new_data' in df_log.columns:
+                df_log['new_data'] = df_log['new_data'].apply(
+                    lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
+                )
+            st.dataframe(
+                df_log[["action", "unio_korisnik", "old_data", "new_data", "created_at"]],
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("Još nema log zapisa.")
+    except Exception as e:
+        st.error(f"Greška pri dohvaćanju loga: {str(e)}")
+
+
+
+# ────────────────────────────────────────────────
 # KORISNICI – SAMO ZA ADMINA (s kodskim ograničenjima za "ured")
 # ────────────────────────────────────────────────
 elif st.session_state.stranica == "korisnici":
@@ -842,31 +873,3 @@ elif st.session_state.stranica == "korisnici":
         if st.button("🔄 Osvježi"):
             st.rerun()
 
-# ────────────────────────────────────────────────
-# Log tablica (dodana nazad)
-# ────────────────────────────────────────────────
-    st.subheader("Log izmjena i brisanja")
-    try:
-        log_response = supabase.table("log_odmori")\
-            .select("*")\
-            .order("created_at", desc=True)\
-            .execute()
-        df_log = pd.DataFrame(log_response.data or [])
-        if not df_log.empty:
-            if 'old_data' in df_log.columns:
-                df_log['old_data'] = df_log['old_data'].apply(
-                    lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
-                )
-            if 'new_data' in df_log.columns:
-                df_log['new_data'] = df_log['new_data'].apply(
-                    lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
-                )
-            st.dataframe(
-                df_log[["action", "unio_korisnik", "old_data", "new_data", "created_at"]],
-                use_container_width=True,
-                hide_index=True
-            )
-        else:
-            st.info("Još nema log zapisa.")
-    except Exception as e:
-        st.error(f"Greška pri dohvaćanju loga: {str(e)}")
