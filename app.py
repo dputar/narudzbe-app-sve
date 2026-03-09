@@ -72,7 +72,7 @@ def find_next_working_day(start_date, holidays=[]):
         current += timedelta(days=1)
     return current
 
-# Dohvat salda za korisnika (popravljeno – vraća ažurirane vrijednosti)
+# Dohvat salda za korisnika (popravljeno – vraća ažuririrane vrijednosti)
 def get_current_saldo(korisnik_id):
     try:
         user = supabase.table("korisnici").select("godisnji_dani,slobodni_dani").eq("id", korisnik_id).execute().data
@@ -567,7 +567,7 @@ if st.session_state.stranica == "godisnji":
             month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1,
                                         format_func=lambda m: calendar.month_name[m], key="kal_mj")
             cal = calendar.monthcalendar(year, month)
-            fig, ax = plt.subplots(figsize=(12, 8)
+            fig, ax = plt.subplots(figsize=(12, 8))
             ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)
             ax.axis('off')
             days = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
