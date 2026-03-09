@@ -184,21 +184,6 @@ if st.session_state.stranica == "godisnji":
 
     holidays_dict = {
         2026: [date(2026, 1, 1), date(2026, 1, 6), date(2026, 4, 5), date(2026, 4, 6), date(2026, 5, 1), date(2026, 5, 30), date(2026, 6, 22), date(2026, 8, 15), date(2026, 11, 1), date(2026, 11, 18), date(2026, 12, 25), date(2026, 12, 26)],
-        2027: [date(2027, 1, 1), date(2027, 1, 6), date(2027, 3, 28), date(2027, 3, 29), date(2027, 5, 1), date(2027, 5, 27), date(2027, 6, 22), date(2027, 8, 15), date(2027, 11, 1), date(2027, 11, 18), date(2027, 12, 25), date(2027, 12, 26)],
-        2028: [date(2028, 1, 1), date(2028, 1, 6), date(2028, 4, 16), date(2028, 4, 17), date(2028, 5, 1), date(2028, 5, 30), date(2028, 6, 22), date(2028, 8, 15), date(2028, 11, 1), date(2028, 11, 18), date(2028, 12, 25), date(2028, 12, 26)],
-        2029: [date(2029, 1, 1), date(2029, 1, 6), date(2029, 4, 1), date(2029, 4, 2), date(2029, 5, 1), date(2029, 5, 30), date(2029, 6, 22), date(2029, 8, 15), date(2029, 11, 1), date(2029, 11, 18), date(2029, 12, 25), date(2029, 12, 26)],
-        2030: [date(2030, 1, 1), date(2030, 1, 6), date(2030, 4, 21), date(2030, 4, 22), date(2030, 5, 1), date(2030, 5, 30), date(2030, 6, 22), date(2030, 8, 15), date(2030, 11, 1), date(2030, 11, 18), date(2030, 12, 25), date(2030, 12, 26)],
-        2031: [date(2031, 1, 1), date(2031, 1, 6), date(2031, 4, 13), date(2031, 4, 14), date(2031, 5, 1), date(2031, 5, 30), date(2031, 6, 22), date(2031, 8, 15), date(2031, 11, 1), date(2031, 11, 18), date(2031, 12, 25), date(2031, 12, 26)],
-        2032: [date(2032, 1, 1), date(2032, 1, 6), date(2032, 3, 28), date(2032, 3, 29), date(2032, 5, 1), date(2032, 5, 30), date(2032, 6, 22), date(2032, 8, 15), date(2032, 11, 1), date(2032, 11, 18), date(2032, 12, 25), date(2032, 12, 26)],
-        2033: [date(2033, 1, 1), date(2033, 1, 6), date(2033, 4, 17), date(2033, 4, 18), date(2033, 5, 1), date(2033, 5, 30), date(2033, 6, 22), date(2033, 8, 15), date(2033, 11, 1), date(2033, 11, 18), date(2033, 12, 25), date(2033, 12, 26)],
-        2034: [date(2034, 1, 1), date(2034, 1, 6), date(2034, 4, 9), date(2034, 4, 10), date(2034, 5, 1), date(2034, 5, 30), date(2034, 6, 22), date(2034, 8, 15), date(2034, 11, 1), date(2034, 11, 18), date(2034, 12, 25), date(2034, 12, 26)],
-        2035: [date(2035, 1, 1), date(2035, 1, 6), date(2035, 3, 25), date(2035, 3, 26), date(2035, 5, 1), date(2035, 5, 30), date(2035, 6, 22), date(2035, 8, 15), date(2035, 11, 1), date(2035, 11, 18), date(2035, 12, 25), date(2035, 12, 26)],
-        2036: [date(2036, 1, 1), date(2036, 1, 6), date(2036, 4, 13), date(2036, 4, 14), date(2036, 5, 1), date(2036, 5, 30), date(2036, 6, 22), date(2036, 8, 15), date(2036, 11, 1), date(2036, 11, 18), date(2036, 12, 25), date(2036, 12, 26)],
-        2037: [date(2037, 1, 1), date(2037, 1, 6), date(2037, 4, 5), date(2037, 4, 6), date(2037, 5, 1), date(2037, 5, 30), date(2037, 6, 22), date(2037, 8, 15), date(2037, 11, 1), date(2037, 11, 18), date(2037, 12, 25), date(2037, 12, 26)],
-        2038: [date(2038, 1, 1), date(2038, 1, 6), date(2038, 4, 25), date(2038, 4, 26), date(2038, 5, 1), date(2038, 5, 30), date(2038, 6, 22), date(2038, 8, 15), date(2038, 11, 1), date(2038, 11, 18), date(2038, 12, 25), date(2038, 12, 26)],
-        2039: [date(2039, 1, 1), date(2039, 1, 6), date(2039, 4, 10), date(2039, 4, 11), date(2039, 5, 1), date(2039, 5, 30), date(2039, 6, 22), date(2039, 8, 15), date(2039, 11, 1), date(2039, 11, 18), date(2039, 12, 25), date(2039, 12, 26)],
-        2040: [date(2040, 1, 1), date(2040, 1, 6), date(2040, 4, 1), date(2040, 4, 2), date(2040, 5, 1), date(2040, 5, 30), date(2040, 6, 22), date(2040, 8, 15), date(2040, 11, 1), date(2040, 11, 18), date(2040, 12, 25), date(2040, 12, 26)],
-        # Dodaj ostale godine po potrebi
     }
 
     # Dohvat svih korisnika za admina
@@ -243,7 +228,7 @@ if st.session_state.stranica == "godisnji":
         korisnik_ime = prijavljeni_korisnik_ime
         st.text_input("Korisnik", value=korisnik_ime, disabled=True)
 
-# Dohvati saldo (poziva se svaki put kad se stranica učita ili reruna)
+    # Dohvati saldo (poziva se svaki put kad se stranica učita ili reruna)
     preostalo_godisnje, preostalo_slobodnih = get_current_saldo(korisnik_id)
 
     st.markdown(f"**Preostalo godišnjih dana za {tekuca_godina} ({korisnik_ime}): {preostalo_godisnje}**")
@@ -392,21 +377,19 @@ if st.session_state.stranica == "godisnji":
         st.session_state.form_reset = False
         st.rerun()
 
-    # TABLICA + UREĐIVANJE (BALANS POPRAVLJEN)
-    st.subheader("Svi unosi (uređivanje, brisanje i PDF)")
+    # TABLICA UNOSA – FILTRIRANA ZA NE-ADMINA
+    st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
     try:
-        odmori_response = supabase.table("odmori")\
-            .select("*, korisnici!inner(ime_prezime)")\
-            .order("datum_od", desc=True)\
-            .execute()
+        query = supabase.table("odmori").select("*, korisnici!inner(ime_prezime)").order("datum_od", desc=True)
+        if tip_korisnika != "administrator":
+            query = query.eq("korisnik_id", prijavljeni_korisnik_id)
+        odmori_response = query.execute()
         df_odmori = pd.DataFrame(odmori_response.data or [])
         if not df_odmori.empty:
             df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) else "Nepoznato")
             df_odmori = df_odmori.drop(columns=["korisnici"])
             df_odmori["Obriši"] = False
             df_odmori["Izvezi PDF"] = False
-            if tip_korisnika != "administrator":
-                df_odmori = df_odmori[df_odmori["korisnik_id"] == prijavljeni_korisnik_id]
             edited_df = st.data_editor(
                 df_odmori[["id", "korisnik_ime", "datum_od", "datum_do", "tip", "napomena", "unio_korisnik", "created_at", "Obriši", "Izvezi PDF"]],
                 column_config={
@@ -414,11 +397,11 @@ if st.session_state.stranica == "godisnji":
                     "korisnik_ime": st.column_config.TextColumn("Korisnik", disabled=True),
                     "created_at": st.column_config.TextColumn("Kreirano", disabled=True),
                     "unio_korisnik": st.column_config.TextColumn("Unio", disabled=True),
-                    "Obriši": st.column_config.CheckboxColumn("Obriši"),
-                    "Izvezi PDF": st.column_config.CheckboxColumn("Izvezi PDF"),
+                    "Obriši": st.column_config.CheckboxColumn("Obriši", default=False),
+                    "Izvezi PDF": st.column_config.CheckboxColumn("Izvezi PDF", default=False)
                 },
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
                 num_rows="fixed",
                 key="odmori_editor"
             )
@@ -440,9 +423,13 @@ if st.session_state.stranica == "godisnji":
                             broj_dana = calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
                             preostalo_godisnje, preostalo_slobodnih = get_current_saldo(original_row["korisnik_id"])
                             if original_row["tip"] == "Godišnji odmor":
-                                supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + broj_dana}).eq("id", original_row["korisnik_id"]).execute()
+                                novi_saldo = preostalo_godisnje + broj_dana
+                                supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
+                                st.success(f"Unos obrisan! Saldo godišnjih dana povećan za {broj_dana} (novi saldo: {novi_saldo})")
                             elif original_row["tip"] == "Slobodni dan":
-                                supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + broj_dana}).eq("id", original_row["korisnik_id"]).execute()
+                                novi_slobodni = preostalo_slobodnih + broj_dana
+                                supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+                                st.success(f"Unos obrisan! Saldo slobodnih dana povećan za {broj_dana} (novi saldo: {novi_slobodni})")
                             continue
                         changed_fields = {}
                         for field in ["datum_od", "datum_do", "tip", "napomena"]:
@@ -465,19 +452,27 @@ if st.session_state.stranica == "godisnji":
                                 if original_row["tip"] == row["tip"]:
                                     if original_row["tip"] == "Godišnji odmor":
                                         razlika = stari_broj - novi_broj
-                                        supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + razlika}).eq("id", original_row["korisnik_id"]).execute()
+                                        novi_saldo = preostalo_godisnje + razlika
+                                        supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
+                                        st.success(f"Izmjene spremljene! Saldo godišnjih dana promijenjen za {razlika} (novi saldo: {novi_saldo})")
                                     elif original_row["tip"] == "Slobodni dan":
                                         razlika = stari_broj - novi_broj
-                                        supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + razlika}).eq("id", original_row["korisnik_id"]).execute()
+                                        novi_slobodni = preostalo_slobodnih + razlika
+                                        supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+                                        st.success(f"Izmjene spremljene! Saldo slobodnih dana promijenjen za {razlika} (novi saldo: {novi_slobodni})")
                                 else:
                                     if original_row["tip"] == "Godišnji odmor":
                                         supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
                                     elif original_row["tip"] == "Slobodni dan":
                                         supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
                                     if row["tip"] == "Godišnji odmor":
-                                        supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje - novi_broj}).eq("id", original_row["korisnik_id"]).execute()
+                                        novi_saldo = preostalo_godisnje - novi_broj
+                                        supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
+                                        st.success(f"Izmjene spremljene! Saldo godišnjih dana promijenjen (novi saldo: {novi_saldo})")
                                     elif row["tip"] == "Slobodni dan":
-                                        supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih - novi_broj}).eq("id", original_row["korisnik_id"]).execute()
+                                        novi_slobodni = preostalo_slobodnih - novi_broj
+                                        supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+                                        st.success(f"Izmjene spremljene! Saldo slobodnih dana promijenjen (novi saldo: {novi_slobodni})")
                     if to_delete:
                         for rec_id in to_delete:
                             supabase.table("odmori").delete().eq("id", rec_id).execute()
@@ -500,13 +495,12 @@ if st.session_state.stranica == "godisnji":
                             broj_dana = str(calculate_working_days(original_row["datum_od"], original_row["datum_do"], holidays_dict.get(tekuca_godina, [])))
                             datum_od = datetime.fromisoformat(original_row["datum_od"]).strftime("%d.%m.%Y.")
                             datum_do = datetime.fromisoformat(original_row["datum_do"]).strftime("%d.%m.%Y.")
-                            prvi_radni_dan = find_next_working_day(original_row["datum_do"], holidays_dict.get(tekuca_godina, []))
-                            datum_podnosenja = datetime.fromisoformat(original_row["created_at"]).strftime("%d.%m.%Y.")
+                            prvi_radni_dan = find_next_working_day(datetime.fromisoformat(original_row["datum_do"]).date(), holidays_dict.get(tekuca_godina, []))
+                            datum_podnosenja = datetime.now(TZ).strftime("%d.%m.%Y.")
                             c.drawCentredString(width / 2 - 45*mm, height - 129*mm, ime_prezime)
                             c.drawCentredString(width / 2 - 5*mm, height - 144*mm, broj_dana)
                             c.drawCentredString(width / 2 - 4*mm, height - 164*mm, datum_od)
-                            c.drawCentredString(width / 2 - 60*mm, height - 184*mm, datum_do)
-                            c.drawCentredString(width / 2 + 44*mm, height - 184*mm, prvi_radni_dan)
+                            c.drawCentredString(width / 2 + 44*mm, height - 184*mm, datum_do)
                             c.drawCentredString(width / 2 - 60*mm, height - 211*mm, datum_podnosenja)
                             c.save()
                             overlay_buffer.seek(0)
@@ -521,16 +515,16 @@ if st.session_state.stranica == "godisnji":
                             writer.write(output_buffer)
                             output_buffer.seek(0)
                             st.download_button(
-                                label=f"Preuzmi PDF za ID {row['id']}",
+                                label=f"Preuzmi PDF za unos ID {row['id']} ({original_row['tip']})",
                                 data=output_buffer,
-                                file_name=f"{original_row['tip']}_{row['id']}.pdf",
+                                file_name=f"{original_row['tip']}_{row['id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
                                 mime="application/pdf",
-                                key=f"pdf_{row['id']}"
+                                key=f"pdf_download_{row['id']}"
                             )
         else:
             st.info("Još nema unosa.")
     except Exception as e:
-        st.error(f"Greška pri dohvaćanju/uređivanju unosa: {str(e)}")
+        st.error(f"Greška pri dohvaćanju unosa: {str(e)}")
 
     # Pregled po korisniku – filtriran za ne-admina
     st.subheader("Pregled po korisniku")
@@ -556,23 +550,22 @@ if st.session_state.stranica == "godisnji":
     except Exception as e:
         st.error(f"Greška pri sumiranju: {str(e)}")
 
-    
-# Kalendar preklapanja
+    # Kalendar – SVI VIDE SVE UNOSE
     st.subheader("Kalendar preklapanja")
     try:
-        col_year, col_month = st.columns(2)
-        year = col_year.selectbox("Godina", range(2025, 2041), index=datetime.now().year - 2025, key="kal_god")
-        month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1,
-                                    format_func=lambda m: calendar.month_name[m], key="kal_mj")
         odmori_response = supabase.table("odmori")\
             .select("*, korisnici!inner(ime_prezime)")\
             .execute()
         df_odmori = pd.DataFrame(odmori_response.data or [])
         if not df_odmori.empty:
-            df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) and "ime_prezime" in x else "Nepoznato")
+            df_odmori["korisnik_ime"] = df_odmori["korisnici"].apply(lambda x: x["ime_prezime"] if isinstance(x, dict) else "Nepoznato")
             df_odmori = df_odmori.drop(columns=["korisnici"])
             unique_users = df_odmori["korisnik_ime"].unique()
             color_map = {user: plt.cm.tab10(i / len(unique_users)) for i, user in enumerate(unique_users)}
+            col_year, col_month = st.columns(2)
+            year = col_year.selectbox("Godina", range(2025, 2041), index=datetime.now().year - 2025, key="kal_god")
+            month = col_month.selectbox("Mjesec", range(1, 13), index=datetime.now().month - 1,
+                                        format_func=lambda m: calendar.month_name[m], key="kal_mj")
             cal = calendar.monthcalendar(year, month)
             fig, ax = plt.subplots(figsize=(12, 8))
             ax.set_title(f"{calendar.month_name[month]} {year}", fontsize=18, pad=35)
@@ -616,41 +609,11 @@ if st.session_state.stranica == "godisnji":
             buf = io.BytesIO()
             fig.savefig(buf, format="png", bbox_inches='tight', dpi=120)
             buf.seek(0)
-            st.image(buf, caption="Kalendar odsustava (crveno za preklapanja, boje po korisniku, imena ispod datuma)")
+            st.image(buf, caption="Kalendar odsustava (svi unosi vidljivi svima)")
         else:
             st.info("Nema unosa za prikaz kalendara.")
     except Exception as e:
         st.error(f"Greška pri prikazu kalendara: {str(e)}")
-
-
-
-
-# Log tablica
-    st.subheader("Log izmjena i brisanja")
-    try:
-        log_response = supabase.table("log_odmori")\
-            .select("*")\
-            .order("created_at", desc=True)\
-            .execute()
-        df_log = pd.DataFrame(log_response.data or [])
-        if not df_log.empty:
-            if 'old_data' in df_log.columns:
-                df_log['old_data'] = df_log['old_data'].apply(
-                    lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
-                )
-            if 'new_data' in df_log.columns:
-                df_log['new_data'] = df_log['new_data'].apply(
-                    lambda x: json.dumps(x, ensure_ascii=False, indent=2) if isinstance(x, (dict, list)) else str(x)
-                )
-            st.dataframe(
-                df_log[["action", "unio_korisnik", "old_data", "new_data", "created_at"]],
-                width="stretch",
-                hide_index=True
-            )
-        else:
-            st.info("Još nema log zapisa.")
-    except Exception as e:
-        st.error(f"Greška pri dohvaćanju loga: {str(e)}")
 
 # ────────────────────────────────────────────────
 # KORISNICI – SAMO ZA ADMINA (s kodskim ograničenjima za "ured")
