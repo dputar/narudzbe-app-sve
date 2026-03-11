@@ -190,10 +190,11 @@ if st.session_state.stranica == "godisnji":
         korisnik_options = {}
 
     # Dohvat trenutnog korisnika
+prijavljeni_korisnik_id = user_data["id"] if user_data and user_data.get("id") else None
     try:
         user_response = supabase.table("korisnici")\
             .select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini")\
-            .eq("auth_id", st.session_state.session.user.id if st.session_state.session else None)\
+            .eq("auth_id", st.session_state.session.user.id if st.session_state.session and st.session_state.session.user else None)\
             .execute()
         
         if user_response.data:
@@ -372,6 +373,7 @@ if st.session_state.stranica == "godisnji":
 
     # TABLICA UNOSA – FILTRIRANA ZA NE-ADMINA
     st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
+prijavljeni_korisnik_id = user_data["id"] if user_data and user_data.get("id") else None
     try:
         query = supabase.table("odmori").select("*, korisnici!inner(ime_prezime)").order("datum_od", desc=True)
         if tip_korisnika != "administrator":
@@ -523,6 +525,7 @@ if st.session_state.stranica == "godisnji":
 
     # Pregled po korisniku – filtriran za ne-admina
     st.subheader("Pregled po korisniku")
+prijavljeni_korisnik_id = user_data["id"] if user_data and user_data.get("id") else None
     try:
         query = supabase.table("odmori").select("*, korisnici!inner(ime_prezime)")
         if tip_korisnika != "administrator":
@@ -647,6 +650,7 @@ elif st.session_state.stranica == "korisnici":
     trenutni_id = st.session_state.user.get("id")
 
     # Dohvat svih korisnika
+
     try:
         response = supabase.table("korisnici").select("*").execute()
         korisnici_data = response.data or []
