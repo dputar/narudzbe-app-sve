@@ -748,8 +748,8 @@ elif st.session_state.stranica == "korisnici":
                     st.session_state.novi_korisnik_form_shown = False
                     st.rerun()
 
-    # Uređivanje postojećih korisnika – ograničeno po ulozi
-st.subheader("Uređivanje korisnika")
+# UREĐIVANJE KORISNIKA – GLAVNI POPRAVAK
+    st.subheader("Uređivanje korisnika")
 
     for korisnik in korisnici_data:
         is_admin = tip_korisnika == "administrator"
