@@ -824,12 +824,12 @@ elif st.session_state.stranica == "korisnici":
                                 if auth_id and str(auth_id).strip():  # provjera da nije None ili prazan
                                 # Update lozinke u Supabase Auth preko service role
                                 
-                                    supabase_admin.auth.admin.update_user_by_id(auth_id, {'password': edit_lozinka}
+                                    supabase_admin.auth.admin.update_user_by_id(auth_id {'password': edit_lozinka}
                                     st.success("Lozinka promijenjena!")
                                 else:
 
                                     st.warning("Ovaj korisnik nema povezan Auth račun. Lozinka se ne može promijeniti.")
-                                
+                                )
 
                             
 
