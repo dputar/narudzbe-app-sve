@@ -829,7 +829,7 @@ elif st.session_state.stranica == "korisnici":
                                 else:
 
                                     st.warning("Ovaj korisnik nema povezan Auth račun. Lozinka se ne može promijeniti.")
-                                )
+                                
 
                             
 
