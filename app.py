@@ -951,8 +951,7 @@ for korisnik in korisnici_data:
             with col_cancel:
                 if st.form_submit_button("Odustani", key=f"odust_{korisnik['id']}"):
                     st.rerun()
-        else:
-            pass
+
 
     # Dodatni gumbi – svi vide
     col_export, col_refresh = st.columns(2)
