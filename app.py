@@ -819,20 +819,23 @@ elif st.session_state.stranica == "korisnici":
                         if st.form_submit_button("Spremi promjene", key=f"spremi_{korisnik['id']}"):
                             update_data = {}
 
-                            if edit_lozinka:
-                                auth_id = korisnik.get('auth_id')
-                                if auth_id and str(auth_id).strip():  # provjera da nije None ili prazan
-                                # Update lozinke u Supabase Auth preko service role
-                                
-                                    supabase_admin.auth.admin.update_user_by_id(auth_id {'password': edit_lozinka}
-                                    st.success("Lozinka promijenjena!")
-                                else:
+# === POPRAVAK: Provjera auth_id prije update lozinke ===
+                        if edit_lozinka:
+                            auth_id = korisnik.get('auth_id')
+                            if auth_id and str(auth_id).strip() != "":
+                                try:
+                                    supabase_admin.auth.admin.update_user_by_id(
+                                        auth_id,
+                                        {'password': edit_lozinka}
+                                    )
+                                    st.success("Lozinka uspješno promijenjena u Auth sustavu!")
+                                except Exception as e:
+                                    st.error(f"Greška pri promjeni lozinke u Auth: {str(e)}")
+                            else:
+                                st.warning("Ovaj korisnik nema povezan Auth ID (stari korisnik). Lozinka se ne može promijeniti preko ovog sustava.")                            
 
-                                    st.warning("Ovaj korisnik nema povezan Auth račun. Lozinka se ne može promijeniti.")
+
                                 )
-
-                            
-
 
 
 
