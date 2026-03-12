@@ -9,96 +9,75 @@ import json
 import calendar
 import matplotlib.pyplot as plt
 import bcrypt
-import streamlit as st
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from reportlab.lib.colors import black
 from pypdf import PdfReader, PdfWriter
-from supabase import AuthApiError  # For error handling
+from supabase import AuthApiError
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+
 pdfmetrics.registerFont(TTFont('DejaVuSans', 'fonts/DejaVuSans.ttf'))
 
 st.set_page_config(page_title="Sustav zahtjeva", layout="wide")
 
-# Supabase konekcija – ANON KEY
+# Supabase konekcija
 SUPABASE_URL = "https://vwekjvazuexwoglxqrtg.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzMyOTcsImV4cCI6MjA4NzYwOTI5N30.59dWvEsXOE-IochSguKYSw_mDwFvEXHmHbCW7Gy_tto"
-
-supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
-
-# Service role ključ – za admin akcije (update lozinke u Auth, itd.)
 SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3ZWtqdmF6dWV4d29nbHhxcnRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAzMzI5NywiZXhwIjoyMDg3NjA5Mjk3fQ.Gz683u3oZE5x_NoFeeRJA_VaSb0uf3G1aLUX1uE2CfA"
 
+supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 supabase_admin = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 TZ = ZoneInfo("Europe/Zagreb")
 
-# Session state inicijalizacija
-if "session" not in st.session_state:
-    st.session_state.session = None
-if "user" not in st.session_state:
-    st.session_state.user = None
-if "stranica" not in st.session_state:
-    st.session_state.stranica = "login"
-if "temp_odmor" not in st.session_state:
-    st.session_state.temp_odmor = None
-if "form_reset" not in st.session_state:
-    st.session_state.form_reset = False
-if "edit_korisnik_id" not in st.session_state:
-    st.session_state.edit_korisnik_id = None
-if "novi_korisnik_form_shown" not in st.session_state:
-    st.session_state.novi_korisnik_form_shown = False
-if "korisnici_search" not in st.session_state:
-    st.session_state.korisnici_search = ""
+# Session state
+if "session" not in st.session_state: st.session_state.session = None
+if "user" not in st.session_state: st.session_state.user = None
+if "stranica" not in st.session_state: st.session_state.stranica = "login"
+if "temp_odmor" not in st.session_state: st.session_state.temp_odmor = None
+if "novi_korisnik_form_shown" not in st.session_state: st.session_state.novi_korisnik_form_shown = False
+if "korisnici_search" not in st.session_state: st.session_state.korisnici_search = ""
 
-# Callback za search
 def on_korisnici_search_change():
     st.session_state.korisnici_search = st.session_state.korisnici_search_input
 
-# Funkcija za računanje radnih dana
+# === FUNKCIJE ===
 def calculate_working_days(start_date_str, end_date_str, holidays=[]):
     try:
         start = datetime.fromisoformat(start_date_str).date()
         end = datetime.fromisoformat(end_date_str).date()
-    except Exception:
+        if start > end: return 0
+        count = 0
+        current = start
+        while current <= end:
+            if current.weekday() < 5 and current not in holidays:
+                count += 1
+            current += timedelta(days=1)
+        return count
+    except:
         return 0
 
-    if start > end:
-        return 0
-
-    count = 0
-    current = start
-    while current <= end:
-        if current.weekday() < 5 and current not in holidays:
-            count += 1
-        current += timedelta(days=1)
-
-    return count
-
-# Funkcija za sljedeći radni dan
 def find_next_working_day(start_date, holidays=[]):
     current = start_date + timedelta(days=1)
     while current.weekday() >= 5 or current in holidays:
         current += timedelta(days=1)
     return current
 
-# Dohvat salda za korisnika
 def get_current_saldo(korisnik_id):
     try:
         user = supabase.table("korisnici").select("godisnji_dani,slobodni_dani").eq("id", korisnik_id).execute().data
         if user:
-            return user[0]["godisnji_dani"] or 0, user[0]["slobodni_dani"] or 0
+            return user[0].get("godisnji_dani", 0) or 0, user[0].get("slobodni_dani", 0) or 0
         return 0, 0
-    except Exception as e:
-        print("Greška pri dohvaćanju salda:", str(e))
+    except:
         return 0, 0
 
-# Login stranica sa Supabase Auth
+# LOGIN
 if st.session_state.stranica == "login":
     st.title("Prijava u sustav zahtjeva")
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3 = st.columns([1,2,1])
     with col2:
         email = st.text_input("Email")
         password = st.text_input("Lozinka", type="password")
@@ -109,7 +88,6 @@ if st.session_state.stranica == "login":
                 try:
                     res = supabase.auth.sign_in_with_password({"email": email, "password": password})
                     st.session_state.session = res.session
-                    # Dohvati podatke iz tablice korisnici po auth_id = res.user.id
                     user_data = supabase.table("korisnici").select("*").eq("auth_id", res.user.id).execute().data
                     if user_data:
                         st.session_state.user = user_data[0]
@@ -118,26 +96,22 @@ if st.session_state.stranica == "login":
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("Korisnik nije pronađen u bazi korisnici. Kontaktiraj admina.")
+                        st.error("Korisnik nije pronađen u bazi.")
                 except Exception as e:
                     st.error(f"Greška pri prijavi: {str(e)}")
-   
     st.stop()
 
-# Postavi sesiju za authenticated upite
+# Postavi sesiju
 if st.session_state.session:
     try:
         supabase.auth.set_session(access_token=st.session_state.session.access_token, refresh_token=st.session_state.session.refresh_token)
     except AuthApiError:
         st.session_state.session = None
 
-# ────────────────────────────────────────────────
-# SIDEBAR – PRAVA PRISTUPA
-# ────────────────────────────────────────────────
+# SIDEBAR
 tip_korisnika = st.session_state.user.get("tip_korisnika", "korisnik") if st.session_state.user else None
 stranice = ["Godišnji odmor"]
-dozvoljene_za_korisnike = ["administrator", "ured"]
-if tip_korisnika in dozvoljene_za_korisnike:
+if tip_korisnika in ["administrator", "ured"]:
     stranice.append("Korisnici")
 
 st.sidebar.title(f"Dobro došli, {st.session_state.user.get('ime_prezime', 'Nepoznato') if st.session_state.user else 'Neprijavljen'}")
@@ -149,9 +123,7 @@ elif izbor == "Korisnici":
 
 if st.sidebar.button("Odjavi se"):
     supabase.auth.sign_out()
-    st.session_state.session = None
-    st.session_state.user = None
-    st.session_state.stranica = "login"
+    st.session_state.clear()
     st.rerun()
 
 # ────────────────────────────────────────────────
@@ -777,14 +749,14 @@ elif st.session_state.stranica == "korisnici":
                     st.rerun()
 
     # Uređivanje postojećih korisnika – ograničeno po ulozi
-    st.subheader("Uređivanje korisnika")
+st.subheader("Uređivanje korisnika")
 
     for korisnik in korisnici_data:
         is_admin = tip_korisnika == "administrator"
         is_own = korisnik["id"] == trenutni_id
 
         if is_admin or is_own:
-            with st.expander(f"Uređivanje korisnika: {korisnik['korisničko_ime']} ({korisnik['ime_prezime']})", expanded=is_own):
+            with st.expander(f"Uređivanje: {korisnik['korisničko_ime']} ({korisnik['ime_prezime']})", expanded=is_own):
                 with st.form(f"edit_form_{korisnik['id']}", clear_on_submit=False):
                     col1, col2 = st.columns(2)
                     with col1:
@@ -800,32 +772,24 @@ elif st.session_state.stranica == "korisnici":
                         if is_admin and korisnik["id"] != trenutni_id:
                             delete_user = st.checkbox("Obriši korisnika", value=False, key=f"delete_{korisnik['id']}")
 
-                        if is_admin:
-                            st.markdown("**Prava**")
-                            edit_prava = st.multiselect("Prava", [
-                                "NARUDŽBE - ADMINISTRATOR", "PROIZVODI - ADMINISTRATOR",
-                                "DOBAVLJAČI - ADMINISTRATOR", "KORISNICI - ADMINISTRATOR",
-                                "SKLADIŠTE - ADMINISTRATOR", "IZVJEŠTAJ - SVE", "IZVJEŠTAJ - PRODAJA"
-                            ], default=korisnik.get("prava", []), key=f"prava_{korisnik['id']}")
-
-                            st.markdown("**Skladišta**")
-                            edit_skladišta = st.multiselect("Skladišta", [
-                                "Osijek - Glavno skladište", "Skladište Split", "Skladište Pula",
-                                "Skladište Zagreb", "Skladište Rijeka"
-                            ], default=korisnik.get("skladišta", []), key=f"sklad_{korisnik['id']}")
-
                     col_submit, col_cancel = st.columns(2)
                     with col_submit:
                         if st.form_submit_button("Spremi promjene", key=f"spremi_{korisnik['id']}"):
                             update_data = {}
 
-                            if edit_lozinka:
-                                # Update lozinke u Supabase Auth preko service role
-                                supabase_admin.auth.admin.update_user_by_id(
-                                    korisnik['auth_id'],
-                                    {'password': edit_lozinka}
-                                )
+                            # === ISPRAVLJENA PROMJENA LOZINKE ===
+                            if edit_lozinka.strip():
+                                auth_id = korisnik.get('auth_id')
+                                if auth_id and str(auth_id).strip() != "":
+                                    try:
+                                        supabase_admin.auth.admin.update_user_by_id(auth_id, {'password': edit_lozinka})
+                                        st.success("✅ Lozinka uspješno promijenjena!")
+                                    except Exception as e:
+                                        st.error(f"Greška pri promjeni lozinke: {str(e)}")
+                                else:
+                                    st.warning("⚠️ Ovaj korisnik nema povezan Auth ID. Lozinka se ne može promijeniti.")
 
+                            # Spremanje ostalih podataka
                             if is_admin:
                                 update_data.update({
                                     "ime_prezime": edit_ime_prezime,
@@ -845,38 +809,27 @@ elif st.session_state.stranica == "korisnici":
                                 supabase.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute()
 
                             if is_admin and korisnik["id"] != trenutni_id and 'delete_user' in locals() and delete_user:
-                                # Brisanje korisnika iz Supabase Auth i tablice korisnici
                                 if korisnik.get('auth_id'):
                                     supabase_admin.auth.admin.delete_user(korisnik['auth_id'])
                                 supabase.table("korisnici").delete().eq("id", korisnik["id"]).execute()
                                 st.success("Korisnik obrisan!")
                                 st.rerun()
-                            elif update_data:
-                                st.success("Promjene spremljene! (nova lozinka je ažurirana ako je unesena)")
-                                st.rerun()
-                            else:
-                                st.success("Promjene spremljene! (nova lozinka je ažurirana ako je unesena)")
-                                st.rerun()
+
+                            st.success("Promjene spremljene!")
+                            st.rerun()
 
                     with col_cancel:
                         if st.form_submit_button("Odustani", key=f"odust_{korisnik['id']}"):
                             st.rerun()
-        else:
-            pass
 
-    # Dodatni gumbi – svi vide
+    # Izvoz i osvježavanje
     col_export, col_refresh = st.columns(2)
     with col_export:
         if st.button("Izvezi sve korisnike u Excel"):
             output = io.BytesIO()
             pd.DataFrame(korisnici_data).to_excel(output, index=False)
             output.seek(0)
-            st.download_button(
-                label="Preuzmi .xlsx",
-                data=output,
-                file_name=f"korisnici_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+            st.download_button("Preuzmi .xlsx", data=output, file_name=f"korisnici_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     with col_refresh:
         if st.button("🔄 Osvježi"):
             st.rerun()
