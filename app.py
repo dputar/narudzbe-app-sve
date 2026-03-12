@@ -654,18 +654,27 @@ elif st.session_state.stranica == "korisnici":
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
         korisnici_data = []
 
-    # 2. Search i prikaz tablice
+    # Uklanjanje duplikata po ID-u (ako baza ima probleme)
+    seen = set()
+    korisnici_unique = []
+    for k in korisnici_data:
+        uid = k.get("id")
+        if uid is not None and uid not in seen:
+            seen.add(uid)
+            korisnici_unique.append(k)
+    korisnici_data = korisnici_unique
+
+    # Pretraga
     if korisnici_data:
         df = pd.DataFrame(korisnici_data)
 
-        # Maskiraj lozinku ako postoji
         if "lozinka" in df.columns:
             df["lozinka"] = "******"
 
         search_term = st.text_input(
             "Pretraži po svim stupcima",
             value=st.session_state.get("korisnici_search", ""),
-            key="korisnici_search_input_unique",           # promijenjen key da ne bude dupliciran
+            key="korisnici_search_input",
             placeholder="upiši korisničko ime, ime i prezime, tip...",
             on_change=on_korisnici_search_change
         )
@@ -703,40 +712,32 @@ elif st.session_state.stranica == "korisnici":
     else:
         st.info("Nema korisnika u bazi.")
 
-    # Gumb za novog korisnika – SAMO ADMIN
+    # Gumb za dodavanje novog korisnika – samo administrator
     if tip_korisnika == "administrator":
         if st.button("➕ Novi korisnik", type="primary", key="btn_novi_korisnik"):
             st.session_state.novi_korisnik_form_shown = True
             st.rerun()
 
-    # Forma za novog korisnika (samo admin)
+    # Forma za novog korisnika
     if st.session_state.get("novi_korisnik_form_shown", False) and tip_korisnika == "administrator":
         with st.form("novi_korisnik_form", clear_on_submit=False):
             st.markdown("**Novi korisnik**")
             col1, col2 = st.columns(2)
             with col1:
-                ime_prezime = st.text_input("Ime i prezime", key="ime_prezime_novi_unique")
-                korisničko_ime = st.text_input("Korisničko ime", key="korisnicko_ime_novi_unique")
-                email_novi = st.text_input("Email", key="email_novi_unique")
-                lozinka = st.text_input("Lozinka", type="password", key="lozinka_novi_unique")
+                ime_prezime     = st.text_input("Ime i prezime", key="ime_prezime_novi")
+                korisničko_ime  = st.text_input("Korisničko ime", key="korisnicko_ime_novi")
+                email_novi      = st.text_input("Email", key="email_novi")
+                lozinka         = st.text_input("Lozinka", type="password", key="lozinka_novi")
                 tip_korisnika_novi = st.selectbox(
                     "Tip korisnika",
                     ["administrator", "ured", "skladištar", "terenac", "gost"],
-                    key="tip_korisnika_novi_unique"
+                    key="tip_korisnika_novi"
                 )
-                godisnji_dani = st.number_input(
-                    "Godišnji dani (po godini)", value=20, min_value=0, key="god_dani_novi_unique"
-                )
-                slobodni_dani = st.number_input(
-                    "Slobodni dani", value=0, min_value=0, key="slob_dani_novi_unique"
-                )
+                godisnji_dani   = st.number_input("Godišnji dani (po godini)", value=20, min_value=0, key="god_dani_novi")
+                slobodni_dani   = st.number_input("Slobodni dani", value=0, min_value=0, key="slob_dani_novi")
             with col2:
                 st.markdown("**Prava**")
-                prava = st.multiselect(
-                    "Odaberi prava (može više)",
-                    [],  # ovdje možeš dodati opcije ako ih imaš
-                    key="prava_novi_unique"
-                )
+                prava = st.multiselect("Odaberi prava (može više)", [], key="prava_novi")
                 st.markdown("**Skladišta**")
                 skladišta = st.multiselect(
                     "Skladišta",
@@ -744,7 +745,7 @@ elif st.session_state.stranica == "korisnici":
                         "Osijek - Glavno skladište", "Skladište Split", "Skladište Pula",
                         "Skladište Zagreb", "Skladište Rijeka"
                     ],
-                    key="skladišta_novi_unique"
+                    key="skladišta_novi"
                 )
 
             col_submit, col_cancel = st.columns(2)
@@ -797,28 +798,31 @@ elif st.session_state.stranica == "korisnici":
 
     for korisnik in korisnici_data:
         is_admin = tip_korisnika == "administrator"
-        is_own = korisnik["id"] == trenutni_id
+        is_own   = korisnik.get("id") == trenutni_id
 
         if not (is_admin or is_own):
             continue
 
+        # Dinamički ključ forme – sprječava duplicirane forme
+        form_key = f"edit_form_{korisnik['id']}_{int(time.time() * 1000)}"
+
         with st.expander(
-            f"Uređivanje korisnika: {korisnik['korisničko_ime']} ({korisnik['ime_prezime']})",
+            f"Uređivanje korisnika: {korisnik.get('korisničko_ime', '–')} ({korisnik.get('ime_prezime', '–')})",
             expanded=is_own
         ):
-            with st.form(f"edit_form_{korisnik['id']}", clear_on_submit=False):
+            with st.form(form_key, clear_on_submit=False):
                 col1, col2 = st.columns(2)
 
                 with col1:
                     edit_ime_prezime = st.text_input(
                         "Ime i prezime",
-                        value=korisnik["ime_prezime"],
+                        value=korisnik.get("ime_prezime", ""),
                         disabled=not is_admin,
                         key=f"edit_ime_{korisnik['id']}"
                     )
                     edit_korisničko_ime = st.text_input(
                         "Korisničko ime",
-                        value=korisnik["korisničko_ime"],
+                        value=korisnik.get("korisničko_ime", ""),
                         disabled=not is_admin,
                         key=f"edit_kor_ime_{korisnik['id']}"
                     )
@@ -831,7 +835,7 @@ elif st.session_state.stranica == "korisnici":
                     edit_tip = st.selectbox(
                         "Tip korisnika",
                         ["administrator", "ured", "skladištar", "terenac", "gost"],
-                        index=["administrator", "ured", "skladištar", "terenac", "gost"].index(korisnik["tip_korisnika"]),
+                        index=["administrator", "ured", "skladištar", "terenac", "gost"].index(korisnik.get("tip_korisnika", "korisnik")),
                         disabled=not is_admin,
                         key=f"edit_tip_{korisnik['id']}"
                     )
@@ -853,7 +857,7 @@ elif st.session_state.stranica == "korisnici":
                 with col2:
                     edit_aktivan = st.checkbox(
                         "Aktivan",
-                        value=korisnik["aktivan"],
+                        value=korisnik.get("aktivan", True),
                         disabled=not is_admin,
                         key=f"edit_akt_{korisnik['id']}"
                     )
@@ -864,8 +868,9 @@ elif st.session_state.stranica == "korisnici":
                         key=f"edit_email_{korisnik['id']}"
                     )
 
-                    if is_admin and korisnik["id"] != trenutni_id:
-                        delete_user_checkbox = st.checkbox(
+                    delete_user = False
+                    if is_admin and korisnik.get("id") != trenutni_id:
+                        delete_user = st.checkbox(
                             "Obriši korisnika",
                             value=False,
                             key=f"delete_user_{korisnik['id']}"
@@ -898,16 +903,18 @@ elif st.session_state.stranica == "korisnici":
                 # Submit dio
                 col_submit, col_cancel = st.columns(2)
                 with col_submit:
-                    if st.form_submit_button("Spremi promjene", key=f"spremi_{korisnik['id']}"):
+                    if st.form_submit_button("Spremi promjene", key=f"spremi_edit_{korisnik['id']}"):
+
                         update_data = {}
 
-                        # Promjena lozinke
+                        # 1. Promjena lozinke
                         if edit_lozinka.strip():
                             auth_id = korisnik.get('auth_id')
                             if auth_id and str(auth_id).strip():
                                 try:
                                     supabase_admin.auth.admin.update_user_by_id(
-                                        auth_id, {"password": edit_lozinka}
+                                        auth_id,
+                                        {"password": edit_lozinka}
                                     )
                                     st.success("Lozinka uspješno promijenjena!")
                                 except Exception as e:
@@ -915,7 +922,7 @@ elif st.session_state.stranica == "korisnici":
                             else:
                                 st.warning("Nema auth_id → lozinka se ne može promijeniti.")
 
-                        # Ostala polja – samo admin
+                        # 2. Ostala polja – samo admin
                         if is_admin:
                             update_data.update({
                                 "ime_prezime": edit_ime_prezime,
@@ -929,6 +936,7 @@ elif st.session_state.stranica == "korisnici":
                                 "skladišta": edit_skladišta,
                             })
 
+                        # 3. Spremanje promjena
                         if update_data:
                             try:
                                 supabase.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute()
@@ -936,34 +944,34 @@ elif st.session_state.stranica == "korisnici":
                             except Exception as e:
                                 st.error(f"Greška pri spremanju: {str(e)}")
                         elif edit_lozinka.strip():
-                            st.info("Samo lozinka je promijenjena.")
+                            st.info("Samo lozinka je promijenjena (ostalo može mijenjati samo administrator).")
                         else:
-                            st.info("Nema promjena.")
+                            st.info("Niste napravili nikakve promjene.")
 
-                        # Brisanje
-                        if is_admin and korisnik["id"] != trenutni_id and 'delete_user_checkbox' in locals() and delete_user_checkbox:
+                        # 4. Brisanje korisnika
+                        if is_admin and korisnik.get("id") != trenutni_id and delete_user:
                             if korisnik.get('auth_id'):
                                 try:
                                     supabase_admin.auth.admin.delete_user(korisnik['auth_id'])
                                 except Exception as e:
-                                    st.error(f"Greška brisanja iz Auth: {e}")
+                                    st.error(f"Greška pri brisanju iz Auth: {str(e)}")
                             try:
                                 supabase.table("korisnici").delete().eq("id", korisnik["id"]).execute()
                                 st.success("Korisnik obrisan!")
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"Greška brisanja: {e}")
+                                st.error(f"Greška pri brisanju iz baze: {str(e)}")
 
                         st.rerun()
 
                 with col_cancel:
-                    if st.form_submit_button("Odustani", key=f"odust_{korisnik['id']}"):
+                    if st.form_submit_button("Odustani", key=f"odust_edit_{korisnik['id']}"):
                         st.rerun()
 
-    # Export i refresh – sa jedinstvenim key-evima
+    # Export i osvježavanje
     col_export, col_refresh = st.columns(2)
     with col_export:
-        if st.button("Izvezi sve korisnike u Excel", key="export_korisnici_excel_btn"):
+        if st.button("Izvezi sve korisnike u Excel", key="export_korisnici_excel"):
             output = io.BytesIO()
             pd.DataFrame(korisnici_data).to_excel(output, index=False)
             output.seek(0)
@@ -972,11 +980,11 @@ elif st.session_state.stranica == "korisnici":
                 data=output,
                 file_name=f"korisnici_{datetime.now(TZ).strftime('%Y-%m-%d_%H-%M')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="download_korisnici_excel_file"
+                key="download_korisnici_excel"
             )
 
     with col_refresh:
-        if st.button("🔄 Osvježi", key="refresh_korisnici_stranica"):
+        if st.button("🔄 Osvježi", key="refresh_korisnici"):
             st.rerun()
 
 # ────────────────────────────────────────────────
