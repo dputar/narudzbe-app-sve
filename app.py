@@ -453,7 +453,6 @@ if st.session_state.stranica == "godisnji":
                                 st.warning(f"Nevažeći tip: {original_row['tip']}")
                                 continue
                             overlay_buffer = io.BytesIO()
-#                            pdfmetrics.registerFont(TTFont('DejaVuSans', 'fonts/DejaVuSans.ttf'))
                             c = canvas.Canvas(overlay_buffer, pagesize=A4)
                             width, height = A4
                             c.setFont('DejaVuSans', 12)
@@ -789,18 +788,20 @@ elif st.session_state.stranica == "korisnici":
                                 else:
                                     st.warning("⚠️ Ovaj korisnik nema povezan Auth ID. Lozinka se ne može promijeniti.")
 
-                            # Spremanje ostalih podataka
+                            # Spremanje ostalih podataka (ispravljeno – uklonjen krivi "password" stupac + hash lozinke u "lozinka")
                             if is_admin:
                                 update_data.update({
                                     "ime_prezime": edit_ime_prezime,
                                     "korisničko_ime": edit_korisničko_ime,
-                                    "password": edit_lozinka,
                                     "tip_korisnika": edit_tip,
                                     "aktivan": edit_aktivan,
                                     "godisnji_dani": edit_god_dani,
                                     "slobodni_dani": edit_slob_dani,
                                     "email": edit_email,
                                 })
+                                if edit_lozinka.strip():
+                                    hashed_lozinka = bcrypt.hashpw(edit_lozinka.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                                    update_data["lozinka"] = hashed_lozinka
                                 if "edit_prava" in locals():
                                     update_data["prava"] = edit_prava
                                 if "edit_skladišta" in locals():
