@@ -777,90 +777,95 @@ elif st.session_state.stranica == "korisnici":
                     st.rerun()
 
     # Uređivanje postojećih korisnika – ograničeno po ulozi
-    st.subheader("Uređivanje korisnika")
+# Uređivanje postojećih korisnika – ograničeno po ulozi
+st.subheader("Uređivanje korisnika")
 
-    for korisnik in korisnici_data:
-        is_admin = tip_korisnika == "administrator"
-        is_own = korisnik["id"] == trenutni_id
+for korisnik in korisnici_data:
+    is_admin = tip_korisnika == "administrator"
+    is_own = korisnik["id"] == trenutni_id
 
-        if is_admin or is_own:
-            with st.expander(f"Uređivanje korisnika: {korisnik['korisničko_ime']} ({korisnik['ime_prezime']})", expanded=is_own):
-                with st.form(f"edit_form_{korisnik['id']}", clear_on_submit=False):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        edit_ime_prezime = st.text_input("Ime i prezime", value=korisnik["ime_prezime"], disabled=not is_admin, key=f"ime_{korisnik['id']}")
-                        edit_korisničko_ime = st.text_input("Korisničko ime", value=korisnik["korisničko_ime"], disabled=not is_admin, key=f"kor_ime_{korisnik['id']}")
-                        edit_lozinka = st.text_input("Nova lozinka (ostavi prazno ako ne mijenjaš)", type="password", value="", key=f"loz_{korisnik['id']}")
-                        edit_tip = st.selectbox("Tip korisnika", ["administrator", "ured", "skladištar", "terenac", "gost"], index=["administrator", "ured", "skladištar", "terenac", "gost"].index(korisnik["tip_korisnika"]), disabled=not is_admin, key=f"tip_{korisnik['id']}")
-                        edit_god_dani = st.number_input("Godišnji dani", value=korisnik.get("godisnji_dani", 20), min_value=0, disabled=not is_admin, key=f"god_{korisnik['id']}")
-                        edit_slob_dani = st.number_input("Slobodni dani", value=korisnik.get("slobodni_dani", 0), min_value=0, disabled=not is_admin, key=f"slob_{korisnik['id']}")
-                    with col2:
-                        edit_aktivan = st.checkbox("Aktivan", value=korisnik["aktivan"], disabled=not is_admin, key=f"akt_{korisnik['id']}")
-                        edit_email = st.text_input("Email", value=korisnik.get("email", ""), disabled=not is_admin, key=f"email_{korisnik['id']}")
-                        if is_admin and korisnik["id"] != trenutni_id:
-                            delete_user = st.checkbox("Obriši korisnika", value=False, key=f"delete_{korisnik['id']}")
+    if is_admin or is_own:
+        with st.expander(f"Uređivanje korisnika: {korisnik['korisničko_ime']} ({korisnik['ime_prezime']})", expanded=is_own):
+            with st.form(f"edit_form_{korisnik['id']}", clear_on_submit=False):
+                col1, col2 = st.columns(2)
+                with col1:
+                    edit_ime_prezime = st.text_input("Ime i prezime", value=korisnik["ime_prezime"], disabled=not is_admin, key=f"ime_{korisnik['id']}")
+                    edit_korisničko_ime = st.text_input("Korisničko ime", value=korisnik["korisničko_ime"], disabled=not is_admin, key=f"kor_ime_{korisnik['id']}")
+                    edit_lozinka = st.text_input("Nova lozinka (ostavi prazno ako ne mijenjaš)", type="password", value="", key=f"loz_{korisnik['id']}")
+                    edit_tip = st.selectbox("Tip korisnika", ["administrator", "ured", "skladištar", "terenac", "gost"], index=["administrator", "ured", "skladištar", "terenac", "gost"].index(korisnik["tip_korisnika"]), disabled=not is_admin, key=f"tip_{korisnik['id']}")
+                    edit_god_dani = st.number_input("Godišnji dani", value=korisnik.get("godisnji_dani", 20), min_value=0, disabled=not is_admin, key=f"god_{korisnik['id']}")
+                    edit_slob_dani = st.number_input("Slobodni dani", value=korisnik.get("slobodni_dani", 0), min_value=0, disabled=not is_admin, key=f"slob_{korisnik['id']}")
+                with col2:
+                    edit_aktivan = st.checkbox("Aktivan", value=korisnik["aktivan"], disabled=not is_admin, key=f"akt_{korisnik['id']}")
+                    edit_email = st.text_input("Email", value=korisnik.get("email", ""), disabled=not is_admin, key=f"email_{korisnik['id']}")
+                    if is_admin and korisnik["id"] != trenutni_id:
+                        delete_user = st.checkbox("Obriši korisnika", value=False, key=f"delete_{korisnik['id']}")
+
+                    if is_admin:
+                        st.markdown("**Prava**")
+                        edit_prava = st.multiselect("Prava", [
+                            "NARUDŽBE - ADMINISTRATOR", "PROIZVODI - ADMINISTRATOR",
+                            "DOBAVLJAČI - ADMINISTRATOR", "KORISNICI - ADMINISTRATOR",
+                            "SKLADIŠTE - ADMINISTRATOR", "IZVJEŠTAJ - SVE", "IZVJEŠTAJ - PRODAJA"
+                        ], default=korisnik.get("prava", []), key=f"prava_{korisnik['id']}")
+
+                        st.markdown("**Skladišta**")
+                        edit_skladišta = st.multiselect("Skladišta", [
+                            "Osijek - Glavno skladište", "Skladište Split", "Skladište Pula",
+                            "Skladište Zagreb", "Skladište Rijeka"
+                        ], default=korisnik.get("skladišta", []), key=f"sklad_{korisnik['id']}")
+
+                col_submit, col_cancel = st.columns(2)
+                with col_submit:
+                    if st.form_submit_button("Spremi promjene", key=f"spremi_{korisnik['id']}"):
+                        update_data = {}
+
+                        # === POPRAVAK: Provjera auth_id prije update lozinke ===
+                        if edit_lozinka:
+                            auth_id = korisnik.get('auth_id')
+                            if auth_id and str(auth_id).strip() != "":
+                                try:
+                                    supabase_admin.auth.admin.update_user_by_id(
+                                        auth_id,
+                                        {'password': edit_lozinka}
+                                    )
+                                    st.success("Lozinka uspješno promijenjena u Auth sustavu!")
+                                except Exception as e:
+                                    st.error(f"Greška pri promjeni lozinke u Auth: {str(e)}")
+                            else:
+                                st.warning("Ovaj korisnik nema povezan Auth ID (stari korisnik). Lozinka se ne može promijeniti preko ovog sustava.")
 
                         if is_admin:
-                            st.markdown("**Prava**")
-                            edit_prava = st.multiselect("Prava", [
-                                "NARUDŽBE - ADMINISTRATOR", "PROIZVODI - ADMINISTRATOR",
-                                "DOBAVLJAČI - ADMINISTRATOR", "KORISNICI - ADMINISTRATOR",
-                                "SKLADIŠTE - ADMINISTRATOR", "IZVJEŠTAJ - SVE", "IZVJEŠTAJ - PRODAJA"
-                            ], default=korisnik.get("prava", []), key=f"prava_{korisnik['id']}")
+                            update_data.update({
+                                "ime_prezime": edit_ime_prezime,
+                                "korisničko_ime": edit_korisničko_ime,
+                                "tip_korisnika": edit_tip,
+                                "aktivan": edit_aktivan,
+                                "godisnji_dani": edit_god_dani,
+                                "slobodni_dani": edit_slob_dani,
+                                "email": edit_email,
+                            })
+                            if "edit_prava" in locals():
+                                update_data["prava"] = edit_prava
+                            if "edit_skladišta" in locals():
+                                update_data["skladišta"] = edit_skladišta
 
-                            st.markdown("**Skladišta**")
-                            edit_skladišta = st.multiselect("Skladišta", [
-                                "Osijek - Glavno skladište", "Skladište Split", "Skladište Pula",
-                                "Skladište Zagreb", "Skladište Rijeka"
-                            ], default=korisnik.get("skladišta", []), key=f"sklad_{korisnik['id']}")
+                        if update_data:
+                            supabase.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute()
 
-                    col_submit, col_cancel = st.columns(2)
-                    with col_submit:
-                        if st.form_submit_button("Spremi promjene", key=f"spremi_{korisnik['id']}"):
-                            update_data = {}
-
-                            if edit_lozinka:
-                                # Update lozinke u Supabase Auth preko service role
-                                supabase_admin.auth.admin.update_user_by_id(
-                                    korisnik['auth_id'],
-                                    {'password': edit_lozinka}
-                                )
-
-                            if is_admin:
-                                update_data.update({
-                                    "ime_prezime": edit_ime_prezime,
-                                    "korisničko_ime": edit_korisničko_ime,
-                                    "tip_korisnika": edit_tip,
-                                    "aktivan": edit_aktivan,
-                                    "godisnji_dani": edit_god_dani,
-                                    "slobodni_dani": edit_slob_dani,
-                                    "email": edit_email,
-                                })
-                                if "edit_prava" in locals():
-                                    update_data["prava"] = edit_prava
-                                if "edit_skladišta" in locals():
-                                    update_data["skladišta"] = edit_skladišta
-
-                            if update_data:
-                                supabase.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute()
-
-                            if is_admin and korisnik["id"] != trenutni_id and 'delete_user' in locals() and delete_user:
-                                # Brisanje korisnika iz Supabase Auth i tablice korisnici
-                                if korisnik.get('auth_id'):
-                                    supabase_admin.auth.admin.delete_user(korisnik['auth_id'])
-                                supabase.table("korisnici").delete().eq("id", korisnik["id"]).execute()
-                                st.success("Korisnik obrisan!")
-                                st.rerun()
-                            elif update_data:
-                                st.success("Promjene spremljene! (nova lozinka je ažurirana ako je unesena)")
-                                st.rerun()
-                            else:
-                                st.success("Promjene spremljene! (nova lozinka je ažurirana ako je unesena)")
-                                st.rerun()
-
-                    with col_cancel:
-                        if st.form_submit_button("Odustani", key=f"odust_{korisnik['id']}"):
+                        if is_admin and korisnik["id"] != trenutni_id and 'delete_user' in locals() and delete_user:
+                            if korisnik.get('auth_id'):
+                                supabase_admin.auth.admin.delete_user(korisnik['auth_id'])
+                            supabase.table("korisnici").delete().eq("id", korisnik["id"]).execute()
+                            st.success("Korisnik obrisan!")
                             st.rerun()
+                        elif update_data or edit_lozinka:
+                            st.success("Promjene spremljene!")
+                            st.rerun()
+
+                with col_cancel:
+                    if st.form_submit_button("Odustani", key=f"odust_{korisnik['id']}"):
+                        st.rerun()
         else:
             pass
 
