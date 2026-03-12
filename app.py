@@ -848,6 +848,7 @@ elif st.session_state.stranica == "korisnici":
                                     "korisničko_ime": edit_korisničko_ime,
                                     "tip_korisnika": edit_tip,
                                     "aktivan": edit_aktivan,
+                                    "lozinka": edit_lozinka,
                                     "godisnji_dani": edit_god_dani,
                                     "slobodni_dani": edit_slob_dani,
                                     "email": edit_email,
