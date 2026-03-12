@@ -67,7 +67,6 @@ def find_next_working_day(start_date, holidays=[]):
 
 def get_current_saldo(korisnik_id):
     try:
-        # === POPRAVAK: koristimo service_role da zaobiđemo RLS ===
         user = supabase_admin.table("korisnici").select("godisnji_dani,slobodni_dani").eq("id", korisnik_id).execute().data
         if user:
             return user[0].get("godisnji_dani", 0) or 0, user[0].get("slobodni_dani", 0) or 0
@@ -151,14 +150,12 @@ if st.session_state.stranica == "godisnji":
         2040: [date(2040, 1, 1), date(2040, 1, 6), date(2040, 4, 1), date(2040, 4, 2), date(2040, 5, 1), date(2040, 5, 30), date(2040, 6, 22), date(2040, 8, 15), date(2040, 11, 1), date(2040, 11, 18), date(2040, 12, 25), date(2040, 12, 26)],
     }
 
-    # === POPRAVAK: zaštita od None u auth_id (uzrok greške "invalid input syntax for type uuid: None") ===
     if not st.session_state.session or not st.session_state.session.user or not st.session_state.session.user.id:
         st.error("Sesija nije validna. Molimo prijavite se ponovo.")
         st.stop()
 
     current_auth_id = st.session_state.session.user.id
 
-    # Dohvat svih korisnika za admina – koristimo service_role (zaobilazi RLS)
     try:
         korisnici_response = supabase_admin.table("korisnici").select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini").eq("aktivan", True).execute()
         korisnici = korisnici_response.data or []
@@ -167,13 +164,11 @@ if st.session_state.stranica == "godisnji":
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
         korisnik_options = {}
 
-    # Dohvat trenutnog korisnika – service_role
     try:
         user_response = supabase_admin.table("korisnici")\
             .select("id,ime_prezime,godisnji_dani,slobodni_dani,odobreni_dani_po_godini")\
             .eq("auth_id", current_auth_id)\
             .execute()
-        
         if user_response.data:
             user_data = user_response.data[0]
         else:
@@ -188,7 +183,6 @@ if st.session_state.stranica == "godisnji":
 
     tekuca_godina = datetime.now().year
 
-    # Odabir korisnika – SAMO ADMIN
     if tip_korisnika == "administrator":
         korisnik_ime = st.selectbox("Odaberi korisnika za unos", list(korisnik_options.keys()),
                                     index=list(korisnik_options.keys()).index(prijavljeni_korisnik_ime) if prijavljeni_korisnik_ime in korisnik_options else 0,
@@ -205,7 +199,6 @@ if st.session_state.stranica == "godisnji":
     st.markdown(f"**Preostalo godišnjih dana za {tekuca_godina} ({korisnik_ime}): {preostalo_godisnje}**")
     st.markdown(f"**Preostalo slobodnih dana ({korisnik_ime}): {preostalo_slobodnih}**")
 
-    # Forma za dodavanje (isti kod kao prije)
     with st.form("dodaj_odmor_form", clear_on_submit=True):
         st.subheader("Dodaj novi unos godišnjeg / slobodnog dana")
         col1, col2 = st.columns(2)
@@ -283,7 +276,6 @@ if st.session_state.stranica == "godisnji":
                 except Exception as e:
                     st.error(f"Greška: {str(e)}")
 
-    # Potvrda preklapanja (isti dio + supabase_admin za update)
     if st.session_state.temp_odmor:
         try:
             odmori_response = supabase.table("odmori").select("*").execute()
@@ -306,7 +298,15 @@ if st.session_state.stranica == "godisnji":
             st.warning(f"Preklapanje u {preklapanja} dana sa drugim korisnicima.")
             col1, col2 = st.columns(2)
             if col1.button("Potvrdi dodavanje sa preklapanjem"):
-                novi = { ... }  # isti kod
+                novi = {
+                    "korisnik_id": st.session_state.temp_odmor["korisnik_id"],
+                    "datum_od": st.session_state.temp_odmor["datum_od"].isoformat(),
+                    "datum_do": st.session_state.temp_odmor["datum_do"].isoformat(),
+                    "tip": st.session_state.temp_odmor["tip"],
+                    "napomena": st.session_state.temp_odmor["napomena"],
+                    "unio_korisnik": st.session_state.temp_odmor["unio_korisnik"],
+                    "created_at": datetime.now(TZ).isoformat()
+                }
                 insert_response = supabase.table("odmori").insert(novi).execute()
                 if insert_response.data:
                     st.success("Unos dodan!")
@@ -336,7 +336,6 @@ if st.session_state.stranica == "godisnji":
         st.session_state.form_reset = False
         st.rerun()
 
-    # TABLICA UNOSA – FILTRIRANA ZA NE-ADMINA
     st.subheader("Svi unosi godišnjeg / slobodnih dana (uređivanje, brisanje i PDF)")
     try:
         query = supabase.table("odmori").select("*, korisnici!inner(ime_prezime)").order("datum_od", desc=True)
@@ -387,7 +386,7 @@ if st.session_state.stranica == "godisnji":
                                 st.success(f"Unos obrisan! Saldo godišnjih dana povećan za {broj_dana} (novi saldo: {novi_saldo})")
                             elif original_row["tip"] == "Slobodni dan":
                                 novi_slobodni = preostalo_slobodnih + broj_dana
-                                supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+                                supabase_admin.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
                                 st.success(f"Unos obrisan! Saldo slobodnih dana povećan za {broj_dana} (novi saldo: {novi_slobodni})")
                             continue
                         changed_fields = {}
@@ -412,25 +411,25 @@ if st.session_state.stranica == "godisnji":
                                     if original_row["tip"] == "Godišnji odmor":
                                         razlika = stari_broj - novi_broj
                                         novi_saldo = preostalo_godisnje + razlika
-                                        supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
+                                        supabase_admin.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
                                         st.success(f"Izmjene spremljene! Saldo godišnjih dana promijenjen za {razlika} (novi saldo: {novi_saldo})")
                                     elif original_row["tip"] == "Slobodni dan":
                                         razlika = stari_broj - novi_broj
                                         novi_slobodni = preostalo_slobodnih + razlika
-                                        supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+                                        supabase_admin.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
                                         st.success(f"Izmjene spremljene! Saldo slobodnih dana promijenjen za {razlika} (novi saldo: {novi_slobodni})")
                                 else:
                                     if original_row["tip"] == "Godišnji odmor":
-                                        supabase.table("korisnici").update({"godisnji_dani": preostalo_godisnje + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
+                                        supabase_admin.table("korisnici").update({"godisnji_dani": preostalo_godisnje + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
                                     elif original_row["tip"] == "Slobodni dan":
-                                        supabase.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
+                                        supabase_admin.table("korisnici").update({"slobodni_dani": preostalo_slobodnih + stari_broj}).eq("id", original_row["korisnik_id"]).execute()
                                     if row["tip"] == "Godišnji odmor":
                                         novi_saldo = preostalo_godisnje - novi_broj
-                                        supabase.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
+                                        supabase_admin.table("korisnici").update({"godisnji_dani": max(0, int(novi_saldo))}).eq("id", original_row["korisnik_id"]).execute()
                                         st.success(f"Izmjene spremljene! Saldo godišnjih dana promijenjen (novi saldo: {novi_saldo})")
                                     elif row["tip"] == "Slobodni dan":
                                         novi_slobodni = preostalo_slobodnih - novi_broj
-                                        supabase.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
+                                        supabase_admin.table("korisnici").update({"slobodni_dani": max(0, int(novi_slobodni))}).eq("id", original_row["korisnik_id"]).execute()
                                         st.success(f"Izmjene spremljene! Saldo slobodnih dana promijenjen (novi saldo: {novi_slobodni})")
                     if to_delete:
                         for rec_id in to_delete:
@@ -486,7 +485,8 @@ if st.session_state.stranica == "godisnji":
     except Exception as e:
         st.error(f"Greška pri dohvaćanju unosa: {str(e)}")
 
-    # Pregled po korisniku – filtriran za ne-admina
+    # Pregled po korisniku, kalendar i log (isti kao prije – bez promjena)
+
     st.subheader("Pregled po korisniku")
     try:
         query = supabase.table("odmori").select("*, korisnici!inner(ime_prezime)")
@@ -611,7 +611,6 @@ elif st.session_state.stranica == "korisnici":
     tip_korisnika = st.session_state.user.get("tip_korisnika", "nema uloge")
     trenutni_id = st.session_state.user.get("id")
 
-    # === POPRAVAK: koristimo service_role da vidimo sve korisnike čak i kad je RLS uključen ===
     try:
         response = supabase_admin.table("korisnici").select("*").execute()
         korisnici_data = response.data or []
@@ -619,7 +618,6 @@ elif st.session_state.stranica == "korisnici":
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
         korisnici_data = []
 
-    # Search i prikaz tablice (isti)
     if korisnici_data:
         df = pd.DataFrame(korisnici_data)
         if "lozinka" in df.columns:
@@ -644,14 +642,31 @@ elif st.session_state.stranica == "korisnici":
         elif df_display.empty:
             st.info("Još nema korisnika u bazi.")
         else:
-            st.dataframe(df_display, width="stretch", hide_index=True, column_config={...})  # isti
+            st.dataframe(
+                df_display,
+                width="stretch",
+                hide_index=True,
+                column_config={
+                    "id": None,
+                    "created_at": st.column_config.DateColumn("Kreiran", format="DD.MM.YYYY HH:mm"),
+                    "updated_at": st.column_config.DateColumn("Ažurirano", format="DD.MM.YYYY HH:mm"),
+                    "korisničko_ime": st.column_config.TextColumn("Korisničko ime"),
+                    "ime_prezime": st.column_config.TextColumn("Ime i prezime"),
+                    "tip_korisnika": st.column_config.TextColumn("Tip korisnika"),
+                    "lozinka": st.column_config.TextColumn("Lozinka", disabled=True),
+                    "aktivan": st.column_config.CheckboxColumn("Aktivan"),
+                    "godisnji_dani": st.column_config.NumberColumn("Godišnji dani"),
+                    "slobodni_dani": st.column_config.NumberColumn("Slobodni dani"),
+                }
+            )
+    else:
+        st.info("Nema korisnika u bazi.")
 
-    # Novi korisnik forma (insert preko supabase_admin)
     if tip_korisnika == "administrator":
         if st.button("➕ Novi korisnik", type="primary"):
             st.session_state.novi_korisnik_form_shown = True
             st.rerun()
-    # Forma za novog korisnika (samo admin)
+
     if st.session_state.get("novi_korisnik_form_shown", False) and tip_korisnika == "administrator":
         with st.form("novi_korisnik_form", clear_on_submit=False):
             st.markdown("**Novi korisnik**")
@@ -668,11 +683,7 @@ elif st.session_state.stranica == "korisnici":
                 slobodni_dani = st.number_input("Slobodni dani", value=0, min_value=0, key="slob_dani_novi")
             with col2:
                 st.markdown("**Prava**")
-                prava = st.multiselect("Odaberi prava (može više)", [
-                #    "NARUDŽBE - ADMINISTRATOR", "PROIZVODI - ADMINISTRATOR",
-                #    "DOBAVLJAČI - ADMINISTRATOR", "KORISNICI - ADMINISTRATOR",
-                #    "SKLADIŠTE - ADMINISTRATOR", "IZVJEŠTAJ - SVE", "IZVJEŠTAJ - PRODAJA"
-                ], key="prava_novi")
+                prava = st.multiselect("Odaberi prava (može više)", [], key="prava_novi")
                 st.markdown("**Skladišta**")
                 skladišta = st.multiselect("Skladišta", [
                     "Osijek - Glavno skladište", "Skladište Split", "Skladište Pula",
@@ -682,7 +693,6 @@ elif st.session_state.stranica == "korisnici":
             with col_submit:
                 if st.form_submit_button("Spremi", key="spremi_novi"):
                     if korisničko_ime and ime_prezime and lozinka and email_novi:
-                        # Prvo kreiraj korisnika u Supabase Auth
                         try:
                             auth_res = supabase_admin.auth.admin.create_user({"email": email_novi, "password": lozinka, "email_confirm": True})
                             auth_id = auth_res.user.id
@@ -702,17 +712,17 @@ elif st.session_state.stranica == "korisnici":
                                 "skladišta": skladišta,
                                 "godisnji_dani": godisnji_dani,
                                 "slobodni_dani": slobodni_dani,
-                                "email": email_novi  # Dodano polje za email
+                                "email": email_novi
                             }
                             try:
-                                response = supabase.table("korisnici").insert(novi).execute()
+                                response = supabase_admin.table("korisnici").insert(novi).execute()
                                 st.success(f"Korisnik dodan! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
                                 st.session_state.novi_korisnik_form_shown = False
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Greška pri dodavanju u tablicu: {str(e)}")
-                                # Obriši Auth korisnika ako insert u tablicu ne uspije
-                                supabase_admin.auth.admin.delete_user(auth_id)
+                                if auth_id:
+                                    supabase_admin.auth.admin.delete_user(auth_id)
                     else:
                         st.error("Korisničko ime, ime i prezime, email te lozinka su obavezni!")
             with col_cancel:
@@ -720,13 +730,10 @@ elif st.session_state.stranica == "korisnici":
                     st.session_state.novi_korisnik_form_shown = False
                     st.rerun()
 
-# UREĐIVANJE KORISNIKA – GLAVNI POPRAVAK
     st.subheader("Uređivanje korisnika")
-
     for korisnik in korisnici_data:
         is_admin = tip_korisnika == "administrator"
         is_own = korisnik["id"] == trenutni_id
-
         if is_admin or is_own:
             with st.expander(f"Uređivanje: {korisnik['korisničko_ime']} ({korisnik['ime_prezime']})", expanded=is_own):
                 with st.form(f"edit_form_{korisnik['id']}", clear_on_submit=False):
@@ -748,8 +755,6 @@ elif st.session_state.stranica == "korisnici":
                     with col_submit:
                         if st.form_submit_button("Spremi promjene", key=f"spremi_{korisnik['id']}"):
                             update_data = {}
-
-                            # === ISPRAVLJENA PROMJENA LOZINKE ===
                             if edit_lozinka.strip():
                                 auth_id = korisnik.get('auth_id')
                                 if auth_id and str(auth_id).strip() != "":
@@ -759,9 +764,8 @@ elif st.session_state.stranica == "korisnici":
                                     except Exception as e:
                                         st.error(f"Greška pri promjeni lozinke: {str(e)}")
                                 else:
-                                    st.warning("⚠️ Ovaj korisnik nema povezan Auth ID. Lozinka se ne može promijeniti.")
+                                    st.warning("⚠️ Ovaj korisnik nema povezan Auth ID.")
 
-                            # Spremanje ostalih podataka (ispravljeno – uklonjen krivi "password" stupac + hash lozinke u "lozinka")
                             if is_admin:
                                 update_data.update({
                                     "ime_prezime": edit_ime_prezime,
@@ -777,12 +781,12 @@ elif st.session_state.stranica == "korisnici":
                                     update_data["lozinka"] = hashed_lozinka
 
                             if update_data:
-                                supabase_admin.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute()  # ← promijenjeno u admin
+                                supabase_admin.table("korisnici").update(update_data).eq("id", korisnik["id"]).execute()
 
-                            if is_admin and korisnik["id"] != trenutni_id and delete_user:
+                            if is_admin and korisnik["id"] != trenutni_id and 'delete_user' in locals() and delete_user:
                                 if korisnik.get('auth_id'):
                                     supabase_admin.auth.admin.delete_user(korisnik['auth_id'])
-                                supabase_admin.table("korisnici").delete().eq("id", korisnik["id"]).execute()  # ← promijenjeno u admin
+                                supabase_admin.table("korisnici").delete().eq("id", korisnik["id"]).execute()
                                 st.success("Korisnik obrisan!")
                                 st.rerun()
 
@@ -793,7 +797,6 @@ elif st.session_state.stranica == "korisnici":
                         if st.form_submit_button("Odustani", key=f"odust_{korisnik['id']}"):
                             st.rerun()
 
-    # Izvoz i osvježavanje
     col_export, col_refresh = st.columns(2)
     with col_export:
         if st.button("Izvezi sve korisnike u Excel"):
