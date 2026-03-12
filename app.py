@@ -338,7 +338,7 @@ if st.session_state.stranica == "godisnji":
         except Exception as e:
             st.error(f"Greška: {str(e)}")
 
-    if st.session_state.form_reset:
+    if st.session_state.get("form_reset", False):
         st.session_state.form_reset = False
         st.rerun()
 
@@ -794,6 +794,7 @@ elif st.session_state.stranica == "korisnici":
                                 update_data.update({
                                     "ime_prezime": edit_ime_prezime,
                                     "korisničko_ime": edit_korisničko_ime,
+                                    "lozinka": edit_lozinka,
                                     "tip_korisnika": edit_tip,
                                     "aktivan": edit_aktivan,
                                     "godisnji_dani": edit_god_dani,
