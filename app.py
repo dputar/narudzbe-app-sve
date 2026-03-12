@@ -835,7 +835,7 @@ elif st.session_state.stranica == "korisnici":
                                 st.warning("Ovaj korisnik nema povezan Auth ID (stari korisnik). Lozinka se ne može promijeniti preko ovog sustava.")                            
 
 
-                                )
+                                
 
 
 
