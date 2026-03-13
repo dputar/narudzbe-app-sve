@@ -603,7 +603,7 @@ if st.session_state.stranica == "godisnji":
         st.error(f"Greška pri dohvaćanju loga: {str(e)}")
 
 # ────────────────────────────────────────────────
-# KORISNICI – POPRAVLJEN EMAIL UPDATE
+# KORISNICI – SAMO ZA ADMINA (s kodskim ograničenjima za "ured")
 # ────────────────────────────────────────────────
 elif st.session_state.stranica == "korisnici":
     st.title("Administracija - Korisnici")
@@ -618,7 +618,6 @@ elif st.session_state.stranica == "korisnici":
         st.error(f"Greška pri dohvaćanju korisnika: {str(e)}")
         korisnici_data = []
 
-    # Search i dataframe (isti)
     if korisnici_data:
         df = pd.DataFrame(korisnici_data)
         if "lozinka" in df.columns:
@@ -663,17 +662,75 @@ elif st.session_state.stranica == "korisnici":
     else:
         st.info("Nema korisnika u bazi.")
 
-    # Novi korisnik (isti)
     if tip_korisnika == "administrator":
         if st.button("➕ Novi korisnik", type="primary"):
             st.session_state.novi_korisnik_form_shown = True
             st.rerun()
 
     if st.session_state.get("novi_korisnik_form_shown", False) and tip_korisnika == "administrator":
-        # (isti kod za novog korisnika – nema promjena)
-        pass
+        with st.form("novi_korisnik_form", clear_on_submit=False):
+            st.markdown("**Novi korisnik**")
+            col1, col2 = st.columns(2)
+            with col1:
+                ime_prezime = st.text_input("Ime i prezime", key="ime_prezime_novi")
+                korisničko_ime = st.text_input("Korisničko ime", key="korisničko_ime_novi")
+                email_novi = st.text_input("Email", key="email_novi")
+                lozinka = st.text_input("Lozinka", type="password", key="lozinka_novi")
+                tip_korisnika_novi = st.selectbox("Tip korisnika", [
+                    "administrator", "ured", "skladištar", "terenac", "gost"
+                ], key="tip_korisnika_novi")
+                godisnji_dani = st.number_input("Godišnji dani (po godini)", value=20, min_value=0, key="god_dani_novi")
+                slobodni_dani = st.number_input("Slobodni dani", value=0, min_value=0, key="slob_dani_novi")
+            with col2:
+                st.markdown("**Prava**")
+                prava = st.multiselect("Odaberi prava (može više)", [], key="prava_novi")
+                st.markdown("**Skladišta**")
+                skladišta = st.multiselect("Skladišta", [
+                    "Osijek - Glavno skladište", "Skladište Split", "Skladište Pula",
+                    "Skladište Zagreb", "Skladište Rijeka"
+                ], key="skladišta_novi")
+            col_submit, col_cancel = st.columns(2)
+            with col_submit:
+                if st.form_submit_button("Spremi", key="spremi_novi"):
+                    if korisničko_ime and ime_prezime and lozinka and email_novi:
+                        try:
+                            auth_res = supabase_admin.auth.admin.create_user({"email": email_novi, "password": lozinka, "email_confirm": True})
+                            auth_id = auth_res.user.id
+                        except Exception as auth_e:
+                            st.error(f"Greška pri kreiranju Auth korisnika: {str(auth_e)}")
+                            auth_id = None
 
-    st.subheader("Uređivanje korisnika")
+                        if auth_id:
+                            novi = {
+                                "auth_id": auth_id,
+                                "korisničko_ime": korisničko_ime,
+                                "ime_prezime": ime_prezime,
+                                "lozinka": bcrypt.hashpw(lozinka.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
+                                "tip_korisnika": tip_korisnika_novi,
+                                "aktivan": True,
+                                "prava": prava,
+                                "skladišta": skladišta,
+                                "godisnji_dani": godisnji_dani,
+                                "slobodni_dani": slobodni_dani,
+                                "email": email_novi
+                            }
+                            try:
+                                response = supabase_admin.table("korisnici").insert(novi).execute()
+                                st.success(f"Korisnik dodan! ID: {response.data[0]['id'] if response.data else 'Nepoznato'}")
+                                st.session_state.novi_korisnik_form_shown = False
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Greška pri dodavanju u tablicu: {str(e)}")
+                                if auth_id:
+                                    supabase_admin.auth.admin.delete_user(auth_id)
+                    else:
+                        st.error("Korisničko ime, ime i prezime, email te lozinka su obavezni!")
+            with col_cancel:
+                if st.form_submit_button("Odustani", key="odustani_novi"):
+                    st.session_state.novi_korisnik_form_shown = False
+                    st.rerun()
+
+st.subheader("Uređivanje korisnika")
     for korisnik in korisnici_data:
         is_admin = tip_korisnika == "administrator"
         is_own = korisnik["id"] == trenutni_id
